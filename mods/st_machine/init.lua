@@ -1,8 +1,13 @@
 st_machine = {}
 st_machine.stats = dofile(core.get_modpath("st_machine") .. "/stats.lua")
 st_machine.cargo = dofile(core.get_modpath("st_machine") .. "/cargo.lua")
+st_machine.gauge = dofile(core.get_modpath("st_machine") .. "/gauge.lua")
+st_machine.fuel = dofile(core.get_modpath("st_machine") .. "/fuel.lua")
+st_machine.hull = dofile(core.get_modpath("st_machine") .. "/hull.lua")
 local stats = st_machine.stats
 local cargo = st_machine.cargo
+local fuel = st_machine.fuel
+local hull = st_machine.hull
 
 local CAM_DISTANCE = 12
 local CAM_START_DISTANCE = 4
@@ -30,7 +35,23 @@ local PUSH_DEPTH = 0.25
 -- Look north (+z), level, so +x (east) is on the right of the screen
 local LOOK_PITCH = 0
 local LOOK_YAW = 0
+local LOOK_RANGE = math.rad(30)
 local START_POS = vector.new(0, 0, 0)
+-- Machine glow in full daylight; it scales down with the world light level
+local MAX_GLOW = 10
+
+local DEPTH_HUD = "st_machine:depth"
+local DEPTH_INTERVAL = 0.5
+st_hud.register_text(DEPTH_HUD, {
+	position = {x = 0.5, y = 0}, offset = {x = 0, y = 30}, size = 1.3, color = 0xFFFFFF,
+	mode = "vehicle",
+})
+
+local function update_depth(player, pos)
+	local y = math.floor(pos.y + 0.5)
+	local label = y > 0 and "Height" or "Depth"
+	st_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm", label, y))
+end
 
 -- Collision box: narrower than a node, bottom on the node center line below
 local HALF_WIDTH = 0.3
@@ -38,8 +59,6 @@ local BOX_BOTTOM = -0.5
 local BOX_TOP = 0
 -- How far past the box a solid node still counts as touching
 local TOUCH_DISTANCE = 0.08
--- Horizontal foot offset for the ground check
-local FOOT_OFFSET = 0.4
 
 -- Opposite key pairs: horizontal first, then vertical
 local KEYS = {
@@ -94,7 +113,8 @@ core.register_entity("st_machine:machine", {
 		physical = true,
 		collide_with_objects = false,
 		collisionbox = {-HALF_WIDTH, BOX_BOTTOM, -HALF_WIDTH, HALF_WIDTH, BOX_TOP, HALF_WIDTH},
-		-- Light is sampled at box corners, which end up inside solid nodes while digging
+		-- Light is sampled at box corners, which end up inside solid nodes while digging;
+		-- the glow tracks the world light level (see the globalstep)
 		glow = 10,
 		pointable = false,
 		static_save = false,
@@ -130,7 +150,6 @@ end
 local function held_entries(control)
 	local held = {}
 	for _, pair in ipairs(KEYS) do
-		core.log("warning", "[loop-debug] held_entries iter")
 		local a, b = control[pair[1].key], control[pair[2].key]
 		if a and not b then
 			held[#held + 1] = pair[1]
@@ -138,21 +157,14 @@ local function held_entries(control)
 			held[#held + 1] = pair[2]
 		end
 	end
-	core.log("warning", "[loop-debug] held_entries done")
 	return held
 end
 
+-- Floor under the node column the machine is centered in
 local function grounded(pos)
-	for _, dx in ipairs({-FOOT_OFFSET, FOOT_OFFSET}) do
-		core.log("warning", "[loop-debug] grounded iter")
-		local def = node_def(vector.round(vector.new(
-			pos.x + dx, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z)))
-		if def and def.walkable then
-			return true
-		end
-	end
-	core.log("warning", "[loop-debug] grounded done")
-	return false
+	local def = node_def(vector.round(vector.new(
+		pos.x, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z)))
+	return def ~= nil and def.walkable == true
 end
 
 -- "free": nothing solid in that direction, "dig": diggable node touching,
@@ -200,10 +212,8 @@ local function take_node(pos, player)
 	local drop = def and def.st_cargo_drop and def.st_cargo_drop(pos)
 	core.remove_node(pos)
 	for item, count in pairs(drop or {}) do
-		core.log("warning", "[loop-debug] take_node drop iter")
 		cargo.add(player, item, count)
 	end
-	core.log("warning", "[loop-debug] take_node drop done")
 	return true
 end
 
@@ -227,7 +237,6 @@ local function control_step(session, player, pos, control, dtime)
 	local on_ground = grounded(class_pos)
 	local free, digs = false, {}
 	for _, entry in ipairs(held_entries(control)) do
-		core.log("warning", "[loop-debug] control_step entry iter")
 		local kind, target = classify(class_pos, entry, on_ground, my_stats.can_dig_up)
 		if kind == "free" then
 			free = true
@@ -235,17 +244,14 @@ local function control_step(session, player, pos, control, dtime)
 			digs[#digs + 1] = {entry = entry, target = target}
 		end
 	end
-	core.log("warning", "[loop-debug] control_step entries done")
 
 	if dig then
 		local pick
 		for _, candidate in ipairs(digs) do
-			core.log("warning", "[loop-debug] control_step candidate iter")
 			if candidate.entry == dig.entry then
 				pick = candidate
 			end
 		end
-		core.log("warning", "[loop-debug] control_step candidates done")
 		if free or not pick or pick.target ~= dig.target then
 			end_dig(session, false)
 		else
@@ -293,10 +299,8 @@ local function spawn_exhaust(session, dtime)
 	session.exhaust_timer = session.exhaust_timer - EXHAUST_INTERVAL
 	local pos = session.obj:get_pos()
 	for _, nozzle in ipairs(NOZZLES) do
-		core.log("warning", "[loop-debug] spawn_exhaust nozzle iter")
 		local origin = vector.add(pos, vector.rotate(nozzle, vector.new(0, session.yaw, 0)))
 		for _ = 1, EXHAUST_PER_NOZZLE do
-			core.log("warning", "[loop-debug] spawn_exhaust particle iter")
 			local lifetime = 0.4 + math.random() * 0.4
 			core.add_particle({
 				pos = vector.offset(origin, math.random() * 0.06 - 0.03, 0, math.random() * 0.06 - 0.03),
@@ -308,9 +312,7 @@ local function spawn_exhaust(session, dtime)
 				glow = 12,
 			})
 		end
-		core.log("warning", "[loop-debug] spawn_exhaust particles done")
 	end
-	core.log("warning", "[loop-debug] spawn_exhaust nozzles done")
 end
 
 local function animate(session, control, dtime)
@@ -336,10 +338,8 @@ local function animate(session, control, dtime)
 		session.wheel_angle = (session.wheel_angle + forward / WHEEL_RADIUS) % (2 * math.pi)
 	end
 	for _, bone in ipairs(WHEELS) do
-		core.log("warning", "[loop-debug] animate bone iter " .. bone)
 		obj:set_bone_override(bone, {rotation = {vec = vector.new(0, 0, session.wheel_angle)}})
 	end
-	core.log("warning", "[loop-debug] animate bones done")
 end
 
 local function start(player, pos)
@@ -362,77 +362,187 @@ local function start(player, pos)
 	player:set_look_vertical(LOOK_PITCH)
 	player:set_look_horizontal(LOOK_YAW)
 	player:hud_set_flags({wielditem = false, crosshair = false})
+	fuel.refresh(player)
+	hull.refresh(player)
+	update_depth(player, pos)
 	player:set_sky({fog = {fog_distance = VIEW_DISTANCE, fog_start = FOG_START}})
 	sessions[player:get_player_name()] = {
 		obj = obj, rig = rig, cam_offset = cam_offset,
-		gravity = DEFAULT_GRAVITY, dig = nil,
-		yaw = 0, target_yaw = 0, wheel_angle = 0,
+		gravity = DEFAULT_GRAVITY, dig = nil, depth_timer = 0, save_timer = 0,
+		yaw = 0, target_yaw = 0, wheel_angle = 0, last_pos = pos,
 	}
 end
 
-core.register_globalstep(function(dtime)
-	for name, session in pairs(sessions) do
-		core.log("warning", "[loop-debug] globalstep session iter")
-		local player = core.get_player_by_name(name)
-		local pos = session.obj:get_pos()
-		local rig_pos = session.rig:get_pos()
-		if not player or not pos or not rig_pos then
-			session.rig:remove()
-			session.obj:remove()
-			sessions[name] = nil
-		else
-
-			session.cam_offset.z = approach(
-				session.cam_offset.z, -CAM_DISTANCE, CAM_PULLBACK_SPEED * dtime)
-			local cam_target = vector.add(pos, session.cam_offset)
-			local offset = vector.subtract(cam_target, rig_pos)
-			session.rig:set_velocity(vector.multiply(offset, math.min(FOLLOW_SPEED, 1 / dtime)))
-
-			local control = player:get_player_control()
-			control_step(session, player, pos, control, dtime)
-			animate(session, control, dtime)
-		end
-	end
-	core.log("warning", "[loop-debug] globalstep sessions done")
-end)
-
 local SAVED_POS_KEY = "st_machine:pos"
+local SAVE_INTERVAL = 1
 
 local function saved_pos(player)
 	return core.string_to_pos(player:get_meta():get_string(SAVED_POS_KEY)) or START_POS
 end
 
-core.register_on_leaveplayer(function(player)
+-- player name -> token of the spawn waiting for the map; a newer spawn or leaving
+-- the mode cancels it
+local pending = {}
+
+-- Wait for the map around pos to exist before spawning the machine
+local function spawn_at(name, pos)
+	local token = {}
+	pending[name] = token
+	local radius = vector.new(16, 16, 16)
+	core.emerge_area(vector.subtract(pos, radius), vector.add(pos, radius),
+		function(_, _, calls_remaining)
+			if calls_remaining > 0 or pending[name] ~= token then
+				return
+			end
+			pending[name] = nil
+			local joined = core.get_player_by_name(name)
+			if joined and not sessions[name] and st_mode.get(joined) == "vehicle" then
+				start(joined, pos)
+			end
+		end)
+end
+
+local function clamp_look(player)
+	local yaw = player:get_look_horizontal()
+	local dyaw = (yaw - LOOK_YAW + math.pi) % (2 * math.pi) - math.pi
+	if math.abs(dyaw) > LOOK_RANGE then
+		player:set_look_horizontal(LOOK_YAW + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, dyaw)))
+	end
+	local pitch = player:get_look_vertical()
+	if math.abs(pitch - LOOK_PITCH) > LOOK_RANGE then
+		player:set_look_vertical(LOOK_PITCH + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, pitch - LOOK_PITCH)))
+	end
+end
+
+local function vehicle_step(player, dtime)
 	local name = player:get_player_name()
 	local session = sessions[name]
-	stats.forget(player)
-	cargo.forget(player)
+	if not session then
+		return
+	end
+	local pos = session.obj:get_pos()
+	local rig_pos = session.rig:get_pos()
+	if not pos or not rig_pos then
+		-- The machine or rig is gone (e.g. its block unloaded): start over where it was
+		session.rig:remove()
+		session.obj:remove()
+		sessions[name] = nil
+		-- A destroyed machine is respawned by destroy itself
+		if not session.destroyed then
+			player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(session.last_pos, 3))
+			spawn_at(name, session.last_pos)
+		end
+		return
+	end
+	session.last_pos = pos
+
+	session.cam_offset.z = approach(
+		session.cam_offset.z, -CAM_DISTANCE, CAM_PULLBACK_SPEED * dtime)
+	local cam_target = vector.add(pos, session.cam_offset)
+	local offset = vector.subtract(cam_target, rig_pos)
+	session.rig:set_velocity(vector.multiply(offset, math.min(FOLLOW_SPEED, 1 / dtime)))
+
+	clamp_look(player)
+	local control = player:get_player_control()
+	local light = stats.get(player)
+	local ratio = st_environment.update(
+		player, pos.y, light.light_fade_end, light.vignette_max)
+	local glow = math.floor(ratio * MAX_GLOW + 0.5)
+	if session.glow ~= glow then
+		session.glow = glow
+		session.obj:set_properties({glow = glow})
+	end
+	session.depth_timer = session.depth_timer + dtime
+	if session.depth_timer >= DEPTH_INTERVAL then
+		session.depth_timer = session.depth_timer - DEPTH_INTERVAL
+		update_depth(player, pos)
+	end
+	session.save_timer = session.save_timer + dtime
+	if session.save_timer >= SAVE_INTERVAL then
+		session.save_timer = 0
+		player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
+	end
+	control_step(session, player, pos, control, dtime)
+	animate(session, control, dtime)
+end
+
+local EXPLOSION_PARTICLES = 60
+
+function st_machine.destroy(player)
+	local name = player:get_player_name()
+	local session = sessions[name]
+	if (session and session.destroyed) or st_mode.get(player) ~= "vehicle" then
+		return
+	end
+	-- The penalty is applied at once so it survives leaving before the deferred respawn
+	cargo.clear(player)
+	stats.reset_upgrades(player)
+	local light = stats.get(player)
+	st_environment.update(player, START_POS.y, light.light_fade_end, light.vignette_max)
+	hull.set(player, stats.get(player).max_hull)
+	fuel.set(player, stats.get(player).max_fuel / 2)
+	player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(START_POS, 3))
+	local pos = session and session.obj:get_pos()
 	if session then
+		session.destroyed = true
+	end
+	if pos then
+		for _ = 1, EXPLOSION_PARTICLES do
+			local lifetime = 0.5 + math.random() * 0.8
+			core.add_particle({
+				pos = pos,
+				velocity = vector.new(
+					(math.random() - 0.5) * 8, math.random() * 6, (math.random() - 0.5) * 8),
+				acceleration = vector.new(0, -6, 0),
+				expirationtime = lifetime,
+				size = 1.5 + math.random() * 1.5,
+				texture = EXHAUST_TEXTURE,
+				animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = lifetime + 0.1},
+				glow = 14,
+			})
+		end
+	end
+	-- Deferred so the session is not replaced in the middle of its own step
+	core.after(0, function()
+		if session and sessions[name] == session then
+			session.rig:remove()
+			session.obj:remove()
+			sessions[name] = nil
+		end
+		if core.get_player_by_name(name) then
+			spawn_at(name, START_POS)
+		end
+	end)
+end
+
+st_mode.register_mode("vehicle", {
+	on_enter = function(player)
+		spawn_at(player:get_player_name(), saved_pos(player))
+	end,
+	on_exit = function(player)
+		local name = player:get_player_name()
+		pending[name] = nil
+		local session = sessions[name]
+		if not session then
+			return
+		end
+		-- A destroyed machine already saved the respawn position
 		local pos = session.dig and session.dig.anchor or session.obj:get_pos()
-		if pos then
+		if pos and not session.destroyed then
 			player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
 		end
 		session.rig:remove()
 		session.obj:remove()
 		sessions[name] = nil
-	end
-end)
+	end,
+	on_step = vehicle_step,
+})
 
-core.register_on_joinplayer(function(player)
-	local name = player:get_player_name()
-	local radius = vector.new(16, 16, 16)
-	local pos = saved_pos(player)
-	-- Wait for the map around the start to exist before spawning the machine
-	core.emerge_area(vector.subtract(pos, radius), vector.add(pos, radius),
-		function(_, _, calls_remaining)
-			if calls_remaining > 0 then
-				return
-			end
-			local joined = core.get_player_by_name(name)
-			if joined and not sessions[name] then
-				start(joined, pos)
-			end
-		end)
+core.register_on_leaveplayer(function(player)
+	stats.forget(player)
+	cargo.forget(player)
+	fuel.forget(player)
+	hull.forget(player)
 end)
 
 -- The builtin clear removes the machine and camera rig; only clear other entities

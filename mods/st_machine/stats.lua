@@ -12,6 +12,14 @@ stats.base = {
 	can_dig_up = false,
 	-- Total cargo volume the hold can take
 	cargo_capacity = 10,
+	-- Size of the fuel tank
+	max_fuel = 100,
+	-- Hit points; the machine is destroyed at 0
+	max_hull = 100,
+	-- Depth (y) where darkness is full; it starts at y = -10 (see st_environment)
+	light_fade_end = -50,
+	-- Vignette opacity at full darkness (0..1); light upgrades lower it, st_environment floors it at 0.25
+	vignette_max = 0.75,
 }
 
 -- Applying an upgrade overwrites these stat values
@@ -61,6 +69,11 @@ function stats.add_upgrade(player, upgrade)
 	player:get_meta():set_string(META_KEY, core.write_json(list))
 	cache[player:get_player_name()] = nil
 	return true
+end
+
+function stats.reset_upgrades(player)
+	player:get_meta():set_string(META_KEY, "[]")
+	cache[player:get_player_name()] = nil
 end
 
 function stats.forget(player)
