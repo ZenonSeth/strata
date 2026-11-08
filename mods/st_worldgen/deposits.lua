@@ -2,6 +2,7 @@
 -- Deposits are generated per cell from the cell position, so they are identical in every
 -- chunk that touches them and continue across chunk borders.
 return function(world)
+	local surface_y = dofile(core.get_modpath("st_utils") .. "/constants.lua").surface_y
 	local CELL = 16
 	-- Linear size multiplier for pockets, lakes, veins and seams (gems stay tiny)
 	local SIZE = 1.5
@@ -177,7 +178,7 @@ return function(world)
 				data[vi] = ids[1]
 				return
 			end
-			local w = weight_at(kind.curve, -1 - y) + jitter
+			local w = weight_at(kind.curve, surface_y - y) + jitter
 			data[vi] = ids[w < POOR_BELOW and 1 or (w < REGULAR_BELOW and 2 or 3)]
 		end
 
@@ -187,7 +188,7 @@ return function(world)
 		local cz0, cz1 = floor((z_min - MARGIN) / CELL), floor((z_max + MARGIN) / CELL)
 
 		for cy = cy0, cy1 do
-			local depth = -1 - (cy * CELL + CELL / 2)
+			local depth = surface_y - (cy * CELL + CELL / 2)
 			local row = {}
 			local any = false
 			for k, kd in ipairs(kinds) do

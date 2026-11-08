@@ -36,7 +36,10 @@ local PUSH_DEPTH = 0.25
 local LOOK_PITCH = 0
 local LOOK_YAW = 0
 local LOOK_RANGE = math.rad(30)
-local START_POS = vector.new(0, 0, 0)
+local SURFACE_Y = st_utils.constants.surface_y
+local SLICE_Z = st_utils.constants.slice_z
+-- The machine rests on the ground node, so its centre is one node above it
+local START_POS = vector.new(0, SURFACE_Y + 1, SLICE_Z)
 -- Machine glow in full daylight; it scales down with the world light level
 local MAX_GLOW = 10
 
@@ -48,7 +51,7 @@ st_hud.register_text(DEPTH_HUD, {
 })
 
 local function update_depth(player, pos)
-	local y = math.floor(pos.y + 0.5)
+	local y = math.floor(pos.y + 0.5) - START_POS.y
 	local label = y > 0 and "Height" or "Depth"
 	st_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm", label, y))
 end

@@ -1,7 +1,10 @@
--- Terrain exists only for z >= 0 (the gameplay slice is z = 0), up to BACK_DEPTH
+-- Terrain exists only at and behind the gameplay slice, up to BACK_DEPTH behind it
 local BACK_DEPTH = 100
 
 local world = dofile(core.get_modpath("st_nodes") .. "/data.lua")
+local constants = dofile(core.get_modpath("st_utils") .. "/constants.lua")
+local surface_y = constants.surface_y
+local slice_z = constants.slice_z
 local strata = world.strata
 
 -- Picks the rock inside a stratum overlap. Flat in z, so the backing wall continues the slice.
@@ -39,9 +42,9 @@ local place_deposits = dofile(core.get_modpath("st_worldgen") .. "/deposits.lua"
 local data = {}
 
 core.register_on_generated(function(vm, minp, maxp)
-	local z_min = math.max(minp.z, 0)
-	local z_max = math.min(maxp.z, BACK_DEPTH)
-	local y_max = math.min(maxp.y, -1)
+	local z_min = math.max(minp.z, slice_z)
+	local z_max = math.min(maxp.z, slice_z + BACK_DEPTH)
+	local y_max = math.min(maxp.y, surface_y)
 	if z_min > z_max or minp.y > y_max then
 		return
 	end
@@ -52,10 +55,10 @@ core.register_on_generated(function(vm, minp, maxp)
 
 	local rows = {}
 	for y = minp.y, y_max do
-		if y == -1 then
+		if y == surface_y then
 			rows[y] = {c_sand}
 		else
-			local a, b, t = strata_at(-1 - y)
+			local a, b, t = strata_at(surface_y - y)
 			rows[y] = {c_stratum[a], b and c_stratum[b], t}
 		end
 	end
@@ -87,8 +90,8 @@ core.register_on_generated(function(vm, minp, maxp)
 	end
 
 	-- Ore, gems and liquids only in the diggable slice; the backing wall stays plain rock
-	if z_min == 0 then
-		place_deposits(data, area, minp, maxp, y_max, 0, 0)
+	if z_min == slice_z then
+		place_deposits(data, area, minp, maxp, y_max, slice_z, slice_z)
 	end
 
 	vm:set_data(data)
