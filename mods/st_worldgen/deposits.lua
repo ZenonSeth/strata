@@ -29,14 +29,17 @@ return function(world)
 		return core.get_content_id("st_nodes:" .. name)
 	end
 
-	local is_rock = {}
-	for _, s in ipairs(world.strata) do
-		is_rock[id(s.name)] = true
-	end
+	local RICHNESS = {"poor", "regular", "rich"}
 
+	local is_rock = {}
 	local is_rock_or_ore = {}
-	for c in pairs(is_rock) do
-		is_rock_or_ore[c] = true
+	-- Rock or ore content id -> the rock it sits in; ore and gem nodes exist per host rock
+	local host_of = {}
+	for _, s in ipairs(world.strata) do
+		local rock = id(s.name)
+		is_rock[rock] = true
+		is_rock_or_ore[rock] = true
+		host_of[rock] = rock
 	end
 
 	-- Ores and liquids first, gems last (a gem may replace ore)
@@ -49,19 +52,30 @@ return function(world)
 			kind.replace = is_rock
 		else
 			kind.shape = m.shape
-			kind.ids = {id("ore_" .. m.name .. "_poor"), id("ore_" .. m.name .. "_regular"), id("ore_" .. m.name .. "_rich")}
+			kind.by_host = {}
 			kind.replace = is_rock
-			for _, c in ipairs(kind.ids) do
-				is_rock_or_ore[c] = true
+			for _, s in ipairs(world.strata) do
+				local rock = id(s.name)
+				local ids = {}
+				for n, richness in ipairs(RICHNESS) do
+					ids[n] = core.get_content_id(world.ore_node(m.name, richness, s.name))
+					is_rock_or_ore[ids[n]] = true
+					host_of[ids[n]] = rock
+				end
+				kind.by_host[rock] = ids
 			end
 		end
 		kind.avg = AVG_SIZE[kind.shape]
 		kinds[#kinds + 1] = kind
 	end
 	for _, g in ipairs(world.gems) do
+		local by_host = {}
+		for _, s in ipairs(world.strata) do
+			by_host[id(s.name)] = {core.get_content_id(world.gem_node(g.name, s.name))}
+		end
 		kinds[#kinds + 1] = {
 			curve = g.curve, density = g.rarity, shape = "gem", avg = AVG_SIZE.gem,
-			ids = {id("gem_" .. g.name)}, replace = is_rock_or_ore,
+			by_host = by_host, replace = is_rock_or_ore,
 		}
 	end
 
@@ -170,10 +184,11 @@ return function(world)
 				return
 			end
 			local vi = area:index(x, y, z)
-			if not kind.replace[data[vi]] then
+			local current = data[vi]
+			if not kind.replace[current] then
 				return
 			end
-			local ids = kind.ids
+			local ids = kind.ids or kind.by_host[host_of[current]]
 			if #ids == 1 then
 				data[vi] = ids[1]
 				return

@@ -2,7 +2,7 @@
 -- The data files are unscaled metres; the world is DEPTH_SCALE times that.
 local DEPTH_SCALE = 0.25
 -- Multiply every material density (ores and liquids) and every gem rarity
-local ORE_DENSITY_SCALE = 1
+local ORE_DENSITY_SCALE = 3
 local GEM_RARITY_SCALE = 4
 
 local path = core.get_modpath("st_nodes")
@@ -13,6 +13,15 @@ local data = {
 	materials = dofile(path .. "/materials.lua"),
 	gems = dofile(path .. "/gems.lua"),
 }
+
+-- Ores and gems are registered once per host stratum; both sides must agree on the names
+function data.ore_node(material, richness, stratum)
+	return "st_nodes:ore_" .. material .. "_" .. richness .. "_in_" .. stratum
+end
+
+function data.gem_node(gem, stratum)
+	return "st_nodes:gem_" .. gem .. "_in_" .. stratum
+end
 
 local function scaled(depth)
 	return math.floor(depth * DEPTH_SCALE + 0.5)

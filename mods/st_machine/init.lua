@@ -13,7 +13,7 @@ local CAM_DISTANCE = 12
 local CAM_START_DISTANCE = 4
 -- The camera starts CAM_START_DISTANCE away and backs off to CAM_DISTANCE at this speed (nodes/s)
 local CAM_PULLBACK_SPEED = 4
-local VIEW_DISTANCE = 50
+local VIEW_DISTANCE = 80
 -- Fraction of the view distance where fog starts
 local FOG_START = 0.4
 local FOLLOW_SPEED = 8
@@ -214,6 +214,7 @@ local function take_node(pos, player)
 	local def = node_def(pos)
 	local drop = def and def.st_cargo_drop and def.st_cargo_drop(pos)
 	core.remove_node(pos)
+	st_nodes.refresh_shapes(pos)
 	for item, count in pairs(drop or {}) do
 		cargo.add(player, item, count)
 	end
@@ -345,6 +346,20 @@ local function animate(session, control, dtime)
 	end
 end
 
+-- Put the player in the camera rig and apply the vehicle view
+local function board(player, session)
+	player:set_attach(session.rig)
+	player:set_camera({mode = "first"})
+	-- player:set_properties({zoom_fov = 0})
+	player:set_look_vertical(LOOK_PITCH)
+	player:set_look_horizontal(LOOK_YAW)
+	player:hud_set_flags({wielditem = false, crosshair = false})
+	fuel.refresh(player)
+	hull.refresh(player)
+	update_depth(player, session.obj:get_pos())
+	player:set_sky({fog = {fog_distance = VIEW_DISTANCE, fog_start = FOG_START}})
+end
+
 local function start(player, pos)
 	local obj = core.add_entity(pos, "st_machine:machine")
 	if not obj then
@@ -359,21 +374,13 @@ local function start(player, pos)
 		obj:remove()
 		return
 	end
-	player:set_attach(rig)
-	player:set_camera({mode = "first"})
-	player:set_properties({zoom_fov = 0})
-	player:set_look_vertical(LOOK_PITCH)
-	player:set_look_horizontal(LOOK_YAW)
-	player:hud_set_flags({wielditem = false, crosshair = false})
-	fuel.refresh(player)
-	hull.refresh(player)
-	update_depth(player, pos)
-	player:set_sky({fog = {fog_distance = VIEW_DISTANCE, fog_start = FOG_START}})
-	sessions[player:get_player_name()] = {
+	local session = {
 		obj = obj, rig = rig, cam_offset = cam_offset,
 		gravity = DEFAULT_GRAVITY, dig = nil, depth_timer = 0, save_timer = 0,
 		yaw = 0, target_yaw = 0, wheel_angle = 0, last_pos = pos,
 	}
+	sessions[player:get_player_name()] = session
+	board(player, session)
 end
 
 local SAVED_POS_KEY = "st_machine:pos"
@@ -518,10 +525,28 @@ function st_machine.destroy(player)
 	end)
 end
 
+local function discard(name)
+	local session = sessions[name]
+	if session then
+		session.rig:remove()
+		session.obj:remove()
+		sessions[name] = nil
+	end
+end
+
 st_mode.register_mode("vehicle", {
 	on_enter = function(player)
-		spawn_at(player:get_player_name(), saved_pos(player))
+		local name = player:get_player_name()
+		local session = sessions[name]
+		if session and not session.destroyed and session.obj:get_pos() and session.rig:get_pos() then
+			board(player, session)
+			return
+		end
+		-- The parked machine is gone (e.g. its block unloaded): start over where it was
+		discard(name)
+		spawn_at(name, saved_pos(player))
 	end,
+	-- The machine and camera rig stay where they are while the player is out
 	on_exit = function(player)
 		local name = player:get_player_name()
 		pending[name] = nil
@@ -529,19 +554,34 @@ st_mode.register_mode("vehicle", {
 		if not session then
 			return
 		end
-		-- A destroyed machine already saved the respawn position
-		local pos = session.dig and session.dig.anchor or session.obj:get_pos()
-		if pos and not session.destroyed then
-			player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
+		if session.destroyed then
+			discard(name)
+			return
 		end
-		session.rig:remove()
-		session.obj:remove()
-		sessions[name] = nil
+		if session.dig then
+			end_dig(session, false)
+		end
+		local pos = session.obj:get_pos() or session.last_pos
+		session.last_pos = pos
+		player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
+		session.obj:set_velocity(vector.zero())
+		session.obj:set_acceleration(vector.new(0, -session.gravity, 0))
+		session.rig:set_velocity(vector.zero())
+		player:set_detach()
+		player:set_pos(vector.offset(pos, 0, BOX_BOTTOM, 0))
 	end,
 	on_step = vehicle_step,
 })
 
 core.register_on_leaveplayer(function(player)
+	local name = player:get_player_name()
+	local session = sessions[name]
+	local pos = session and not session.destroyed and session.obj:get_pos()
+	if pos then
+		player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
+	end
+	pending[name] = nil
+	discard(name)
 	stats.forget(player)
 	cargo.forget(player)
 	fuel.forget(player)
