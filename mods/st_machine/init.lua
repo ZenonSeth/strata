@@ -38,8 +38,8 @@ local LOOK_YAW = 0
 local LOOK_RANGE = math.rad(30)
 local SURFACE_Y = st_utils.constants.surface_y
 local SLICE_Z = st_utils.constants.slice_z
--- The machine rests on the ground node, so its centre is one node above it
-local START_POS = vector.new(0, SURFACE_Y + 1, SLICE_Z)
+-- In front of the shop; the machine rests on the ground node, so its centre is one node above it
+local START_POS = vector.new(st_utils.constants.shop_x, SURFACE_Y + 1, SLICE_Z)
 -- Machine glow in full daylight; it scales down with the world light level
 local MAX_GLOW = 10
 
@@ -48,6 +48,12 @@ local DEPTH_INTERVAL = 0.5
 st_hud.register_text(DEPTH_HUD, {
 	position = {x = 0.5, y = 0}, offset = {x = 0, y = 30}, size = 1.3, color = 0xFFFFFF,
 	mode = "vehicle",
+})
+
+local PAD_HUD = "st_machine:pad"
+st_hud.register_text(PAD_HUD, {
+	position = {x = 0.5, y = 0.5}, offset = {x = 0, y = -90}, size = 1.3, color = 0xFFFFFF,
+	mode = "vehicle", background = {},
 })
 
 local function update_depth(player, pos)
@@ -96,7 +102,7 @@ local function fill(color)
 	return "[fill:16x16:" .. color
 end
 
--- One texture per mesh in the glb
+-- One texture per material in the glb (at least as many as it has)
 local MODEL_MESH_COUNT = 47
 
 local function model_textures()
@@ -346,13 +352,17 @@ local function animate(session, control, dtime)
 	end
 end
 
+local function reset_look(player)
+	player:set_look_vertical(LOOK_PITCH)
+	player:set_look_horizontal(LOOK_YAW)
+end
+
 -- Put the player in the camera rig and apply the vehicle view
 local function board(player, session)
 	player:set_attach(session.rig)
 	player:set_camera({mode = "first"})
 	-- player:set_properties({zoom_fov = 0})
-	player:set_look_vertical(LOOK_PITCH)
-	player:set_look_horizontal(LOOK_YAW)
+	reset_look(player)
 	player:hud_set_flags({wielditem = false, crosshair = false})
 	fuel.refresh(player)
 	hull.refresh(player)
@@ -424,6 +434,25 @@ local function clamp_look(player)
 	end
 end
 
+-- Shows the prompt of the active pad the machine stands on; a fresh Down press uses it.
+-- Returns true if that left vehicle mode.
+local function pad_step(session, player, pos, control)
+	local pad = not session.dig and st_pads.get(vector.round(vector.new(
+		pos.x, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z))) or nil
+	local label = pad and ("[Down] " .. pad.label) or ""
+	if label ~= session.pad_label then
+		session.pad_label = label
+		st_hud.set_text(player, PAD_HUD, label)
+	end
+	local pressed = control.down and not session.down_held
+	session.down_held = control.down
+	if pad and pressed then
+		pad.on_use(player)
+		return st_mode.get(player) ~= "vehicle"
+	end
+	return false
+end
+
 local function vehicle_step(player, dtime)
 	local name = player:get_player_name()
 	local session = sessions[name]
@@ -471,6 +500,9 @@ local function vehicle_step(player, dtime)
 	if session.save_timer >= SAVE_INTERVAL then
 		session.save_timer = 0
 		player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
+	end
+	if pad_step(session, player, pos, control) then
+		return
 	end
 	control_step(session, player, pos, control, dtime)
 	animate(session, control, dtime)
@@ -540,6 +572,12 @@ st_mode.register_mode("vehicle", {
 		local session = sessions[name]
 		if session and not session.destroyed and session.obj:get_pos() and session.rig:get_pos() then
 			board(player, session)
+			-- Again next step: the client's own look can overwrite the first one when boarding mid-click
+			core.after(0, function()
+				if player:is_valid() and st_mode.get(player) == "vehicle" then
+					reset_look(player)
+				end
+			end)
 			return
 		end
 		-- The parked machine is gone (e.g. its block unloaded): start over where it was
@@ -588,7 +626,7 @@ core.register_on_leaveplayer(function(player)
 	hull.forget(player)
 end)
 
--- The builtin clear removes the machine and camera rig; only clear other entities
+-- The builtin clear removes the machine and camera rig; only clear other entities (unless flagged keep_on_clear)
 core.override_chatcommand("clearobjects", {
 	func = function(name, param)
 		if param ~= "quick" and param ~= "full" then
@@ -596,7 +634,7 @@ core.override_chatcommand("clearobjects", {
 		end
 		local doomed = {}
 		for _, entity in pairs(core.luaentities) do
-			if entity.name:sub(1, #"st_machine:") ~= "st_machine:" then
+			if entity.name:sub(1, #"st_machine:") ~= "st_machine:" and not entity.keep_on_clear then
 				doomed[#doomed + 1] = entity.object
 			end
 		end

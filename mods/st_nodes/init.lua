@@ -28,6 +28,7 @@ local shaped = {}
 function st_nodes.register_shaped_node(name, def)
 	def = table.copy(def)
 	def.groups = st_utils.get_common_groups(def.groups)
+	def.groups.not_in_creative_inventory = 1
 	local names = {[0] = {name}}
 	for mask = 1, shapes.COUNT - 1 do
 		names[mask] = {}
@@ -38,6 +39,7 @@ function st_nodes.register_shaped_node(name, def)
 			variant.node_box = {type = "fixed", fixed = shapes.boxes(mask, n)}
 			variant.collision_box = {type = "fixed", fixed = shapes.FULL}
 			variant.selection_box = {type = "fixed", fixed = shapes.FULL}
+			variant.groups = table.copy(def.groups)
 			variant.st_base = name
 			variant.drop = name
 			names[mask][n] = shapes.variant_name(name, mask, n)
@@ -241,7 +243,7 @@ for _, t in ipairs(SURFACE_TYPES) do
 		tiles = {rock_tile(1)},
 		-- Side overlay disabled: it flickers; `side` is built but unused
 		overlay_tiles = {top, CLEAR_TILE, CLEAR_TILE, CLEAR_TILE, CLEAR_TILE, CLEAR_TILE},
-		groups = st_utils.get_common_groups(),
+		groups = st_utils.get_common_groups({not_in_creative_inventory = 1}),
 		st_tier = strata[1].tier,
 		st_hardness = tier_hardness(strata[1].tier),
 	})
@@ -283,7 +285,7 @@ local function register_embedded(node_name, description, file, color, mark, host
 	end
 	def.overlay_tiles = {overlay}
 	def.description = description
-	def.groups = st_utils.get_common_groups()
+	def.groups = st_utils.get_common_groups({not_in_creative_inventory = 1})
 	core.register_node(node_name, def)
 end
 
@@ -340,7 +342,7 @@ for _, m in ipairs(materials) do
 			liquid_viscosity = l.viscosity,
 			liquid_renewable = false,
 			damage_per_second = l.damage,
-			groups = {liquid = 1},
+			groups = {liquid = 1, not_in_creative_inventory = 1},
 			st_material = m.name,
 		}
 		local function make(extra)
@@ -370,3 +372,16 @@ for _, m in ipairs(materials) do
 		}))
 	end
 end
+
+-- Invisible wall for the ends of the map; solid to the machine and the player
+core.register_node("st_nodes:barrier", {
+	description = "Barrier",
+	drawtype = "airlike",
+	paramtype = "light",
+	sunlight_propagates = true,
+	walkable = true,
+	pointable = false,
+	diggable = false,
+	buildable_to = false,
+	groups = {not_in_creative_inventory = 1},
+})

@@ -1,3 +1,6 @@
 /*.md
 *.kra
+*.afphoto
 *~
+*~lock~*
+/tools/

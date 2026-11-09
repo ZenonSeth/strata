@@ -19,7 +19,8 @@ function st_hud.register_bar(id, def)
 end
 
 -- def: {position = {x, y} screen anchor, offset = {x, y} px, size = font multiplier,
--- color = 0xRRGGBB, mode = only shown in this mode (default: always)}
+-- color = 0xRRGGBB, mode = only shown in this mode (default: always),
+-- background = {color = ColorString, padding = {x, y} px} for a rectangle behind the text}
 function st_hud.register_text(id, def)
 	elements[id] = {kind = "text", def = def}
 end
@@ -50,13 +51,42 @@ local function create_bar(player, def)
 	return {ids = {bg, fill, text}, fill = fill, text = text}
 end
 
+-- The engine cannot measure text, so the background size is estimated from the label length
+local CHAR_WIDTH = 9
+local LINE_HEIGHT = 20
+local DEFAULT_BACKGROUND = "#00000099"
+local DEFAULT_PADDING = {x = 10, y = 6}
+
+local function background_scale(def, label)
+	if label == "" then
+		return {x = 0, y = 0}
+	end
+	local size = def.size or 1
+	local padding = def.background.padding or DEFAULT_PADDING
+	return {
+		x = #label * CHAR_WIDTH * size + 2 * padding.x,
+		y = LINE_HEIGHT * size + 2 * padding.y,
+	}
+end
+
 local function create_text(player, def, label)
+	local ids = {}
+	local background
+	if def.background then
+		background = player:hud_add({
+			type = "image", position = def.position, offset = def.offset, z_index = Z_BG,
+			text = "[fill:1x1:" .. (def.background.color or DEFAULT_BACKGROUND),
+			scale = background_scale(def, label), alignment = {x = 0, y = 0},
+		})
+		ids[1] = background
+	end
 	local hud = player:hud_add({
 		type = "text", position = def.position, offset = def.offset,
 		size = {x = def.size or 1, y = 0}, number = def.color or TEXT_COLOR,
 		alignment = {x = 0, y = 0}, text = label, z_index = Z_TEXT,
 	})
-	return {ids = {hud}, text = hud, label = label}
+	ids[#ids + 1] = hud
+	return {ids = ids, text = hud, background = background, label = label}
 end
 
 -- Brings the player's screen in line with the stored data
@@ -75,6 +105,9 @@ local function render(player, id)
 		elseif data.label ~= view.label then
 			view.label = data.label
 			player:hud_change(view.text, "text", data.label)
+			if view.background then
+				player:hud_change(view.background, "scale", background_scale(element.def, data.label))
+			end
 		end
 		return
 	end

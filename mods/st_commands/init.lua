@@ -15,3 +15,11 @@ end
 
 register_mode_command("foot", "foot", "Get out of the machine and walk", "On foot.")
 register_mode_command("drive", "vehicle", "Get back into the machine", "Driving.")
+
+core.register_chatcommand("guitest", {
+	description = "Show a window with the common formspec elements on a grid",
+	func = function(name)
+		st_gui.show_test(name)
+		return true, "GUI test."
+	end,
+})

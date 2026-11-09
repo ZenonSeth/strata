@@ -1,7 +1,8 @@
 st_mode = {}
 
--- Mode every player starts in; the mode is not saved between sessions
+-- Mode a player with no saved mode starts in
 local DEFAULT_MODE = "vehicle"
+local MODE_KEY = "st_mode:mode"
 
 local modes = {}
 -- player name -> mode name
@@ -37,6 +38,7 @@ function st_mode.set(player, name)
 		modes[old].on_exit(player)
 	end
 	current[player_name] = name
+	player:get_meta():set_string(MODE_KEY, name)
 	if def.on_enter then
 		def.on_enter(player)
 	end
@@ -56,7 +58,8 @@ core.register_globalstep(function(dtime)
 end)
 
 core.register_on_joinplayer(function(player)
-	st_mode.set(player, DEFAULT_MODE)
+	local saved = player:get_meta():get_string(MODE_KEY)
+	st_mode.set(player, modes[saved] and saved or DEFAULT_MODE)
 end)
 
 core.register_on_leaveplayer(function(player)
