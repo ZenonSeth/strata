@@ -1,14 +1,6 @@
 st_utils = {}
+st_utils.modpath = core.get_modpath(core.get_current_modname())
 
-st_utils.constants = dofile(core.get_modpath("st_utils") .. "/constants.lua")
-
-local COMMON_GROUPS = {oddly_breakable_by_hand = 1}
-
--- Fresh groups table for solid nodes; overrides add to or replace the common ones
-function st_utils.get_common_groups(overrides)
-	local groups = table.copy(COMMON_GROUPS)
-	for k, v in pairs(overrides or {}) do
-		groups[k] = v
-	end
-	return groups
-end
+-- Also loaded by the mapgen script, so it returns its table instead of assigning it
+st_utils.constants = dofile(st_utils.modpath .. "/constants.lua")
+dofile(st_utils.modpath .. "/base.lua")

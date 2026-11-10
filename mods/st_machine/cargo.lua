@@ -94,4 +94,4 @@ function cargo.forget(player)
 	cache[player:get_player_name()] = nil
 end
 
-return cargo
+st_machine.cargo = cargo

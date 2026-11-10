@@ -1,16 +1,4 @@
-core.register_mapgen_script(core.get_modpath("st_worldgen") .. "/mapgen.lua")
+st_worldgen = {}
+st_worldgen.modpath = core.get_modpath(core.get_current_modname())
 
--- Active pads of the surface buildings placed in mapgen.lua; the other menus come later
-local menus = {shop = st_start.show_workshop_menu}
-for id, label in pairs({shop = "Mechanic shop", refinery = "Ore refinery", contact = "Company contact"}) do
-	st_pads.register(id, {
-		label = label,
-		on_use = function(player)
-			if menus[id] then
-				menus[id](player)
-			else
-				core.chat_send_player(player:get_player_name(), label .. " (not built yet)")
-			end
-		end,
-	})
-end
+dofile(st_worldgen.modpath .. "/base.lua")

@@ -22,4 +22,4 @@ function hull.damage(player, amount)
 	return applied
 end
 
-return hull
+st_machine.hull = hull

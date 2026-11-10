@@ -30,4 +30,4 @@ function player_lighting.apply(player, overrides)
 	player:set_lighting(light)
 end
 
-return player_lighting
+st_environment.player_lighting = player_lighting

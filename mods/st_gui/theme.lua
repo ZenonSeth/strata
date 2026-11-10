@@ -1,5 +1,5 @@
 -- The one formspec theme (workshop: gunmetal panels, amber accent, rust pressed); textures come from
--- tools/gen_gui.py. Plain data, no mod globals.
+-- tools/gen_gui.py. Plain data.
 local TEXT = "#e8e0d0"
 local BUTTON_SLICE = 5
 
@@ -28,4 +28,4 @@ theme.prepend = table.concat({
 	"tableoptions[background=#1b1c1e;highlight=#7a3f1d;highlight_text=" .. TEXT .. "]",
 })
 
-return theme
+st_gui.theme = theme

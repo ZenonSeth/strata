@@ -41,4 +41,4 @@ function sky.forget(player)
 	clouds_shown[name] = nil
 end
 
-return sky
+st_environment.sky = sky

@@ -71,4 +71,4 @@ function vignette.forget(player)
 	shown[player:get_player_name()] = nil
 end
 
-return vignette
+st_environment.vignette = vignette

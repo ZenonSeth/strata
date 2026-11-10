@@ -69,4 +69,4 @@ function gauge.new(def)
 	return self
 end
 
-return gauge
+st_machine.gauge = gauge

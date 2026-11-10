@@ -80,4 +80,4 @@ function stats.forget(player)
 	cache[player:get_player_name()] = nil
 end
 
-return stats
+st_machine.stats = stats

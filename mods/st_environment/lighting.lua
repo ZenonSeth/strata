@@ -28,4 +28,4 @@ function lighting.forget(player)
 	sent[player:get_player_name()] = nil
 end
 
-return lighting
+st_environment.lighting = lighting

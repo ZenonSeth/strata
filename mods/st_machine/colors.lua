@@ -39,7 +39,7 @@ local MISSING_COLOR = "#ff00ff"
 
 -- Texture names of the model in slot order, read from the glb's JSON chunk
 local function model_texture_names()
-	local path = core.get_modpath("st_machine") .. "/models/digger1.glb"
+	local path = st_machine.modpath .. "/models/digger1.glb"
 	local file = assert(io.open(path, "rb"))
 	local data = file:read("*a")
 	file:close()
@@ -110,4 +110,4 @@ function colors.textures(chosen)
 	return textures
 end
 
-return colors
+st_machine.colors = colors

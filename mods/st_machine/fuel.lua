@@ -5,7 +5,7 @@ st_hud.register_bar(BAR, {
 	mode = "vehicle",
 })
 
-return st_machine.gauge.new({
+st_machine.fuel = st_machine.gauge.new({
 	meta_key = "st_machine:fuel",
 	max_stat = "max_fuel",
 	on_change = function(player, level, max)
