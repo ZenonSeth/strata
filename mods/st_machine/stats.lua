@@ -10,10 +10,12 @@ stats.base = {
 	-- Max climb speed (nodes/s) with an empty hold
 	thrust = 3,
 	can_dig_up = false,
+	-- Highest node tier (st_tier) the drill bit digs; harder nodes are solid walls
+	drill_tier = 1,
 	-- Total cargo volume the hold can take
 	cargo_capacity = 10,
-	-- Size of the fuel tank
-	max_fuel = 100,
+	-- Size of the fuel tank (litres)
+	max_fuel = st_machine_data.tanks[1].capacity,
 	-- Hit points; the machine is destroyed at 0
 	max_hull = 100,
 	-- Depth (y) where darkness is full; it starts at y = -10 (see st_environment)

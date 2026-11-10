@@ -224,8 +224,8 @@ local function grounded(pos)
 end
 
 -- "free": nothing solid in that direction, "dig": diggable node touching,
--- "blocked": anything else (undiggable, unloaded, or sideways without floor)
-local function classify(pos, entry, on_ground, can_dig_up)
+-- "blocked": anything else (undiggable, above the drill tier, unloaded, or sideways without floor)
+local function classify(pos, entry, on_ground, can_dig_up, drill_tier)
 	local dir = entry.dir
 	local reach = dir.y < 0 and -BOX_BOTTOM or (dir.y > 0 and BOX_TOP or HALF_WIDTH)
 	local target = vector.round(vector.offset(pos,
@@ -236,7 +236,7 @@ local function classify(pos, entry, on_ground, can_dig_up)
 	elseif not def.walkable then
 		return "free"
 	elseif def.diggable == false or (dir.y == 0 and not on_ground)
-			or (dir.y > 0 and not can_dig_up) then
+			or (dir.y > 0 and not can_dig_up) or (def.st_tier or 0) > drill_tier then
 		return "blocked"
 	end
 	return "dig", target
@@ -262,14 +262,14 @@ local function end_dig(session, keep_pos)
 	session.obj:set_properties({physical = true})
 end
 
--- Nodes may define st_cargo_drop(pos) returning {item = count}; no field means no drop
+-- Nodes with st_material and st_yield add that much of the item to the hold; what does not fit is lost
 local function take_node(pos, player)
 	local def = node_def(pos)
-	local drop = def and def.st_cargo_drop and def.st_cargo_drop(pos)
+	local item = def and def.st_material
 	core.remove_node(pos)
 	st_nodes.refresh_shapes(pos)
-	for item, count in pairs(drop or {}) do
-		cargo.add(player, item, count)
+	if item then
+		cargo.add(player, item, def.st_yield or 1)
 	end
 	return true
 end
@@ -287,6 +287,12 @@ local function dig_step(session, player, pick, dtime)
 	end
 end
 
+local FUEL = st_utils.constants.fuel
+
+local function burn_fuel(player, multiplier, dtime)
+	fuel.remove(player, FUEL.burn_per_second * multiplier * dtime)
+end
+
 local function control_step(session, player, pos, control, dtime)
 	local dig = session.dig
 	local my_stats = stats.get(player)
@@ -294,7 +300,7 @@ local function control_step(session, player, pos, control, dtime)
 	local on_ground = grounded(class_pos)
 	local free, digs = false, {}
 	for _, entry in ipairs(held_entries(control)) do
-		local kind, target = classify(class_pos, entry, on_ground, my_stats.can_dig_up)
+		local kind, target = classify(class_pos, entry, on_ground, my_stats.can_dig_up, my_stats.drill_tier)
 		if kind == "free" then
 			free = true
 		elseif kind == "dig" then
@@ -312,6 +318,7 @@ local function control_step(session, player, pos, control, dtime)
 		if free or not pick or pick.target ~= dig.target then
 			end_dig(session, false)
 		else
+			burn_fuel(player, FUEL.dig_mult, dtime)
 			dig_step(session, player, pick, dtime)
 			return
 		end
@@ -334,7 +341,13 @@ local function control_step(session, player, pos, control, dtime)
 	end
 	vel.x = approach(vel.x, target_vx, ACCEL * dtime)
 	local accel_y = -session.gravity
-	if control.up and not control.down then
+	local climbing = control.up and not control.down
+	if climbing then
+		burn_fuel(player, FUEL.climb_mult, dtime)
+	elseif control.left ~= control.right then
+		burn_fuel(player, 1, dtime)
+	end
+	if climbing then
 		local climb = my_stats.thrust / (1 + cargo.weight(player) * CARGO_DRAG)
 		vel.y = approach(vel.y, climb, ACCEL * dtime)
 		accel_y = 0

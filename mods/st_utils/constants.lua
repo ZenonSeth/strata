@@ -19,6 +19,17 @@ return {
 	interior = {origin = {x = 0, y = 0, z = -1000}, spacing = 500, columns = 16},
 	-- Landing speed (nodes/s) below which a machine landing makes no sound and does no damage
 	min_impact_speed = 10.9,
+	fuel = {
+		-- Litres per second while driving sideways (25 L lasts 5 minutes), whatever the tank size
+		burn_per_second = 25 / 300,
+		-- Burn rate multipliers on burn_per_second
+		dig_mult = 2,
+		climb_mult = 1.5,
+		-- Credits per litre at the pump
+		price_per_litre = 1,
+	},
+	-- Total volume the mechanic shop storage holds; it has no weight limit
+	storage_capacity = 100000,
 	-- kinds of interior node use; nodes are tagged with one, game logic listens for it
 	interact = {
 		upgrade = "upgrade",

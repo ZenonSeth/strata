@@ -154,14 +154,29 @@ end
 local MENU_FORM = "st_start:workshop"
 
 function st_start.show_workshop_menu(player)
-	local fs = st_gui.header(6, 3, "Mechanic shop")
-		.. ("button_exit[1,%g;4,0.9;enter;Enter Workshop]"):format(st_gui.CONTENT_Y)
+	local cost = st_refuel.full_cost(player)
+	local label = cost > 0 and ("Full Refuel (%s credits)"):format(st_player_resources.format_credits(cost))
+		or "Full Refuel (tank full)"
+	local y = st_gui.CONTENT_Y
+	local fs = st_gui.header(8, y + 3.5, "Mechanic shop")
+		.. ("button_exit[1,%g;6,0.9;enter;Enter Workshop]"):format(y)
+		.. ("button[1,%g;6,0.9;refuel;%s]"):format(y + 1.1, core.formspec_escape(label))
+		.. ("button[1,%g;6,0.9;deposit;Deposit All]"):format(y + 2.2)
 	core.show_formspec(player:get_player_name(), MENU_FORM, fs)
 end
 
 core.register_on_player_receive_fields(function(player, formname, fields)
-	if formname == MENU_FORM and fields.enter then
+	if formname ~= MENU_FORM then
+		return
+	end
+	if fields.enter then
 		st_start.enter_workshop(player)
+	elseif fields.refuel then
+		st_refuel.fill_full(player)
+		st_start.show_workshop_menu(player)
+	elseif fields.deposit then
+		st_storage.deposit_all(player)
+		st_start.show_workshop_menu(player)
 	end
 end)
 

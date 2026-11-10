@@ -2,7 +2,7 @@ local BAR = "st_machine:fuel"
 
 st_hud.register_bar(BAR, {
 	color = "#2ecc40", width = 240, height = 14, offset = {x = 130, y = -70},
-	mode = "vehicle",
+	mode = "vehicle", decimal = true,
 })
 
 st_machine.fuel = st_machine.gauge.new({

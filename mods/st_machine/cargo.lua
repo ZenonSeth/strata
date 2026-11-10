@@ -26,8 +26,18 @@ local function contents(player)
 	return cache[name]
 end
 
+local listeners = {}
+
+-- fn(player) runs after the hold contents change
+function cargo.register_on_change(fn)
+	listeners[#listeners + 1] = fn
+end
+
 local function save(player)
 	player:get_meta():set_string(META_KEY, core.write_json(contents(player)))
+	for _, fn in ipairs(listeners) do
+		fn(player)
+	end
 end
 
 local function total(player, field)

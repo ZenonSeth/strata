@@ -11,13 +11,15 @@ local model = {}
 local shown = {}
 
 -- def: {color = ColorString, width, height (px), offset = {x, y} from bottom center,
--- mode = only shown in this mode (default: always)}
+-- mode = only shown in this mode (default: always),
+-- decimal = show one decimal in the label while max is 100 or less}
 function st_hud.register_bar(id, def)
 	elements[id] = {kind = "bar", def = def}
 end
 
 -- def: {position = {x, y} screen anchor, offset = {x, y} px, size = font multiplier,
 -- color = 0xRRGGBB, mode = only shown in this mode (default: always),
+-- align = "right" keeps the right edge fixed at the anchor (default: centered),
 -- background = {color = ColorString, padding = {x, y} px} for a rectangle behind the text}
 function st_hud.register_text(id, def)
 	elements[id] = {kind = "text", def = def}
@@ -70,21 +72,36 @@ end
 local function create_text(player, def, label)
 	local ids = {}
 	local background
+	local right = def.align == "right"
+	local alignment = {x = right and -1 or 0, y = 0}
+	local text_offset = def.offset
+	if right and def.background then
+		local padding = def.background.padding or DEFAULT_PADDING
+		text_offset = {x = def.offset.x - padding.x, y = def.offset.y}
+	end
 	if def.background then
 		background = player:hud_add({
 			type = "image", position = def.position, offset = def.offset, z_index = Z_BG,
 			text = "[fill:1x1:" .. (def.background.color or DEFAULT_BACKGROUND),
-			scale = background_scale(def, label), alignment = {x = 0, y = 0},
+			scale = background_scale(def, label), alignment = alignment,
 		})
 		ids[1] = background
 	end
 	local hud = player:hud_add({
-		type = "text", position = def.position, offset = def.offset,
+		type = "text", position = def.position, offset = text_offset,
 		size = {x = def.size or 1, y = 0}, number = def.color or TEXT_COLOR,
-		alignment = {x = 0, y = 0}, text = label, z_index = Z_TEXT,
+		alignment = alignment, text = label, z_index = Z_TEXT,
 	})
 	ids[#ids + 1] = hud
 	return {ids = ids, text = hud, background = background, label = label}
+end
+
+-- Rounds up, so the label only reads 0 when empty
+local function bar_label(value, max, decimal)
+	if not decimal or max > 100 then
+		return math.ceil(value) .. "/" .. math.ceil(max)
+	end
+	return string.format("%.1f/%d", math.max(0, math.ceil(value * 10 - 1e-6)) / 10, math.ceil(max))
 end
 
 -- Brings the player's screen in line with the stored data
@@ -115,7 +132,7 @@ local function render(player, id)
 	end
 	-- The bar length is value / max; max only changes the label
 	local fraction = data.max > 0 and math.max(0, math.min(data.value / data.max, 1)) or 0
-	local label = math.ceil(data.value) .. "/" .. math.ceil(data.max)
+	local label = bar_label(data.value, data.max, element.def.decimal)
 	if fraction ~= view.fraction then
 		view.fraction = fraction
 		player:hud_change(view.fill, "scale", {x = fraction, y = 1})

@@ -2,6 +2,8 @@
 -- tools/gen_gui.py. Plain data.
 local TEXT = "#e8e0d0"
 local BUTTON_SLICE = 5
+-- Multiplies the player's font size in every themed formspec
+local FONT_SCALE = 1.25
 
 local theme = {
 	text = TEXT,
@@ -22,6 +24,7 @@ theme.prepend = table.concat({
 		.. ";textcolor=" .. TEXT .. "]",
 	"style_type[button:hovered;bgimg=st_gui_button_hover.png]",
 	"style_type[button:pressed;bgimg=st_gui_button_pressed.png]",
+	"style_type[*;font_size=*" .. FONT_SCALE .. "]",
 	"style_type[label,field,pwdfield,textarea,tabheader;textcolor=" .. TEXT .. "]",
 	-- No engine background on text inputs: draw st_gui.input_bg() behind them instead
 	"style_type[field,pwdfield,textarea;border=false]",

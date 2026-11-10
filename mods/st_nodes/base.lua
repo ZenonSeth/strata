@@ -2,7 +2,7 @@ local DIRT_LEVELS = 10
 local DIRT_COLOR_TOP = {0xa0, 0x76, 0x4a}
 local DIRT_COLOR_DEEP = {0x3a, 0x2a, 0x20}
 local DIRT_HARDNESS_TOP = 0.3
-local DIRT_HARDNESS_DEEP = 6
+local DIRT_HARDNESS_DEEP = 60
 
 local function fill(color)
 	return "[fill:16x16:" .. color
@@ -291,7 +291,7 @@ for host, s in ipairs(strata) do
 		if not m.liquid then
 			for _, r in ipairs(ORE_RICHNESS) do
 				register_embedded(data.ore_node(m.name, r.name, s.name),
-					m.description .. " (" .. r.name .. ", " .. s.name .. ")",
+					st_materials.get(m.name).description .. " (" .. r.name .. ", " .. s.name .. ")",
 					"st_nodes_ore_" .. m.name .. "_" .. r.name .. ".png", name_color(m.name), r.mark, host, {
 						st_material = m.name,
 						st_tier = m.tier,
@@ -303,7 +303,7 @@ for host, s in ipairs(strata) do
 	end
 
 	for _, g in ipairs(gems) do
-		register_embedded(data.gem_node(g.name, s.name), g.description .. " (" .. s.name .. ")",
+		register_embedded(data.gem_node(g.name, s.name), st_materials.get(g.name).description .. " (" .. s.name .. ")",
 			"st_nodes_gem_" .. g.name .. ".png", name_color(g.name), 6, host, {
 				st_material = g.name,
 				st_tier = g.tier,
@@ -352,7 +352,7 @@ for _, m in ipairs(materials) do
 		local source = "st_nodes:" .. m.name .. "_source"
 		local flowing = "st_nodes:" .. m.name .. "_flowing"
 		core.register_node(source, make({
-			description = m.description,
+			description = st_materials.get(m.name).description,
 			drawtype = "liquid",
 			liquidtype = "source",
 			liquid_alternative_flowing = flowing,
@@ -360,7 +360,7 @@ for _, m in ipairs(materials) do
 			st_yield = 1,
 		}))
 		core.register_node(flowing, make({
-			description = "Flowing " .. m.description:lower(),
+			description = "Flowing " .. st_materials.get(m.name).description:lower(),
 			drawtype = "flowingliquid",
 			paramtype2 = "flowingliquid",
 			liquidtype = "flowing",
