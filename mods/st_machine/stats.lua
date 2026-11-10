@@ -17,7 +17,7 @@ stats.base = {
 	-- Size of the fuel tank (litres)
 	max_fuel = st_machine_data.tanks[1].capacity,
 	-- Hit points; the machine is destroyed at 0
-	max_hull = 100,
+	max_hull = st_machine_data.hulls[1].max_hull,
 	-- Depth (y) where darkness is full; it starts at y = -10 (see st_environment)
 	light_fade_end = -50,
 	-- Vignette opacity at full darkness (0..1); light upgrades lower it, st_environment floors it at 0.25

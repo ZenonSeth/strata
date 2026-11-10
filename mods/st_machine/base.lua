@@ -386,7 +386,7 @@ local function spawn_exhaust(session, dtime)
 end
 
 -- Landing speed is the faster of this and the previous step's fall: the ground check trips just before contact
-local function impact_sound(session, pos, vel_y)
+local function impact(session, player, pos, vel_y)
 	local on_ground = grounded(pos)
 	local was_grounded = session.was_grounded
 	local fall = math.max(-vel_y, -(session.prev_vel_y or 0))
@@ -399,6 +399,7 @@ local function impact_sound(session, pos, vel_y)
 	st_audio.sfx.play("vehicle_tire_impact", {
 		pos = pos, gain = IMPACT_GAIN_MIN + (IMPACT_GAIN_MAX - IMPACT_GAIN_MIN) * t,
 	})
+	hull.damage(player, st_utils.constants.max_fall_damage * t)
 end
 for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner"}) do
 	st_audio.sfx.register(name, {sound = "st_machine_" .. name, category = "vehicle", gain = ENGINE_GAIN})
@@ -408,7 +409,7 @@ local function animate(session, player, control, dtime)
 	local obj = session.obj
 
 	engine_sound(session, player, control)
-	impact_sound(session, obj:get_pos(), obj:get_velocity().y)
+	impact(session, player, obj:get_pos(), obj:get_velocity().y)
 	if control.up then
 		spawn_exhaust(session, dtime)
 	end

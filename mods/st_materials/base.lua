@@ -32,7 +32,14 @@ for _, def in ipairs(dofile(st_materials.modpath .. "/gems.lua")) do
 	add(def)
 end
 
+-- material name -> fuel units per unit burned in the smeltery
+st_materials.fuel = dofile(st_materials.modpath .. "/fuels.lua")
+for name in pairs(st_materials.fuel) do
+	assert(st_materials.items[name], "st_materials: unknown fuel " .. name)
+end
+
 for _, def in ipairs(dofile(st_materials.modpath .. "/smelted.lua")) do
+	assert(def.fuel_cost, "st_materials: no fuel_cost for " .. def.name)
 	def.kind = "smelted"
 	def.volume = def.volume or 1
 	local weight, price = 0, 0

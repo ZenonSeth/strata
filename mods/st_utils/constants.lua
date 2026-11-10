@@ -19,6 +19,8 @@ return {
 	interior = {origin = {x = 0, y = 0, z = -1000}, spacing = 500, columns = 16},
 	-- Landing speed (nodes/s) below which a machine landing makes no sound and does no damage
 	min_impact_speed = 10.9,
+	-- Hull damage of a landing at terminal fall speed; scales linearly from 0 at min_impact_speed
+	max_fall_damage = 150,
 	fuel = {
 		-- Litres per second while driving sideways (25 L lasts 5 minutes), whatever the tank size
 		burn_per_second = 25 / 300,
