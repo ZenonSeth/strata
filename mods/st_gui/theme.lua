@@ -7,6 +7,10 @@ local FONT_SCALE = 1.25
 
 local theme = {
 	text = TEXT,
+	-- Greyed-out text: locked or unavailable rows
+	muted = "#7d7f84",
+	-- The part or item currently in use
+	equipped = "#a9c9a4",
 	window = "st_gui_window.png",
 	window_slice = "8",
 	header = "st_gui_header.png",

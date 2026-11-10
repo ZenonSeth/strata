@@ -2,10 +2,27 @@
 local gauge = {}
 
 -- def: {meta_key = ..., max_stat = name of the stat holding the cap,
--- on_change = optional function(player, level, max)}
+-- on_change = optional function(player, level, max),
+-- read = optional function(player) -> saved level or nil, write = optional function(player, level)
+-- (instead of the player meta key, for a level kept elsewhere)}
 function gauge.new(def)
 	local self = {}
 	local cache = {}
+
+	local function read(player)
+		if def.read then
+			return def.read(player)
+		end
+		return tonumber(player:get_meta():get_string(def.meta_key))
+	end
+
+	local function write(player, amount)
+		if def.write then
+			def.write(player, amount)
+		else
+			player:get_meta():set_string(def.meta_key, tostring(amount))
+		end
+	end
 
 	local function max_level(player)
 		return st_machine.stats.get(player)[def.max_stat]
@@ -15,14 +32,18 @@ function gauge.new(def)
 	local function level(player)
 		local name = player:get_player_name()
 		if not cache[name] then
-			local meta = player:get_meta()
-			local saved = tonumber(meta:get_string(def.meta_key))
+			local saved = read(player)
 			cache[name] = saved or max_level(player)
 			if not saved then
-				meta:set_string(def.meta_key, tostring(cache[name]))
+				write(player, cache[name])
 			end
 		end
-		return math.min(cache[name], max_level(player))
+		local max = max_level(player)
+		if cache[name] > max then
+			cache[name] = max
+			write(player, max)
+		end
+		return cache[name]
 	end
 
 	function self.get(player)
@@ -37,7 +58,7 @@ function gauge.new(def)
 	function self.set(player, amount)
 		amount = math.max(0, math.min(amount, max_level(player)))
 		cache[player:get_player_name()] = amount
-		player:get_meta():set_string(def.meta_key, tostring(amount))
+		write(player, amount)
 		self.refresh(player)
 	end
 
@@ -65,6 +86,12 @@ function gauge.new(def)
 	function self.forget(player)
 		cache[player:get_player_name()] = nil
 	end
+
+	-- The level follows the stats; a change only prompts a re-read (which clamps) and a redraw
+	st_machine.stats.register_on_change(function(player)
+		cache[player:get_player_name()] = nil
+		self.refresh(player)
+	end)
 
 	return self
 end

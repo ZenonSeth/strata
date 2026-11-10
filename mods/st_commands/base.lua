@@ -23,3 +23,5 @@ core.register_chatcommand("guitest", {
 		return true, "GUI test."
 	end,
 })
+
+dofile(st_commands.modpath .. "/give.lua")

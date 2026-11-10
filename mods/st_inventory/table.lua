@@ -73,7 +73,7 @@ function st_inventory.item_table(contents, spec)
 		cells[#cells + 1] = esc(def.description)
 		cells[#cells + 1] = tostring(row.count)
 		cells[#cells + 1] = st_inventory.num(row.count * def.weight)
-		cells[#cells + 1] = format_credits(row.count * def.price)
+		cells[#cells + 1] = esc(format_credits(row.count * def.price))
 		if def.name == spec.selected then
 			selected = i
 		end

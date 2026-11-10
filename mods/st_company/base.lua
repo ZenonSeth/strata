@@ -7,7 +7,7 @@ local TAB_Y = -TAB_SIZE
 -- Placeholder tab art until real icons exist
 local TABS = {
 	{id = "sell", title = "Sell", tooltip = "Sell", image = "[fill:32x32:#c8a040"},
-	{id = "buy", title = "Buy", tooltip = "Buy", image = "[fill:32x32:#5a9a6a"},
+	{id = "recipes", title = "Recipes", tooltip = "Recipes", image = "[fill:32x32:#5a9a6a"},
 }
 
 local TABLE_X, TABLE_W = 0.4, WIDTH - 0.8
@@ -54,8 +54,88 @@ local function sell_tab(player, name)
 	return table.concat(fs)
 end
 
-local function buy_tab()
-	return ("label[%g,%g;%s]"):format(TABLE_X + 0.3, TABLE_Y + 0.5, "Nothing for sale yet.")
+local RECIPE_COLUMNS = {
+	{title = "Recipe", spec = "text,width=12,padding=0.3"},
+	{title = "Ingredients", spec = "text,width=17,padding=0.3"},
+	{title = "Price", spec = "text,width=7,padding=0.3,tooltip=Price in credits"},
+}
+
+-- "2 Copper ore + 1 Coal"; inputs the player has not found yet show as ???
+local function ingredients_text(player, recipe)
+	local parts = {}
+	for input, amount in pairs(recipe.from) do
+		local label = st_recipes.has_found(player, input) and st_materials.get(input).description or "???"
+		parts[#parts + 1] = amount .. " " .. label
+	end
+	table.sort(parts)
+	return table.concat(parts, " + ")
+end
+
+-- Recipes with at least one found ingredient: buyable first, then locked, then owned (as in the table)
+local function visible_recipes(player)
+	local buyable, locked, owned = {}, {}, {}
+	for _, recipe in ipairs(st_recipes.list) do
+		if st_recipes.has(player, recipe.name) then
+			owned[#owned + 1] = recipe
+		elseif st_recipes.is_available(player, recipe.name) then
+			buyable[#buyable + 1] = recipe
+		elseif st_recipes.has_progress(player, recipe.name) then
+			locked[#locked + 1] = recipe
+		end
+	end
+	for _, list in ipairs({locked, owned}) do
+		for _, recipe in ipairs(list) do
+			buyable[#buyable + 1] = recipe
+		end
+	end
+	return buyable
+end
+
+local function recipe_table(player, selected_name)
+	local rows, selected = {}, 0
+	for i, recipe in ipairs(visible_recipes(player)) do
+		local owned = st_recipes.has(player, recipe.name)
+		local available = st_recipes.is_available(player, recipe.name)
+		rows[i] = {
+			color = (available and not owned) and st_gui.theme.text or st_gui.theme.muted,
+			cells = {
+				recipe.description,
+				ingredients_text(player, recipe),
+				owned and "Owned" or (available and format_credits(recipe.price) or "Locked"),
+			},
+		}
+		if recipe.name == selected_name then
+			selected = i
+		end
+	end
+	return st_gui.list_table({
+		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = TABLE_H, name = "recipes",
+		columns = RECIPE_COLUMNS, rows = rows, selected = selected,
+	})
+end
+
+local function recipes_tab(player, name)
+	local recipe = st_recipes.get(selected_item[name] or "")
+	local detail = "Select a recipe to buy it."
+	if recipe then
+		if st_recipes.has(player, recipe.name) then
+			detail = recipe.description .. ": you know this recipe."
+		elseif st_recipes.is_available(player, recipe.name) then
+			detail = ("%s: %s credits"):format(recipe.description, format_credits(recipe.price))
+		else
+			detail = recipe.description .. ": find every ingredient first."
+		end
+	end
+	local fs = {
+		recipe_table(player, selected_item[name]),
+		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.4, esc(detail)),
+	}
+	if recipe and st_recipes.can_buy(player, recipe.name) then
+		fs[#fs + 1] = ("button[%g,%g;3.5,%g;buy_recipe;Buy Recipe]"):format(TABLE_X, BUTTON_Y, BUTTON_H)
+	end
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.45,
+		esc(("Credits: %s"):format(format_credits(resources.get_credits(player)))))
+	return table.concat(fs)
 end
 
 local function build(player)
@@ -79,7 +159,7 @@ local function build(player)
 	if tab == "sell" then
 		fs[#fs + 1] = sell_tab(player, name)
 	else
-		fs[#fs + 1] = buy_tab()
+		fs[#fs + 1] = recipes_tab(player, name)
 	end
 	return table.concat(fs)
 end
@@ -104,7 +184,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	local name = player:get_player_name()
 	local tab = st_gui.tab_clicked(fields, "co_")
 	if tab then
-		selected_tab[name] = tab
+		selected_tab[name], selected_item[name] = tab, nil
 	elseif fields.sell_one and selected_item[name] then
 		sell(player, selected_item[name], 1)
 	elseif fields.sell_stack and selected_item[name] then
@@ -113,6 +193,18 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		for item, count in pairs(st_machine.cargo.get(player)) do
 			sell(player, item, count)
 		end
+	elseif fields.buy_recipe and selected_item[name] then
+		local recipe = st_recipes.get(selected_item[name])
+		if recipe and st_recipes.can_buy(player, recipe.name) and resources.spend_credits(player, recipe.price) then
+			st_recipes.unlock(player, recipe.name)
+		end
+	elseif fields.recipes then
+		local event = core.explode_table_event(fields.recipes)
+		if event.type ~= "CHG" and event.type ~= "DCL" then
+			return
+		end
+		local recipe = visible_recipes(player)[event.row]
+		selected_item[name] = recipe and recipe.name
 	else
 		local event = core.explode_table_event(fields.items or "")
 		if event.type ~= "CHG" and event.type ~= "DCL" then

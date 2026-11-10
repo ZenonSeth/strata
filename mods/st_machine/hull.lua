@@ -6,8 +6,14 @@ st_hud.register_bar(BAR, {
 })
 
 local hull = st_machine.gauge.new({
-	meta_key = "st_machine:hull",
 	max_stat = "max_hull",
+	-- Each hull part keeps its own hit points
+	read = function(player)
+		return st_machine.stats.get_part_value(player, "hull")
+	end,
+	write = function(player, amount)
+		st_machine.stats.set_part_value(player, "hull", amount)
+	end,
 	on_change = function(player, level, max)
 		st_hud.set_bar(player, BAR, level, max)
 	end,

@@ -104,4 +104,13 @@ function cargo.forget(player)
 	cache[player:get_player_name()] = nil
 end
 
+-- A smaller hold cannot be equipped while the cargo would not fit in it
+st_machine.stats.register_equip_check("cargo", function(player, level)
+	local volume, capacity = cargo.volume(player), level.stats.cargo_capacity
+	if volume > capacity + 1e-6 then
+		return false, ("Hold has %g volume; this fits %g."):format(volume, capacity)
+	end
+	return true
+end)
+
 st_machine.cargo = cargo
