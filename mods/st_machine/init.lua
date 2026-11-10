@@ -1,4 +1,5 @@
 st_machine = {}
+st_machine.colors = dofile(core.get_modpath("st_machine") .. "/colors.lua")
 st_machine.stats = dofile(core.get_modpath("st_machine") .. "/stats.lua")
 st_machine.cargo = dofile(core.get_modpath("st_machine") .. "/cargo.lua")
 st_machine.gauge = dofile(core.get_modpath("st_machine") .. "/gauge.lua")
@@ -9,10 +10,43 @@ local cargo = st_machine.cargo
 local fuel = st_machine.fuel
 local hull = st_machine.hull
 
+local ENGINE_GAIN = 0.8
+local MIN_IMPACT_SPEED = st_utils.constants.min_impact_speed
+local IMPACT_GAIN_MIN, IMPACT_GAIN_MAX = 0.4, 1.0
+st_audio.sfx.register("vehicle_tire_impact", {
+	sound = "st_machine_vehicle_tire_impact", category = "vehicle", max_hear_distance = 32,
+})
+
+-- Out of fuel: engine stays on idle, no burner
+local function engine_sound(session, player, control)
+	local sfx = st_audio.sfx
+	local climbing = control.up and not control.down
+	local has_fuel = not fuel.is_empty(player)
+	local engine = "engine_idle"
+	if has_fuel then
+		if session.dig then
+			engine = "engine_rev"
+		elseif climbing or control.left ~= control.right then
+			engine = "engine_mid"
+		end
+	end
+	sfx.start_loop(player, "engine", engine)
+	if has_fuel and climbing and not session.dig then
+		sfx.start_loop(player, "burner", "burner")
+	else
+		sfx.stop_loop(player, "burner")
+	end
+end
+
+local function stop_engine_sound(player)
+	st_audio.sfx.stop_loop(player, "engine")
+	st_audio.sfx.stop_loop(player, "burner")
+end
+
 local CAM_DISTANCE = 12
 local CAM_START_DISTANCE = 4
 -- The camera starts CAM_START_DISTANCE away and backs off to CAM_DISTANCE at this speed (nodes/s)
-local CAM_PULLBACK_SPEED = 4
+local CAM_PULLBACK_SPEED = 2
 local VIEW_DISTANCE = 80
 -- Fraction of the view distance where fog starts
 local FOG_START = 0.4
@@ -27,7 +61,7 @@ local ALIGN_SPEED = 3
 local ALIGN_RATE = 10
 local ALIGN_TOLERANCE = 0.03
 -- Nodes per second squared; per session so it can differ per planet later
-local DEFAULT_GRAVITY = 20
+local DEFAULT_GRAVITY = 15
 -- Seconds to dig a node unless it defines st_hardness
 local DEFAULT_HARDNESS = 1
 -- How far (in nodes) the machine bites into the node by the time the dig finishes
@@ -84,6 +118,8 @@ local KEYS = {
 -- Model nose points to -x at yaw 0
 local TURN_SPEED = 15
 local WHEEL_RADIUS = 1.5 / 16
+-- Drills pitch from sideways (0) to straight down (+) or up (-) at this speed (rad/s)
+local DRILL_TURN_SPEED = 6
 -- Nozzle offsets from the machine origin at yaw 0 (the tail is +x)
 local NOZZLES = {vector.new(0.22, -0.31, 0.31), vector.new(0.22, -0.31, -0.31)}
 local EXHAUST_TEXTURE = {
@@ -98,19 +134,37 @@ local MAX_ROLL_STEP = 1
 
 local sessions = {}
 
-local function fill(color)
-	return "[fill:16x16:" .. color
+local colors = st_machine.colors
+local color_listeners = {}
+
+-- Entity textures for the player's chosen colors (the defaults without a player)
+function st_machine.model_textures(player)
+	return colors.textures(colors.get(player))
 end
 
--- One texture per material in the glb (at least as many as it has)
-local MODEL_MESH_COUNT = 47
+function st_machine.get_colors(player)
+	return colors.get(player)
+end
 
-local function model_textures()
-	local textures = {}
-	for i = 1, MODEL_MESH_COUNT do
-		textures[i] = fill("#c04040")
+-- fn(player, textures) runs after a color changes, so display models can follow
+function st_machine.register_on_colors_changed(fn)
+	color_listeners[#color_listeners + 1] = fn
+end
+
+-- key is "frame" or "panel", hex is "#rrggbb"; updates the machine now and the display models via listeners
+function st_machine.set_color(player, key, hex)
+	if not colors.set(player, key, hex) then
+		return false
 	end
-	return textures
+	local textures = st_machine.model_textures(player)
+	local session = sessions[player:get_player_name()]
+	if session and session.obj:is_valid() then
+		session.obj:set_properties({textures = textures})
+	end
+	for _, fn in ipairs(color_listeners) do
+		fn(player, textures)
+	end
+	return true
 end
 
 core.register_entity("st_machine:machine", {
@@ -118,7 +172,7 @@ core.register_entity("st_machine:machine", {
 		visual = "mesh",
 		mesh = "digger1.glb",
 		visual_size = {x = 10, y = 10, z = 10},
-		textures = model_textures(),
+		textures = st_machine.model_textures(),
 		physical = true,
 		collide_with_objects = false,
 		collisionbox = {-HALF_WIDTH, BOX_BOTTOM, -HALF_WIDTH, HALF_WIDTH, BOX_TOP, HALF_WIDTH},
@@ -325,9 +379,30 @@ local function spawn_exhaust(session, dtime)
 	end
 end
 
-local function animate(session, control, dtime)
+-- Landing speed is the faster of this and the previous step's fall: the ground check trips just before contact
+local function impact_sound(session, pos, vel_y)
+	local on_ground = grounded(pos)
+	local was_grounded = session.was_grounded
+	local fall = math.max(-vel_y, -(session.prev_vel_y or 0))
+	session.was_grounded = on_ground
+	session.prev_vel_y = vel_y
+	if was_grounded ~= false or not on_ground or fall < MIN_IMPACT_SPEED then
+		return
+	end
+	local t = math.min(1, (fall - MIN_IMPACT_SPEED) / (MAX_FALL_SPEED - MIN_IMPACT_SPEED))
+	st_audio.sfx.play("vehicle_tire_impact", {
+		pos = pos, gain = IMPACT_GAIN_MIN + (IMPACT_GAIN_MAX - IMPACT_GAIN_MIN) * t,
+	})
+end
+for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner"}) do
+	st_audio.sfx.register(name, {sound = "st_machine_" .. name, category = "vehicle", gain = ENGINE_GAIN})
+end
+
+local function animate(session, player, control, dtime)
 	local obj = session.obj
 
+	engine_sound(session, player, control)
+	impact_sound(session, obj:get_pos(), obj:get_velocity().y)
 	if control.up then
 		spawn_exhaust(session, dtime)
 	end
@@ -343,12 +418,23 @@ local function animate(session, control, dtime)
 	local x = obj:get_pos().x
 	local moved = session.last_x and x - session.last_x or 0
 	session.last_x = x
-	if math.abs(moved) < MAX_ROLL_STEP then
+	local driving = control.left ~= control.right and grounded(obj:get_pos())
+	if driving and math.abs(moved) < MAX_ROLL_STEP then
 		local forward = moved * -math.cos(session.yaw)
 		session.wheel_angle = (session.wheel_angle + forward / WHEEL_RADIUS) % (2 * math.pi)
 	end
+	local drill_target = 0
+	if control.down and not control.up then
+		drill_target = math.pi / 2
+	elseif control.up and not control.down and stats.get(player).can_dig_up then
+		drill_target = -math.pi / 2
+	end
+	session.drill_pitch = approach(session.drill_pitch or 0, drill_target, DRILL_TURN_SPEED * dtime)
+	obj:set_bone_override("drills_combined", {
+		rotation = {vec = vector.new(0, 0, session.drill_pitch), absolute = true},
+	})
 	for _, bone in ipairs(WHEELS) do
-		obj:set_bone_override(bone, {rotation = {vec = vector.new(0, 0, session.wheel_angle)}})
+		obj:set_bone_override(bone, {rotation = {vec = vector.new(0, 0, session.wheel_angle), absolute = true}})
 	end
 end
 
@@ -375,6 +461,7 @@ local function start(player, pos)
 	if not obj then
 		return
 	end
+	obj:set_properties({textures = st_machine.model_textures(player)})
 	-- Lift the camera by the eye height so the view is centered on the machine
 	local eye_height = player:get_properties().eye_height
 	local cam_offset = vector.new(0, -eye_height, -CAM_START_DISTANCE)
@@ -505,7 +592,7 @@ local function vehicle_step(player, dtime)
 		return
 	end
 	control_step(session, player, pos, control, dtime)
-	animate(session, control, dtime)
+	animate(session, player, control, dtime)
 end
 
 local EXPLOSION_PARTICLES = 60
@@ -528,6 +615,7 @@ function st_machine.destroy(player)
 	if session then
 		session.destroyed = true
 	end
+	stop_engine_sound(player)
 	if pos then
 		for _ = 1, EXPLOSION_PARTICLES do
 			local lifetime = 0.5 + math.random() * 0.8
@@ -571,6 +659,8 @@ st_mode.register_mode("vehicle", {
 		local name = player:get_player_name()
 		local session = sessions[name]
 		if session and not session.destroyed and session.obj:get_pos() and session.rig:get_pos() then
+			session.cam_offset.z = -CAM_START_DISTANCE
+			session.rig:set_pos(vector.add(session.obj:get_pos(), session.cam_offset))
 			board(player, session)
 			-- Again next step: the client's own look can overwrite the first one when boarding mid-click
 			core.after(0, function()
@@ -588,6 +678,7 @@ st_mode.register_mode("vehicle", {
 	on_exit = function(player)
 		local name = player:get_player_name()
 		pending[name] = nil
+		stop_engine_sound(player)
 		local session = sessions[name]
 		if not session then
 			return

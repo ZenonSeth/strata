@@ -5,6 +5,9 @@
 
 local register_node = st_interior.register_node
 
+st_audio.sfx.register("door_open", {sound = "st_interior_door_open", max_hear_distance = 16})
+st_audio.sfx.register("door_close", {sound = "st_interior_door_close", max_hear_distance = 16})
+
 local LEAF = 2 / 32  -- leaf thickness, also the selection depth
 
 local function nodebox_closed()
@@ -56,6 +59,7 @@ local function register_door(skin, description)
 			return
 		end
 		core.swap_node(pos, {name = "st_interior:" .. names[partner_toggle(key)], param2 = node.param2})
+		st_audio.sfx.play(key:find("_open$") and "door_close" or "door_open", {pos = top_pos})
 		core.swap_node(top_pos, {name = "st_interior:" .. names[partner_toggle(top_key)], param2 = top.param2})
 	end
 

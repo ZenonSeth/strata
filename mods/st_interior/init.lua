@@ -4,8 +4,38 @@ dofile(core.get_modpath("st_interior") .. "/interact.lua")
 
 -- Every interior node goes through here so they all share the same dig groups
 local DIG_GROUPS = {cracky = 1}
+
+-- Footstep sound material per node name; nodes not listed make no footstep sound
+local FOOTSTEP_MATERIAL = {}
+for material, names in pairs({
+	concrete = {
+		"shop_floor", "shop_floor_spawn", "shop_wall", "shop_wall_beam",
+		"shop_counter", "shop_counter_corner",
+	},
+	metal = {
+		"shop_floor_grate", "shop_ceiling", "shop_ceiling_plain",
+		"shop_sink", "shop_drum", "shop_terminal",
+		"shop_upgrade_bl", "shop_upgrade_br", "shop_upgrade_tl", "shop_upgrade_tr",
+		"shop_refuel_base", "shop_refuel_top", "shop_repair_base", "shop_repair_top",
+	},
+	wood = {
+		"home_floor", "home_wall", "home_ceiling",
+		"home_nightstand",
+		"home_bookshelf_base", "home_bookshelf_top", "home_wardrobe_base", "home_wardrobe_top",
+		"shop_workbench_l", "shop_workbench_r", "shop_crate_large", "shop_crate_small", "shop_shelf",
+	},
+}) do
+	for _, name in ipairs(names) do
+		FOOTSTEP_MATERIAL[name] = material
+	end
+end
+
 local function register_node(name, def)
 	def.is_ground_content = false
+	local material = FOOTSTEP_MATERIAL[name]
+	if material then
+		def.sounds = {footstep = {name = "st_interior_footstep_" .. material, gain = 1.0}}
+	end
 	local groups = table.copy(DIG_GROUPS)
 	for group, value in pairs(def.groups or {}) do
 		groups[group] = value
@@ -116,11 +146,14 @@ local DIGGER_HALF_Z = 0.391 * DIGGER_SCALE
 local DIGGER_CENTER_X = 0.0625 * DIGGER_SCALE
 local DIGGER_ORIGIN_Y = 0.5 * DIGGER_SCALE - 0.5
 local DIGGER_ENTITY = "st_interior:digger_display"
-local MESH_COUNT = 47
+-- Live display entities, so a color change reaches them
+local display_entities = {}
 
-local digger_textures = {}
-for i = 1, MESH_COUNT do
-	digger_textures[i] = "[fill:16x16:#c04040"
+local function apply_player_colors(self)
+	local player = core.get_connected_players()[1]
+	if player then
+		self.object:set_properties({textures = st_machine.model_textures(player)})
+	end
 end
 
 core.register_entity(DIGGER_ENTITY, {
@@ -128,13 +161,26 @@ core.register_entity(DIGGER_ENTITY, {
 		visual = "mesh",
 		mesh = "digger1.glb",
 		visual_size = vector.new(10, 10, 9) * DIGGER_SCALE,
-		textures = digger_textures,
+		textures = st_machine.model_textures(),
 		physical = false,
 		pointable = false,
 		static_save = false,
 	},
 	keep_on_clear = true,
+	on_activate = function(self)
+		display_entities[self] = true
+		apply_player_colors(self)
+	end,
+	on_deactivate = function(self)
+		display_entities[self] = nil
+	end,
 })
+
+st_machine.register_on_colors_changed(function(_, textures)
+	for self in pairs(display_entities) do
+		self.object:set_properties({textures = textures})
+	end
+end)
 
 -- Entity pos and yaw that put the mesh centred on the node, wheels on the node's bottom face
 local function digger_placement(pos)

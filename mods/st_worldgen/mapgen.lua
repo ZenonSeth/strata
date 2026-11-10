@@ -5,6 +5,7 @@ local world = dofile(core.get_modpath("st_nodes") .. "/data.lua")
 local constants = dofile(core.get_modpath("st_utils") .. "/constants.lua")
 local surface_y = constants.surface_y
 local slice_z = constants.slice_z
+local half_width = constants.world_half_width
 -- param2 that picks the darker palette entry of the rock nodes
 local BACK_PARAM2 = 255
 -- Surface biomes by x: snow west of SNOW_X, sand east of DESERT_X, grass between
@@ -74,7 +75,9 @@ core.register_on_generated(function(vm, minp, maxp)
 	local z_min = math.max(minp.z, slice_z)
 	local z_max = math.min(maxp.z, slice_z + BACK_DEPTH)
 	local y_max = math.min(maxp.y, surface_y)
-	if z_min > z_max or minp.y > y_max then
+	local x_min = math.max(minp.x, -half_width)
+	local x_max = math.min(maxp.x, half_width)
+	if z_min > z_max or minp.y > y_max or x_min > x_max then
 		return
 	end
 
@@ -85,7 +88,7 @@ core.register_on_generated(function(vm, minp, maxp)
 
 	-- The slice is generated one node wider than the chunk, so rock on the chunk edge can see
 	-- its neighbours; the extra ring is put back as it was before writing
-	local px0, px1 = math.max(minp.x - 1, emin.x), math.min(maxp.x + 1, emax.x)
+	local px0, px1 = math.max(minp.x - 1, emin.x, -half_width), math.min(maxp.x + 1, emax.x, half_width)
 	local py0, py1 = math.max(minp.y - 1, emin.y), math.min(math.min(maxp.y + 1, surface_y), emax.y)
 
 	local size = {x = maxp.x - minp.x + 1, y = maxp.y - minp.y + 1, z = maxp.z - minp.z + 1}
@@ -145,10 +148,10 @@ core.register_on_generated(function(vm, minp, maxp)
 			end
 			fill_row(z, px0, px1, py0, py1)
 		else
-			fill_row(z, minp.x, maxp.x, minp.y, y_max)
+			fill_row(z, x_min, x_max, minp.y, y_max)
 			for y = minp.y, y_max do
-				local vi = area:index(minp.x, y, z)
-				for _ = minp.x, maxp.x do
+				local vi = area:index(x_min, y, z)
+				for _ = x_min, x_max do
 					param2[vi] = BACK_PARAM2
 					vi = vi + 1
 				end
@@ -164,7 +167,7 @@ core.register_on_generated(function(vm, minp, maxp)
 		-- Rock picks its shape from the four neighbours in the slice
 		local ystride = area.ystride
 		for y = minp.y, y_max do
-			for x = minp.x, maxp.x do
+			for x = x_min, x_max do
 				local vi = area:index(x, y, slice_z)
 				local ids = c_shaped[data[vi]]
 				if ids then
@@ -194,6 +197,41 @@ core.register_on_generated(function(vm, minp, maxp)
 
 	vm:set_data(data)
 	vm:set_param2_data(param2)
+	vm:calc_lighting()
+end)
+
+-- Invisible walls around the playable box, in the slice only: a column just outside each side
+-- edge and a row at the top and bottom limits
+local c_barrier = core.get_content_id("st_nodes:barrier")
+local barrier_top = surface_y + math.floor(constants.world_height * world.depth_scale + 0.5)
+local barrier_bottom = surface_y - math.floor(constants.world_depth * world.depth_scale + 0.5)
+core.register_on_generated(function(vm, minp, maxp)
+	if slice_z < minp.z or slice_z > maxp.z then
+		return
+	end
+	local wall = half_width + 1
+	local x0, x1 = math.max(minp.x, -wall), math.min(maxp.x, wall)
+	local y0, y1 = math.max(minp.y, barrier_bottom), math.min(maxp.y, barrier_top)
+	if x0 > x1 or y0 > y1 then
+		return
+	end
+	vm:get_data(data)
+	local area = VoxelArea(vm:get_emerged_area())
+	for _, x in ipairs({-wall, wall}) do
+		if x >= x0 and x <= x1 then
+			for y = y0, y1 do
+				data[area:index(x, y, slice_z)] = c_barrier
+			end
+		end
+	end
+	for _, y in ipairs({barrier_bottom, barrier_top}) do
+		if y >= y0 and y <= y1 then
+			for x = x0, x1 do
+				data[area:index(x, y, slice_z)] = c_barrier
+			end
+		end
+	end
+	vm:set_data(data)
 	vm:calc_lighting()
 end)
 
@@ -327,7 +365,7 @@ core.register_on_generated(function(vm, minp, maxp)
 	local tree_map = ValueNoiseMap(TREE_NOISE, size):get_2d_map_flat({x = minp.x, y = z0})
 	local bush_map = ValueNoiseMap(BUSH_NOISE, size):get_2d_map_flat({x = minp.x, y = z0})
 	for z = z0, z1 do
-		for x = minp.x, maxp.x do
+		for x = math.max(minp.x, -half_width), math.min(maxp.x, half_width) do
 			local ni = (z - z0) * size.x + (x - minp.x) + 1
 			local biome = x < SNOW_X and "snow" or x > DESERT_X and "sand" or "grass"
 			local i = area:index(x, y, z)

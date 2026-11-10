@@ -23,6 +23,64 @@ function st_gui.input_bg(x, y, w, h)
 	return ("background9[%g,%g;%g,%g;%s;false;%s]"):format(x, y, w, h, theme.input, theme.input_slice)
 end
 
+-- Row (or column) of image tabs, each an icon over a background image. They are image buttons, so
+-- they can sit outside the window edge (noclip). Returns formspec elements; spec fields:
+--   x, y, w, h (size of one tab), tabs = {{id=, image=, tooltip=}, ...}, selected = id
+--   bg, bg_selected (textures; bg_selected defaults to bg), vertical (bool), spacing (default 0.1)
+--   prefix (button name prefix, default "tab_"), selected_scale (default 1.1; grows around the tab center)
+-- Read clicks with st_gui.tab_clicked(fields, prefix).
+function st_gui.tab_bar(spec)
+	local prefix = spec.prefix or "tab_"
+	local spacing = spec.spacing or 0.1
+	local scale = spec.selected_scale or 1.1
+	local bg_selected = spec.bg_selected or spec.bg
+	local parts = {}
+	local selected_part
+	for i, tab in ipairs(spec.tabs) do
+		local name = prefix .. tab.id
+		local x, y = spec.x, spec.y
+		if spec.vertical then
+			y = y + (i - 1) * (spec.h + spacing)
+		else
+			x = x + (i - 1) * (spec.w + spacing)
+		end
+		local w, h = spec.w, spec.h
+		local is_selected = tab.id == spec.selected
+		local bg = spec.bg
+		if is_selected then
+			x, y = x - w * (scale - 1) / 2, y - h * (scale - 1) / 2
+			w, h = w * scale, h * scale
+			bg = bg_selected
+		end
+		local part = table.concat({
+			("style[%s;noclip=true;bgimg=%s;bgimg_hovered=%s;bgimg_pressed=%s;border=false]"):format(
+				name, bg, bg, bg_selected),
+			-- Only image_button draws a foreground image; a plain button ignores fgimg
+			("image_button[%g,%g;%g,%g;%s;%s;;true;false]"):format(
+				x, y, w, h, core.formspec_escape(tab.image), name),
+			tab.tooltip and ("tooltip[%s;%s]"):format(name, core.formspec_escape(tab.tooltip)) or "",
+		})
+		-- Selected tab is emitted last so it draws on top of its neighbours
+		if is_selected then
+			selected_part = part
+		else
+			parts[#parts + 1] = part
+		end
+	end
+	parts[#parts + 1] = selected_part
+	return table.concat(parts)
+end
+
+-- The tab id clicked in `fields`, or nil
+function st_gui.tab_clicked(fields, prefix)
+	prefix = prefix or "tab_"
+	for key in pairs(fields) do
+		if key:sub(1, #prefix) == prefix then
+			return key:sub(#prefix + 1)
+		end
+	end
+end
+
 core.register_on_joinplayer(function(player)
 	player:set_formspec_prepend(theme.prepend)
 end)

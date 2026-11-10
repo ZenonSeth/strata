@@ -2,10 +2,10 @@
 -- density = fraction of nodes that are this material at weight 1 (placeholder values).
 return {
 	{name = "coal", description = "Coal", shape = "seam", volume = 1, weight = 0.5, density = 0.04, tier = 1, curve = {
-		{100, 0.2}, {1000, 1}, {2500, 0.8}, {4600, 0.15}, {9000, 0.05}, {12000, 0},
+		{50, 0.3}, {1000, 1}, {2500, 0.8}, {4600, 0.15}, {9000, 0.05}, {12000, 0},
 	}},
 	{name = "copper", description = "Copper", shape = "vein", volume = 1, weight = 2.5, density = 0.03, tier = 1, curve = {
-		{0, 0.25}, {600, 1}, {1800, 0.8}, {2800, 0.5}, {3200, 0.3}, {8000, 0.1}, {16000, 0.05}, {22000, 0},
+		{0, 0.45}, {600, 1}, {1800, 0.8}, {2800, 0.5}, {3200, 0.3}, {8000, 0.1}, {16000, 0.05}, {22000, 0},
 	}},
 	{name = "tin", description = "Tin", shape = "vein", volume = 1, weight = 2, density = 0.02, tier = 2, curve = {
 		{800, 0.1}, {2500, 1}, {3800, 0.6}, {4600, 0.2}, {9000, 0.05}, {12000, 0},

@@ -2,8 +2,8 @@
 -- The data files are unscaled metres; the world is DEPTH_SCALE times that.
 local DEPTH_SCALE = 0.25
 -- Multiply every material density (ores and liquids) and every gem rarity
-local ORE_DENSITY_SCALE = 5
-local GEM_RARITY_SCALE = 4
+local ORE_DENSITY_SCALE = 1
+local GEM_RARITY_SCALE = 1
 
 local path = core.get_modpath("st_nodes")
 local data = {
