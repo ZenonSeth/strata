@@ -93,6 +93,18 @@ local function visible_recipes(player)
 			locked[#locked + 1] = recipe
 		end
 	end
+	local order = {}
+	for i, recipe in ipairs(st_recipes.list) do
+		order[recipe.name] = i
+	end
+	for _, list in ipairs({buyable, locked}) do
+		table.sort(list, function(a, b)
+			if a.price ~= b.price then
+				return a.price < b.price
+			end
+			return order[a.name] < order[b.name]
+		end)
+	end
 	for _, list in ipairs({locked, owned}) do
 		for _, recipe in ipairs(list) do
 			buyable[#buyable + 1] = recipe

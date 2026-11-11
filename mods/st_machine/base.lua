@@ -696,7 +696,7 @@ local function vehicle_step(player, dtime)
 	local control = player:get_player_control()
 	local light = stats.get(player)
 	local ratio = st_environment.update(
-		player, pos.y, light.light_fade_end, light.vignette_max)
+		player, pos.y, light.light_fade_end, light.vignette_max, light.light_min)
 	local glow = math.floor(ratio * MAX_GLOW + 0.5)
 	if session.glow ~= glow then
 		session.glow = glow
@@ -798,7 +798,7 @@ local function respawn(player)
 	core.close_formspec(name, DEATH_FORM)
 	local light = stats.get(player)
 	st_environment.set_player_lighting(player)
-	st_environment.update(player, START_POS.y, light.light_fade_end, light.vignette_max)
+	st_environment.update(player, START_POS.y, light.light_fade_end, light.vignette_max, light.light_min)
 	spawn_at(name, START_POS)
 end
 

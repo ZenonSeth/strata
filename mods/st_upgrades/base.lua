@@ -39,7 +39,7 @@ local SWATCH_SECTIONS = {
 local SWATCH_Y = 2.2
 
 -- Tabs that list the parts of an upgrade category (st_machine_data.upgrades)
-local TAB_CATEGORY = {fuel = "tank", hull = "hull", cargo = "cargo", drill = "drill", engine = "engine", thrusters = "thrusters"}
+local TAB_CATEGORY = {lights = "lights", fuel = "tank", hull = "hull", cargo = "cargo", drill = "drill", engine = "engine", thrusters = "thrusters"}
 
 local PART_X, PART_W = 0.7, 11.6
 local PART_NAME_Y = 1.75
@@ -110,9 +110,12 @@ local function listed_levels(player, category)
 	return list
 end
 
--- Text like "1 Bronze (have 0), 2 Iron ore (have 1)" and whether shop storage holds all of it
+-- Text like "1 Bronze (have 0), 2 Iron ore (have 1)" and whether storage plus cargo hold all of it
 local function needs(player, level)
 	local stored = st_storage.get(player)
+	for material, count in pairs(st_machine.cargo.get(player)) do
+		stored[material] = (stored[material] or 0) + count
+	end
 	local names = {}
 	for material in pairs(level.from or {}) do
 		names[#names + 1] = material
@@ -268,7 +271,7 @@ local function play_build_strikes(player)
 	end)
 end
 
--- Takes the materials from shop storage and marks the part built, if the recipe is owned and all are there
+-- Takes the materials from shop storage, then the cargo hold, and marks the part built, if the recipe is owned and all are there
 local function build_part(player, category, level)
 	if not level or not level.from or stats.has_level(player, category.id, level.name)
 			or not st_recipes.has(player, st_recipes.level_recipe(category.id, level.name)) then
@@ -279,7 +282,10 @@ local function build_part(player, category, level)
 		return
 	end
 	for material, amount in pairs(level.from) do
-		st_storage.remove(player, material, amount)
+		amount = amount - st_storage.remove(player, material, amount)
+		if amount > 0 then
+			st_machine.cargo.remove(player, material, amount)
+		end
 	end
 	stats.build_level(player, category.id, level.name)
 	play_build_strikes(player)

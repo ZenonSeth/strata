@@ -34,12 +34,17 @@ core.dynamic_add_media({filename = TEXTURE, filedata = generate()})
 -- player name -> {id = hud id or nil, step = opacity step}
 local shown = {}
 
--- y is the machine height; max_opacity (0..1) is the opacity at full darkness
-function vignette.update(player, y, fade_end, max_opacity)
+-- The vignette starts fading once the world brightness passes this, and is gone at the second
+local FADE_BRIGHT_START = 0.55
+local FADE_BRIGHT_END = 0.9
+
+-- y is the machine height; max_opacity (0..1) is the opacity at full darkness; brightness is the world light ratio
+function vignette.update(player, y, fade_end, max_opacity, brightness)
 	local span = math.max(FADE_START - fade_end, 1)
 	local darkness = math.max(0, math.min((FADE_START - y) / span, 1))
 	local full = math.min(math.max(max_opacity, MIN_FULL_OPACITY), 1)
-	local step = math.floor(darkness * full * OPACITY_STEPS + 0.5)
+	local keep = 1 - smoothstep(FADE_BRIGHT_START, FADE_BRIGHT_END, brightness or 0)
+	local step = math.floor(darkness * full * keep * OPACITY_STEPS + 0.5)
 
 	local name = player:get_player_name()
 	local state = shown[name] or {step = 0}

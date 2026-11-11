@@ -26,7 +26,9 @@ stats.base = {
 	-- Depth (y) where darkness is full; it starts at y = -10 (see st_environment)
 	light_fade_end = -50,
 	-- Vignette opacity at full darkness (0..1); light upgrades lower it, st_environment floors it at 0.25
-	vignette_max = 0.75,
+	vignette_max = st_machine_data.get_upgrade("lights").levels[1].stats.vignette_max,
+	-- Lowest day/night ratio the world dims to; light upgrades raise it
+	light_min = st_machine_data.get_upgrade("lights").levels[1].stats.light_min,
 }
 
 -- Applying an upgrade overwrites these stat values

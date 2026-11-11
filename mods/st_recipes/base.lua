@@ -53,7 +53,8 @@ for _, category in ipairs(st_machine_data.upgrades) do
 		if level.from then
 			add({
 				name = st_recipes.level_recipe(category.id, level.name), description = level.description, kind = category.id,
-				from = level.from, price = round2(build_cost(level.from) * constants.upgrade_recipe_mult),
+				from = level.from, open = level.open,
+				price = level.recipe_price or round2(build_cost(level.from) * constants.upgrade_recipe_mult),
 			})
 		end
 	end
@@ -175,6 +176,9 @@ function st_recipes.has_progress(player, name)
 	if not def then
 		return false
 	end
+	if def.open then
+		return true
+	end
 	local found = load("found", player:get_player_name())
 	for input in pairs(def.from) do
 		if near(found, input) then
@@ -187,7 +191,7 @@ end
 -- Whether every input of the recipe has been found
 function st_recipes.is_available(player, name)
 	local def = st_recipes.items[name]
-	return def ~= nil and all_found(load("found", player:get_player_name()), def.from)
+	return def ~= nil and (def.open or all_found(load("found", player:get_player_name()), def.from))
 end
 
 function st_recipes.can_buy(player, name)

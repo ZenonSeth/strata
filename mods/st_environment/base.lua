@@ -5,10 +5,11 @@ local player_lighting = st_environment.player_lighting
 
 -- y is the machine's height; call it every step, it only sends changes.
 -- fade_end is the y of full darkness and max_opacity the vignette strength there.
+-- light_min is the lowest day/night ratio the darkness can bring the world to.
 -- Returns the day/night ratio (0..1), which is the world's light level.
-function st_environment.update(player, y, fade_end, max_opacity)
-	local ratio = lighting.update(player, y, fade_end)
-	vignette.update(player, y, fade_end, max_opacity)
+function st_environment.update(player, y, fade_end, max_opacity, light_min)
+	local ratio = lighting.update(player, y, fade_end, light_min)
+	vignette.update(player, y, fade_end, max_opacity, ratio)
 	sky.update(player, y)
 	return ratio
 end

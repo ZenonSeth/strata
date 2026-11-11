@@ -40,6 +40,9 @@ local function check(category)
 		for key in pairs(category.levels[1].stats) do
 			assert(level.stats[key] ~= nil, "st_machine_data: " .. where .. " is missing stat " .. key)
 		end
+		assert(level.recipe_price == nil or (type(level.recipe_price) == "number" and level.recipe_price > 0),
+			"st_machine_data: bad recipe_price at " .. where)
+		assert(level.open == nil or type(level.open) == "boolean", "st_machine_data: bad open at " .. where)
 		if i == 1 then
 			assert(level.from == nil, "st_machine_data: " .. where .. " is the stock level and has no from")
 		else
@@ -52,7 +55,7 @@ local function check(category)
 	end
 end
 
-for _, file in ipairs({"tanks", "hulls", "cargo", "thrusters", "drills", "engines"}) do
+for _, file in ipairs({"tanks", "hulls", "cargo", "thrusters", "drills", "engines", "lights"}) do
 	local category = dofile(st_machine_data.modpath .. "/" .. file .. ".lua")
 	check(category)
 	by_id[category.id] = category

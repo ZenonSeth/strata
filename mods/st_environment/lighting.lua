@@ -14,8 +14,8 @@ local function ratio_at(y, fade_end)
 end
 
 -- Returns the current ratio
-function lighting.update(player, y, fade_end)
-	local ratio = ratio_at(y, fade_end)
+function lighting.update(player, y, fade_end, light_min)
+	local ratio = math.max(ratio_at(y, fade_end), light_min or 0)
 	local name = player:get_player_name()
 	if sent[name] ~= ratio then
 		sent[name] = ratio
