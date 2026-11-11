@@ -9,6 +9,8 @@ local theme = {
 	text = TEXT,
 	-- Greyed-out text: locked or unavailable rows
 	muted = "#7d7f84",
+	-- Destructive actions and their warnings
+	danger = "#e0584a",
 	-- The part or item currently in use
 	equipped = "#a9c9a4",
 	window = "st_gui_window.png",

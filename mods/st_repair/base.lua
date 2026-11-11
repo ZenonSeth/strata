@@ -149,6 +149,17 @@ function st_repair.show(player)
 	core.show_formspec(player:get_player_name(), FORMNAME, build(player))
 end
 
+local function play_repair_sounds(player)
+	local name = player:get_player_name()
+	st_audio.sfx.play("upgrade_bolt", {player = player})
+	core.after(0.35, function()
+		local p = core.get_player_by_name(name)
+		if p then
+			st_audio.sfx.play("upgrade_bolt", {player = p})
+		end
+	end)
+end
+
 -- Takes the materials and restores the hull; returns the result line
 local function repair(player, step)
 	if not step then
@@ -163,6 +174,7 @@ local function repair(player, step)
 		resources.spend_credits(player, step.credits)
 	end
 	local restored = hull.add(player, step.hp)
+	play_repair_sounds(player)
 	local used = step_text(step)
 	return ("Repaired %.1f HP %s %s."):format(restored, step.credits > 0 and "for" or "using", used)
 end

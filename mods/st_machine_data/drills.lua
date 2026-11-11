@@ -8,7 +8,7 @@ return {
 	stat = {key = "drill_tier", label = "Max tier"},
 	extra = {{key = "dig_speed", label = "Speed", scale = 2, format = "x%g"}},
 	levels = {
-		{name = "stock", description = "Rusted iron bit", stats = {drill_tier = 1, dig_speed = 0.5}},
+		{name = "stock", description = "Stock bit", stats = {drill_tier = 1, dig_speed = 0.5}},
 		{name = "copper", description = "Copper-repaired iron bit", stats = {drill_tier = 2, dig_speed = 0.75},
 			from = {copper_plate = 10}},
 		{name = "bronze", description = "Bronze bit", stats = {drill_tier = 3, dig_speed = 1.5},

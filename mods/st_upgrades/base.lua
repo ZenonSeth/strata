@@ -2,8 +2,8 @@ local FORMNAME = "st_upgrades:main"
 
 local esc = core.formspec_escape
 
-local WIDTH, HEIGHT = 13, 8.2
-local TAB_SIZE = 0.8
+local WIDTH, HEIGHT = 13, 9.2
+local TAB_SIZE = 1
 -- Tabs hang off the left edge, overlapping the window slightly
 local TAB_X = -TAB_SIZE + 0.1
 local TAB_Y = 0.3
@@ -90,16 +90,7 @@ end
 
 local stats = st_machine.stats
 
-local function format_stat(stat, value)
-	if stat.names then
-		return stat.names[value]
-	end
-	value = value * (stat.scale or 1)
-	if stat.format then
-		return stat.format:format(value)
-	end
-	return ("%g%s"):format(value, stat.unit and (" " .. stat.unit) or "")
-end
+local format_stat = st_machine_data.format_stat
 
 -- "75 / 115" for a part that keeps its own current value
 local function condition_text(player, category, level)
@@ -261,6 +252,22 @@ function st_upgrades.show(player_name)
 	end
 end
 
+st_audio.sfx.register("upgrade_bolt", {sound = "st_upgrades_bolt"})
+st_audio.sfx.register("upgrade_strike", {sound = "st_upgrades_metal_strike"})
+
+local STRIKE_GAP = 0.3
+
+local function play_build_strikes(player)
+	local name = player:get_player_name()
+	st_audio.sfx.play("upgrade_strike", {player = player})
+	core.after(STRIKE_GAP, function()
+		local p = core.get_player_by_name(name)
+		if p then
+			st_audio.sfx.play("upgrade_strike", {player = p})
+		end
+	end)
+end
+
 -- Takes the materials from shop storage and marks the part built, if the recipe is owned and all are there
 local function build_part(player, category, level)
 	if not level or not level.from or stats.has_level(player, category.id, level.name)
@@ -275,6 +282,7 @@ local function build_part(player, category, level)
 		st_storage.remove(player, material, amount)
 	end
 	stats.build_level(player, category.id, level.name)
+	play_build_strikes(player)
 end
 
 local function handle_category_fields(player, category, fields)
@@ -291,6 +299,7 @@ local function handle_category_fields(player, category, fields)
 		build_part(player, category, level)
 	elseif fields.equip_part and level then
 		stats.equip_level(player, category.id, level.name)
+		st_audio.sfx.play("upgrade_bolt", {player = player})
 	elseif fields.parts then
 		local event = core.explode_table_event(fields.parts)
 		if event.type ~= "CHG" and event.type ~= "DCL" then

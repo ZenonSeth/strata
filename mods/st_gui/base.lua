@@ -32,6 +32,17 @@ function st_gui.tab_bar(spec)
 	local bg_selected = spec.bg_selected or spec.bg
 	local parts = {}
 	local selected_part
+	-- Faint backing button behind the tabs so clicks in the gaps do not fall outside the window and close it
+	local count = #spec.tabs
+	local pad = math.max(spec.w, spec.h) * (scale - 1) / 2
+	local span_w = spec.vertical and spec.w or count * spec.w + (count - 1) * spacing
+	local span_h = spec.vertical and count * spec.h + (count - 1) * spacing or spec.h
+	local gap_name = "tabgap_" .. prefix
+	parts[1] = table.concat({
+		("style[%s,%s:hovered,%s:pressed;noclip=true;border=false;bgimg=%s]"):format(gap_name, gap_name,
+			gap_name, core.formspec_escape("[fill:1x1:#00000040")),
+		("button[%g,%g;%g,%g;%s;]"):format(spec.x - pad, spec.y - pad, span_w + 2 * pad, span_h + 2 * pad, gap_name),
+	})
 	for i, tab in ipairs(spec.tabs) do
 		local name = prefix .. tab.id
 		local x, y = spec.x, spec.y

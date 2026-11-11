@@ -217,6 +217,18 @@ function st_audio.get_volume(player, category)
 	return volume(player, category)
 end
 
+-- Settings window rows, in order
+st_audio.categories = {
+	{id = "music", title = "Music"},
+	{id = "sfx", title = "Effects"},
+	{id = "vehicle", title = "Machine"},
+}
+
+-- The player's own volume (0 to 1), without the server-wide setting that get_volume folds in
+function st_audio.get_player_volume(player, category)
+	return clamp01(tonumber(player:get_meta():get_string(META_PREFIX .. category .. "_volume")) or 1)
+end
+
 core.register_on_leaveplayer(function(player)
 	music.stop(player)
 	sfx.stop_all_loops(player)

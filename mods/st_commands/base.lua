@@ -25,3 +25,16 @@ core.register_chatcommand("guitest", {
 })
 
 dofile(st_commands.modpath .. "/give.lua")
+
+core.register_chatcommand("transmit", {
+	description = "Debug: receive a test transmission (\"reset\" clears them and hides the tab)",
+	params = "[reset]",
+	func = function(name, param)
+		if param == "reset" then
+			st_transmissions.reset(name)
+			return true, "Transmissions cleared."
+		end
+		st_transmissions.add(name, "@#!? @#!? !!?#", "pattern: noise, repeating")
+		return true, "Transmission received."
+	end,
+})

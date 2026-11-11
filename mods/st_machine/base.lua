@@ -10,6 +10,27 @@ st_audio.sfx.register("vehicle_tire_impact", {
 	sound = "st_machine_vehicle_tire_impact", category = "vehicle", max_hear_distance = 32,
 })
 
+-- Dig sound per stratum (or "dirt"/"surface" for the top rows)
+local DUG_SOUND = {
+	dirt = "soil", surface = "soil", topsoil = "soil",
+	clay = "gravel", sandstone = "gravel",
+	limestone = "rock", shale = "rock", slate = "rock", marble = "rock", schist = "rock",
+	gneiss = "hardrock", basalt = "hardrock", granite = "hardrock", quartzite = "hardrock",
+	eclogite = "hardrock", peridotite = "hardrock", core = "hardrock",
+}
+for _, kind in ipairs({"soil", "gravel", "rock", "hardrock"}) do
+	st_audio.sfx.register("dug_" .. kind, {sound = "st_machine_dug_" .. kind, max_hear_distance = 32})
+end
+
+local function dug_sound(node_name)
+	local host = node_name:match("_in_(%a+)$")
+	if not host then
+		local def = core.registered_nodes[node_name]
+		host = ((def and def.st_base) or node_name):match("^st_nodes:(%a+)")
+	end
+	return DUG_SOUND[host or ""]
+end
+
 -- Out of fuel: engine stays on idle, no burner
 local function engine_sound(session, player, control)
 	local sfx = st_audio.sfx
@@ -100,10 +121,39 @@ st_hud.register_text(PAD_HUD, {
 	mode = "vehicle", background = {},
 })
 
+local depth_listeners = {}
+local last_depth = {}
+
+-- fn(player, depth, old_depth) on a whole-metre depth change; depth is below the start (negative above)
+function st_machine.register_on_depth_change(fn)
+	depth_listeners[#depth_listeners + 1] = fn
+end
+
 local function update_depth(player, pos)
 	local y = math.floor(pos.y + 0.5) - START_POS.y
 	local label = y > 0 and "Height" or "Depth"
 	st_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm", label, y))
+	local name = player:get_player_name()
+	local depth, old = -y, last_depth[name]
+	if depth ~= old then
+		last_depth[name] = depth
+		for _, fn in ipairs(depth_listeners) do
+			fn(player, depth, old)
+		end
+	end
+end
+
+local dig_listeners = {}
+
+-- fn(player, pos, node_name, method) for every node destroyed for the player, even if the hold is full
+function st_machine.register_on_dig(fn)
+	dig_listeners[#dig_listeners + 1] = fn
+end
+
+function st_machine.notify_dig(player, pos, node_name, method)
+	for _, fn in ipairs(dig_listeners) do
+		fn(player, pos, node_name, method)
+	end
 end
 
 -- Collision box: narrower than a node, bottom on the node center line below
@@ -283,8 +333,14 @@ end
 local function take_node(pos, player)
 	local def = node_def(pos)
 	local item = def and def.st_material
+	local node_name = core.get_node(pos).name
 	core.remove_node(pos)
 	st_nodes.refresh_shapes(pos)
+	local kind = dug_sound(node_name)
+	if kind then
+		st_audio.sfx.play("dug_" .. kind, {pos = pos})
+	end
+	st_machine.notify_dig(player, pos, node_name, "drill")
 	if item then
 		cargo.add(player, item, def.st_yield or 1)
 	end
@@ -456,6 +512,10 @@ local function animate(session, player, control, dtime)
 
 	engine_sound(session, player, control)
 	impact(session, player, obj:get_pos(), obj:get_velocity().y)
+	-- A hard landing can destroy the machine
+	if session.destroyed then
+		return
+	end
 	if control.up then
 		spawn_exhaust(session, player, dtime)
 	end
@@ -600,6 +660,9 @@ local function vehicle_step(player, dtime)
 	if not session then
 		return
 	end
+	if session.destroyed then
+		return
+	end
 	local pos = session.obj:get_pos()
 	local rig_pos = session.rig:get_pos()
 	if not pos or not rig_pos then
@@ -607,11 +670,8 @@ local function vehicle_step(player, dtime)
 		session.rig:remove()
 		session.obj:remove()
 		sessions[name] = nil
-		-- A destroyed machine is respawned by destroy itself
-		if not session.destroyed then
-			player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(session.last_pos, 3))
-			spawn_at(name, session.last_pos)
-		end
+		player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(session.last_pos, 3))
+		spawn_at(name, session.last_pos)
 		return
 	end
 	session.last_pos = pos
@@ -651,6 +711,27 @@ local function vehicle_step(player, dtime)
 end
 
 local EXPLOSION_PARTICLES = 60
+local DEATH_FORM = "st_machine:death"
+local DEATH_W, DEATH_H = 8, 4
+local DEATH_BUTTON_W, DEATH_BUTTON_H = 3, 0.9
+
+local function show_death_screen(player)
+	-- Close whatever else is open (e.g. the inventory) so the death screen is the only window
+	core.close_formspec(player:get_player_name(), "")
+	local fs = {
+		st_gui.header(DEATH_W, DEATH_H, "Critical Hull Failure"),
+		"allow_close[false]",
+		("label[0.4,%g;%s]"):format(st_gui.CONTENT_Y + 0.4, "The machine has been destroyed."),
+		("button[%g,%g;%g,%g;respawn;Respawn]"):format(
+			(DEATH_W - DEATH_BUTTON_W) / 2, DEATH_H - DEATH_BUTTON_H - 0.4, DEATH_BUTTON_W, DEATH_BUTTON_H),
+	}
+	core.show_formspec(player:get_player_name(), DEATH_FORM, table.concat(fs))
+end
+
+function st_machine.is_dead(player)
+	local session = sessions[player:get_player_name()]
+	return session ~= nil and session.destroyed == true
+end
 
 function st_machine.destroy(player)
 	local name = player:get_player_name()
@@ -658,19 +739,19 @@ function st_machine.destroy(player)
 	if (session and session.destroyed) or st_mode.get(player) ~= "vehicle" then
 		return
 	end
-	-- The penalty is applied at once so it survives leaving before the deferred respawn
+	-- The penalty is applied at once so it survives leaving during the death screen
 	cargo.clear(player)
 	stats.reset_upgrades(player)
-	local light = stats.get(player)
-	st_environment.update(player, START_POS.y, light.light_fade_end, light.vignette_max)
 	hull.set(player, stats.get(player).max_hull)
 	fuel.set(player, stats.get(player).max_fuel / 2)
 	player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(START_POS, 3))
-	local pos = session and session.obj:get_pos()
-	if session then
-		session.destroyed = true
-	end
 	stop_engine_sound(player)
+	if not session then
+		spawn_at(name, START_POS)
+		return
+	end
+	session.destroyed = true
+	local pos = session.obj:get_pos()
 	if pos then
 		for _ = 1, EXPLOSION_PARTICLES do
 			local lifetime = 0.5 + math.random() * 0.8
@@ -689,18 +770,38 @@ function st_machine.destroy(player)
 			})
 		end
 	end
-	-- Deferred so the session is not replaced in the middle of its own step
-	core.after(0, function()
-		if session and sessions[name] == session then
-			session.rig:remove()
-			session.obj:remove()
-			sessions[name] = nil
-		end
-		if core.get_player_by_name(name) then
-			spawn_at(name, START_POS)
-		end
-	end)
+	-- The camera rig stays so the view is frozen where the machine blew up
+	session.obj:remove()
+	session.rig:set_velocity(vector.zero())
+	st_environment.set_player_lighting(player, {saturation = 0})
+	show_death_screen(player)
 end
+
+local function respawn(player)
+	local name = player:get_player_name()
+	local session = sessions[name]
+	if not session or not session.destroyed then
+		return
+	end
+	session.rig:remove()
+	sessions[name] = nil
+	core.close_formspec(name, DEATH_FORM)
+	local light = stats.get(player)
+	st_environment.set_player_lighting(player)
+	st_environment.update(player, START_POS.y, light.light_fade_end, light.vignette_max)
+	spawn_at(name, START_POS)
+end
+
+core.register_on_player_receive_fields(function(player, formname, fields)
+	if formname ~= DEATH_FORM then
+		return
+	end
+	if fields.respawn then
+		respawn(player)
+	elseif fields.quit and st_machine.is_dead(player) then
+		show_death_screen(player)
+	end
+end)
 
 local function discard(name)
 	local session = sessions[name]
@@ -742,6 +843,8 @@ st_mode.register_mode("vehicle", {
 		end
 		if session.destroyed then
 			discard(name)
+			st_environment.set_player_lighting(player)
+			core.close_formspec(name, DEATH_FORM)
 			return
 		end
 		if session.dig then
@@ -767,6 +870,7 @@ core.register_on_leaveplayer(function(player)
 		player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
 	end
 	pending[name] = nil
+	last_depth[name] = nil
 	discard(name)
 	stats.forget(player)
 	cargo.forget(player)

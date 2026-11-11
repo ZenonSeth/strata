@@ -61,6 +61,8 @@ function st_refuel.show(player)
 	core.show_formspec(player:get_player_name(), FORMNAME, build(player))
 end
 
+st_audio.sfx.register("refuel", {sound = "st_refuel_fill"})
+
 -- Buys up to `litres`, or as much as the credits allow; returns the result line
 local function buy(player, litres)
 	if litres <= 0 then
@@ -101,6 +103,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		return
 	end
 	local name = player:get_player_name()
+	local before = st_machine.fuel.get(player)
 	if fields.buy_five then
 		local max = st_machine.stats.get(player).max_fuel
 		local space = max - st_machine.fuel.get(player)
@@ -111,6 +114,9 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		messages[name] = fill_to(player, 1)
 	else
 		return
+	end
+	if st_machine.fuel.get(player) > before then
+		st_audio.sfx.play("refuel", {player = player})
 	end
 	st_refuel.show(player)
 end)

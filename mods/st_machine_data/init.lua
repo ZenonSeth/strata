@@ -9,6 +9,18 @@ function st_machine_data.get_upgrade(id)
 	return by_id[id]
 end
 
+-- Display text for a stat value; stat is a category's stat or extra entry
+function st_machine_data.format_stat(stat, value)
+	if stat.names then
+		return stat.names[value]
+	end
+	value = value * (stat.scale or 1)
+	if stat.format then
+		return stat.format:format(value)
+	end
+	return ("%g%s"):format(value, stat.unit and (" " .. stat.unit) or "")
+end
+
 local function check(category)
 	local id = category.id
 	assert(type(id) == "string" and not by_id[id], "st_machine_data: bad or duplicate category id " .. tostring(id))

@@ -11,7 +11,7 @@ local cargo = st_machine_data.get_upgrade("cargo")
 local gold = st_materials.get("gold")
 local gold_per_volume = gold.weight / gold.volume
 
-local names = {"Rusted-iron propeller", "Copper-sheathed propeller", "Bronze propeller", "Steel propeller",
+local names = {"Stock propeller", "Copper-sheathed propeller", "Bronze propeller", "Steel propeller",
 	"Variable-pitch propeller", "Turbojet", "Turbofan", "Afterburning turbofan", "Chemical rocket", "Nuclear rocket"}
 local kinds = {"propeller", "propeller", "propeller", "propeller", "propeller", "jet", "jet", "jet", "rocket", "rocket"}
 local alloy_amounts = {10, 10, 10, 10, 13, 17, 22, 28, 37}
