@@ -290,7 +290,7 @@ end
 local FUEL = st_utils.constants.fuel
 
 local function burn_fuel(player, multiplier, dtime)
-	fuel.remove(player, FUEL.burn_per_second * multiplier * dtime)
+	fuel.remove(player, FUEL.burn_per_second * multiplier * stats.get(player).fuel_use * dtime)
 end
 
 local function control_step(session, player, pos, control, dtime)
@@ -303,7 +303,7 @@ local function control_step(session, player, pos, control, dtime)
 		local kind, target = classify(class_pos, entry, on_ground, my_stats.can_dig_up, my_stats.drill_tier)
 		if kind == "free" then
 			free = true
-		elseif kind == "dig" then
+		elseif kind == "dig" and not fuel.is_empty(player) then
 			digs[#digs + 1] = {entry = entry, target = target}
 		end
 	end
@@ -360,17 +360,19 @@ end
 
 local EXHAUST_INTERVAL = 0.1
 local EXHAUST_PER_NOZZLE = 3
+local EMPTY_EXHAUST_PER_NOZZLE = 1
 
-local function spawn_exhaust(session, dtime)
+local function spawn_exhaust(session, player, dtime)
 	session.exhaust_timer = (session.exhaust_timer or 0) + dtime
 	if session.exhaust_timer < EXHAUST_INTERVAL then
 		return
 	end
 	session.exhaust_timer = session.exhaust_timer - EXHAUST_INTERVAL
 	local pos = session.obj:get_pos()
+	local count = fuel.is_empty(player) and EMPTY_EXHAUST_PER_NOZZLE or EXHAUST_PER_NOZZLE
 	for _, nozzle in ipairs(NOZZLES) do
 		local origin = vector.add(pos, vector.rotate(nozzle, vector.new(0, session.yaw, 0)))
-		for _ = 1, EXHAUST_PER_NOZZLE do
+		for _ = 1, count do
 			local lifetime = 0.4 + math.random() * 0.4
 			core.add_particle({
 				pos = vector.offset(origin, math.random() * 0.06 - 0.03, 0, math.random() * 0.06 - 0.03),
@@ -411,7 +413,7 @@ local function animate(session, player, control, dtime)
 	engine_sound(session, player, control)
 	impact(session, player, obj:get_pos(), obj:get_velocity().y)
 	if control.up then
-		spawn_exhaust(session, dtime)
+		spawn_exhaust(session, player, dtime)
 	end
 
 	if control.right and not control.left then

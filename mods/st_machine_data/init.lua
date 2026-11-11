@@ -36,7 +36,7 @@ local function check(category)
 	end
 end
 
-for _, file in ipairs({"tanks", "hulls", "cargo", "drills"}) do
+for _, file in ipairs({"tanks", "hulls", "cargo", "drills", "engines"}) do
 	local category = dofile(st_machine_data.modpath .. "/" .. file .. ".lua")
 	check(category)
 	by_id[category.id] = category

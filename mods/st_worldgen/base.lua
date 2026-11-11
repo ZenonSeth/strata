@@ -1,7 +1,7 @@
 core.register_mapgen_script(st_worldgen.modpath .. "/mapgen.lua")
 
 -- Active pads of the surface buildings placed in mapgen.lua; the other menus come later
-local menus = {shop = st_start.show_workshop_menu, contact = st_company.show}
+local menus = {shop = st_start.show_workshop_menu, refinery = st_refinery.show, contact = st_company.show}
 for id, label in pairs({shop = "Mechanic shop", refinery = "Ore refinery", contact = "Company contact"}) do
 	st_pads.register(id, {
 		label = label,

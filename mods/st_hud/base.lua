@@ -101,7 +101,11 @@ local function bar_label(value, max, decimal)
 	if not decimal or max > 100 then
 		return math.ceil(value) .. "/" .. math.ceil(max)
 	end
-	return string.format("%.1f/%d", math.max(0, math.ceil(value * 10 - 1e-6)) / 10, math.ceil(max))
+	local tenths = math.ceil(value * 10 - 1e-6)
+	if tenths <= 0 then
+		tenths = 0 -- plain 0, not -0, which formats as "-0.0"
+	end
+	return string.format("%.1f/%d", tenths / 10, math.ceil(max))
 end
 
 -- Brings the player's screen in line with the stored data

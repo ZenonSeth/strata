@@ -54,10 +54,13 @@ local function sell_tab(player, name)
 	return table.concat(fs)
 end
 
+local LEGEND_X, LEGEND_STEP, LEGEND_ICON = 7.2, 2.6, 0.6
+
+-- Icon cell value 1 is a smelter recipe (paper), 2 an upgrade (arrow)
 local RECIPE_COLUMNS = {
-	{title = "Recipe", spec = "text,width=12,padding=0.3"},
-	{title = "Ingredients", spec = "text,width=17,padding=0.3"},
-	{title = "Price", spec = "text,width=7,padding=0.3,tooltip=Price in credits"},
+	{title = "", spec = "image,align=center,padding=0.3,width=1.5,1=st_company_recipe.png,2=st_company_upgrade.png"},
+	{title = "Recipe", spec = "text,width=24,padding=0.3"},
+	{title = "Price", spec = "text,width=9,padding=0.3,tooltip=Price in credits"},
 }
 
 -- "2 Copper ore + 1 Coal"; inputs the player has not found yet show as ???
@@ -99,8 +102,8 @@ local function recipe_table(player, selected_name)
 		rows[i] = {
 			color = (available and not owned) and st_gui.theme.text or st_gui.theme.muted,
 			cells = {
+				recipe.kind == "material" and "1" or "2",
 				recipe.description,
-				ingredients_text(player, recipe),
 				owned and "Owned" or (available and format_credits(recipe.price) or "Locked"),
 			},
 		}
@@ -118,12 +121,13 @@ local function recipes_tab(player, name)
 	local recipe = st_recipes.get(selected_item[name] or "")
 	local detail = "Select a recipe to buy it."
 	if recipe then
+		local label = ("%s (%s)"):format(recipe.description, ingredients_text(player, recipe))
 		if st_recipes.has(player, recipe.name) then
-			detail = recipe.description .. ": you know this recipe."
+			detail = label .. ": you know this recipe."
 		elseif st_recipes.is_available(player, recipe.name) then
-			detail = ("%s: %s credits"):format(recipe.description, format_credits(recipe.price))
+			detail = ("%s: %s credits"):format(label, format_credits(recipe.price))
 		else
-			detail = recipe.description .. ": find every ingredient first."
+			detail = label .. ": find every ingredient first."
 		end
 	end
 	local fs = {
@@ -135,6 +139,11 @@ local function recipes_tab(player, name)
 	end
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.45,
 		esc(("Credits: %s"):format(format_credits(resources.get_credits(player)))))
+	for i, key in ipairs({"recipe", "upgrade"}) do
+		local x = LEGEND_X + (i - 1) * LEGEND_STEP
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;st_company_%s.png]"):format(x, HEIGHT - 0.75, LEGEND_ICON, LEGEND_ICON, key)
+		fs[#fs + 1] = ("label[%g,%g;%s]"):format(x + LEGEND_ICON + 0.2, HEIGHT - 0.45, key == "recipe" and "Recipe" or "Upgrade")
+	end
 	return table.concat(fs)
 end
 
@@ -196,7 +205,17 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	elseif fields.buy_recipe and selected_item[name] then
 		local recipe = st_recipes.get(selected_item[name])
 		if recipe and st_recipes.can_buy(player, recipe.name) and resources.spend_credits(player, recipe.price) then
+			local index = 1
+			for i, entry in ipairs(visible_recipes(player)) do
+				if entry.name == recipe.name then
+					index = i
+				end
+			end
 			st_recipes.unlock(player, recipe.name)
+			-- The bought recipe moves to the owned end; keep the row, so the view does not jump
+			local list = visible_recipes(player)
+			local next_recipe = list[math.min(index, #list)]
+			selected_item[name] = next_recipe and next_recipe.name
 		end
 	elseif fields.recipes then
 		local event = core.explode_table_event(fields.recipes)

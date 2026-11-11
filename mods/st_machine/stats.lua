@@ -4,7 +4,9 @@ local META_KEY = "st_machine:upgrades"
 
 stats.base = {
 	-- Horizontal top speed (nodes/s)
-	move_speed = 3.5,
+	move_speed = st_machine_data.get_upgrade("engine").levels[1].stats.move_speed,
+	-- Multiplier on all fuel burn
+	fuel_use = st_machine_data.get_upgrade("engine").levels[1].stats.fuel_use,
 	-- Dig time is st_hardness / dig_speed
 	dig_speed = st_machine_data.get_upgrade("drill").levels[1].stats.dig_speed,
 	-- Max climb speed (nodes/s) with an empty hold

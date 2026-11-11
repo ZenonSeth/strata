@@ -151,28 +151,33 @@ function st_recipes.has(player, name)
 	return load("owned", player:get_player_name())[name] == true
 end
 
--- Raw materials a set of inputs comes down to (a smelted input counts as what it is made from)
-local function raw_inputs(from, out)
-	for input in pairs(from) do
-		local made = st_recipes.items[input]
-		if made and made.kind == "material" then
-			raw_inputs(made.from, out)
-		else
-			out[input] = true
+-- Whether an input is found, or is smelted straight from raws and any of those is found
+local function near(found, input)
+	if found[input] then
+		return true
+	end
+	local made = st_recipes.items[input]
+	if not (made and made.kind == "material") then
+		return false
+	end
+	for raw in pairs(made.from) do
+		local raw_made = st_recipes.items[raw]
+		if found[raw] and not (raw_made and raw_made.kind == "material") then
+			return true
 		end
 	end
-	return out
+	return false
 end
 
--- Whether any raw material behind the recipe's inputs has been found
+-- Whether any input of the recipe is found or one smelting step from a found raw material
 function st_recipes.has_progress(player, name)
 	local def = st_recipes.items[name]
 	if not def then
 		return false
 	end
 	local found = load("found", player:get_player_name())
-	for raw in pairs(raw_inputs(def.from, {})) do
-		if found[raw] then
+	for input in pairs(def.from) do
+		if near(found, input) then
 			return true
 		end
 	end

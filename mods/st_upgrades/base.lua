@@ -37,7 +37,7 @@ local SWATCH_SECTIONS = {
 local SWATCH_Y = 2.2
 
 -- Tabs that list the parts of an upgrade category (st_machine_data.upgrades)
-local TAB_CATEGORY = {fuel = "tank", hull = "hull", cargo = "cargo", drill = "drill"}
+local TAB_CATEGORY = {fuel = "tank", hull = "hull", cargo = "cargo", drill = "drill", engine = "engine"}
 
 local PART_X, PART_W = 0.7, 11.6
 local PART_NAME_Y = 1.75
