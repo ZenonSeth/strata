@@ -1,5 +1,4 @@
 -- Shop furniture: one node tall nodeboxes, facing in param2 (front is the -Z face).
--- Shapes and textures from tools/gen_shop_furniture.py
 
 local register_box = st_interior.register_box
 

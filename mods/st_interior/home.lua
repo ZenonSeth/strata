@@ -1,4 +1,4 @@
--- Home furniture. Shapes and textures from tools/gen_home_furniture.py
+-- Home furniture
 
 local register_box = st_interior.register_box
 local USE = st_utils.constants.interact

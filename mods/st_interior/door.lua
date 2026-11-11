@@ -1,7 +1,6 @@
 -- Two-node door: a bottom half you click and a top half that is only visuals and collision.
 -- The bottom half's selection box reaches up over the top half, so it shows as one box.
 -- Closed the leaf lies along the -Z face (before rotation), open it is swung onto the -X edge.
--- Textures and shapes from tools/gen_door.py
 
 local register_node = st_interior.register_node
 

@@ -1,7 +1,6 @@
--- The one formspec theme (workshop: gunmetal panels, amber accent, rust pressed); textures come from
--- tools/gen_gui.py. Plain data.
+-- The one formspec theme (workshop: gunmetal panels, amber accent, rust pressed). Plain data.
 local TEXT = "#e8e0d0"
-local BUTTON_SLICE = 5
+local BUTTON_SLICE = 10
 -- Multiplies the player's font size in every themed formspec
 local FONT_SCALE = 1.15
 

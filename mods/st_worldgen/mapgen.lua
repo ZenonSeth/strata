@@ -259,7 +259,7 @@ end
 
 -- Surface buildings, one z behind the slice on top of the ground, with a pad in front of each
 -- part replacing the ground node in the slice. Part columns are given left to right, bottom up;
--- the active pad (a st_pads id, set in init.lua) is the one the machine uses to enter.
+-- every pad is active (a st_pads id, set in init.lua) so the machine can use any of them.
 local MAIN_X = constants.shop_x
 local REFINERY_X = constants.refinery_x
 local CONTACT_X = constants.contact_x
@@ -268,21 +268,20 @@ do
 	local function id(name)
 		return core.get_content_id(name)
 	end
-	local function building(x, columns, active_pad)
+	local function building(x, columns, pad_id)
 		for dx, column in ipairs(columns) do
 			for dy, part in ipairs(column) do
 				buildings[#buildings + 1] = {x + dx - 1, surface_y + dy, id("st_buildings:" .. part), slice_z + 1}
 			end
-			local pad = active_pad[dx] and "st_pads:pad_" .. active_pad[dx] or "st_pads:pad"
-			buildings[#buildings + 1] = {x + dx - 1, surface_y, id(pad)}
+			buildings[#buildings + 1] = {x + dx - 1, surface_y, id("st_pads:pad_" .. pad_id)}
 		end
 	end
 	-- Mechanic shop and home: extension, main building with the entrance, annex
-	building(MAIN_X - 1, {{"main_ext"}, {"main"}, {"annex"}}, {[2] = "shop"})
+	building(MAIN_X - 1, {{"main_ext"}, {"main"}, {"annex"}}, "shop")
 	-- Ore refinery: furnace and chimney, hatch and tank
-	building(REFINERY_X, {{"refinery_ll", "refinery_ul"}, {"refinery_lr", "refinery_ur"}}, {[2] = "refinery"})
+	building(REFINERY_X, {{"refinery_ll", "refinery_ul"}, {"refinery_lr", "refinery_ur"}}, "refinery")
 	-- Company contact: office with the entrance, storage to its right
-	building(CONTACT_X, {{"contact_office"}, {"contact_storage"}}, {[1] = "contact"})
+	building(CONTACT_X, {{"contact_office"}, {"contact_storage"}}, "contact")
 end
 -- Surface decoration, only behind the slice, one node per cell. Trees win over bushes, bushes over
 -- grass tufts. Trees and bushes grow in clumps: smooth 2D noise over (x, z), a patch where it is

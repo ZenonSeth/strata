@@ -1,5 +1,5 @@
 -- Flat hand tools: nodeboxes lying on the bottom of their node, placed on any face (floor, wall,
--- ceiling) with all 24 facedir orientations. Shapes and textures from tools/gen_shop_tools.py
+-- ceiling) with all 24 facedir orientations.
 
 local register_box = st_interior.register_box
 

@@ -1,5 +1,5 @@
 -- Ceiling lamp: a small body in the top centre of the node, plus an arm toward each neighbouring
--- lamp (connected nodebox), so single lamps and bars use the same node. Textures from tools/gen_lamp.py
+-- lamp (connected nodebox), so single lamps and bars use the same node
 -- Variants: bright (light 14), dim (light 10), flickering (light 10, goes dark now and then)
 
 local register_node = st_interior.register_node

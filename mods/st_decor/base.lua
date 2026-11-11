@@ -1,4 +1,4 @@
--- Tufts are plantlike nodes: a texture (tools/gen_decor.py) with transparent pixels, blades along the bottom
+-- Tufts are plantlike nodes: a texture with transparent pixels, blades along the bottom
 local BIOMES = {"grass", "snow", "sand"}
 local TUFT_VARIANTS = 3
 
@@ -22,7 +22,7 @@ for _, biome in ipairs(BIOMES) do
 	end
 end
 
--- Bushes and trees are nodeboxes from tools/gen_decor.py (art/decor_*.nbx); trees are a base node
+-- Bushes and trees are nodeboxes (art/decor_*.nbx); trees are a base node
 -- with a top node above it. Facedir rotates the off-centre shapes
 for _, def in ipairs(st_decor.shapes) do
 	local t = def.texture

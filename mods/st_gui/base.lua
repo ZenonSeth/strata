@@ -1,5 +1,8 @@
 local theme = st_gui.theme
 
+-- Matches the corner size of the tab background textures
+local TAB_SLICE = 4
+
 -- Opening of a themed window: version, size, window background and a title bar.
 -- Content starts at y = st_gui.CONTENT_Y. Formspecs that want no theme start with no_prepend[] instead.
 st_gui.CONTENT_Y = theme.header_height + 0.4
@@ -68,8 +71,8 @@ function st_gui.tab_bar(spec)
 				x, y, w, h, core.formspec_escape(tab.image), name)
 		end
 		local part = table.concat({
-			("style[%s;noclip=true;bgimg=%s;bgimg_hovered=%s;bgimg_pressed=%s;border=false]"):format(
-				name, bg, bg, bg_selected),
+			("style[%s;noclip=true;bgimg=%s;bgimg_hovered=%s;bgimg_pressed=%s;bgimg_middle=%d;border=false]"):format(
+				name, bg, bg, bg_selected, TAB_SLICE),
 			button,
 			tab.tooltip and ("tooltip[%s;%s]"):format(name, core.formspec_escape(tab.tooltip)) or "",
 		})

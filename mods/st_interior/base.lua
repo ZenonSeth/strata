@@ -41,7 +41,7 @@ local function register_node(name, def)
 end
 st_interior.register_node = register_node
 
--- Textures come from tools/gen_interior.py. tiles: top, bottom, sides
+-- tiles: top, bottom, sides
 local function register(name, description, top, bottom, side)
 	register_node(name, {
 		description = description,
@@ -81,7 +81,7 @@ world_aligned("home_wall", "Home wall (painted)", "st_interior_home_wall")
 world_aligned("home_ceiling", "Home ceiling (dark boards)", "st_interior_home_ceiling")
 
 -- Roll-down garage door: a slab 1/4 node thick, centred, full width and height. Three nodes stacked:
--- top (roll housing), mid (repeat as needed), bottom (end bar). Shapes and textures from tools/gen_garage.py
+-- top (roll housing), mid (repeat as needed), bottom (end bar).
 -- extra.use = a st_utils.constants.interact kind makes right-click call that kind's listeners
 local function register_box(name, description, texture, boxes, extra)
 	extra = extra or {}
@@ -123,7 +123,7 @@ register_box("garage_door_bottom", "Garage door (bottom, bar)", "st_interior_gar
 
 -- Window: the same thin slab, a white frame around a bright pane. Opaque to the eye but daylight
 -- passes through it (nodebox + paramtype light), no light of its own. 4 turns around Y only like
--- the digger display (tools/gen_window.py)
+-- the digger display
 register_box("window", "Window", "st_interior_window", {
 	{-16/32, -16/32, -4/32, 16/32, 16/32, 4/32},
 }, {paramtype2 = "4dir"})
