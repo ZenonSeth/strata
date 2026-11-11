@@ -2,7 +2,7 @@ local FORMNAME = "st_upgrades:main"
 
 local esc = core.formspec_escape
 
-local WIDTH, HEIGHT = 13, 7.6
+local WIDTH, HEIGHT = 13, 8.2
 local TAB_SIZE = 0.8
 -- Tabs hang off the left edge, overlapping the window slightly
 local TAB_X = -TAB_SIZE + 0.1
@@ -25,7 +25,9 @@ local SWATCHES = {
 	{"#1c1c1d", "#333334", "#4a4a4b", "#666667", "#858586", "#a6a6a7", "#c8c8c9", "#e6e6e7"},
 	{"#2b2521", "#40372f", "#574b40", "#716354", "#8c7c6b", "#a89784", "#c4b5a1", "#ddd0bd"},
 	{"#1f242b", "#303843", "#444f5d", "#5b6878", "#748294", "#8f9dad", "#aebbc8", "#cfd9e2"},
+	{"#a2807e", "#ad977e", "#ada97e", "#849b84", "#7ea0a2", "#808faa", "#9784a6", "#aa8497"},
 	{"#7a4a46", "#8a6a46", "#8a8446", "#4f7050", "#46787a", "#4a5f85", "#6a4f80", "#85506a"},
+	{"#492c2a", "#53402a", "#534f2a", "#2f4330", "#2a4849", "#2c3950", "#402f4d", "#503040"},
 }
 
 local SWATCH = 0.6
@@ -42,8 +44,8 @@ local TAB_CATEGORY = {fuel = "tank", hull = "hull", cargo = "cargo", drill = "dr
 local PART_X, PART_W = 0.7, 11.6
 local PART_NAME_Y = 1.75
 local PART_STAT_Y = 2.35
-local PART_TABLE_Y, PART_TABLE_H = 2.75, 3.0
-local PART_BUTTON_Y, PART_BUTTON_H = 6.45, 0.8
+local PART_TABLE_Y, PART_TABLE_H = 2.75, 3.6
+local PART_BUTTON_Y, PART_BUTTON_H = 7.05, 0.8
 local TITLE_FONT, NORMAL_FONT = 1.5, 1.15
 
 local PART_COLUMN = {title = "Part", spec = "text,width=13,padding=0.3"}
@@ -150,15 +152,11 @@ local function category_tab(player, category)
 	local name = player:get_player_name()
 	local chosen = selected_level[name] and selected_level[name][category.id]
 	local equipped = stats.get_level(player, category.id)
-	local stock_value = category.levels[1].stats[category.stat.key]
 	local value = equipped.stats[category.stat.key]
 	local stat_line = ("%s: %s"):format(category.stat.label,
 		category.condition and condition_text(player, category, equipped) or format_stat(category.stat, value))
 	for _, extra in ipairs(category.extra or {}) do
 		stat_line = stat_line .. ("   %s: %s"):format(extra.label, format_stat(extra, equipped.stats[extra.key]))
-	end
-	if equipped ~= category.levels[1] then
-		stat_line = stat_line .. ("   (stock: %s)"):format(format_stat(category.stat, stock_value))
 	end
 
 	local rows, selected, selected_level_def = {}, 0, nil

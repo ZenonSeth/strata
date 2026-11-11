@@ -122,13 +122,14 @@ end
 local function recipe_list(player, list, hold, store)
 	local rows, selected = {}, 0
 	for i, recipe in ipairs(list) do
-		local can = true
+		-- Counts ingredients only, not fuel
+		local can_make = math.huge
 		for input, amount in pairs(recipe.from) do
-			can = can and total(hold, store, input) >= amount
+			can_make = math.min(can_make, math.floor(total(hold, store, input) / amount + EPS))
 		end
 		rows[i] = {
-			color = can and theme.text or theme.muted,
-			cells = {recipe.description, tostring(total(hold, store, recipe.name))},
+			color = can_make > 0 and theme.text or theme.muted,
+			cells = {recipe.description, tostring(total(hold, store, recipe.name)), tostring(can_make)},
 		}
 		if recipe.name == selected_recipe[player:get_player_name()] then
 			selected = i
@@ -137,8 +138,9 @@ local function recipe_list(player, list, hold, store)
 	return st_gui.list_table({
 		x = MARGIN, y = TOP, w = LIST_W, h = HEIGHT - TOP - MARGIN, name = "recipes",
 		columns = {
-			{title = "Recipe", spec = "text,width=10,padding=0.3"},
-			{title = "Held", spec = "text,width=4,padding=0.3,tooltip=Units in the hold and storage"},
+			{title = "Recipe", spec = "text,width=9,padding=0.3"},
+			{title = "Have", spec = "text,width=3,padding=0.3,tooltip=Units in the hold and storage"},
+			{title = "Can make", spec = "text,width=4,padding=0.3,tooltip=Units the ingredients allow (fuel not counted)"},
 		},
 		rows = rows, selected = selected,
 	})

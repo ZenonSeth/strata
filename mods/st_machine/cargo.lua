@@ -113,4 +113,29 @@ st_machine.stats.register_equip_check("cargo", function(player, level)
 	return true
 end)
 
+local BAR = "st_machine:cargo"
+local FULL_COLOR = 0xFF4040
+
+-- Spans the hull and fuel bars above it
+st_hud.register_bar(BAR, {
+	color = st_utils.constants.colors.cargo, width = 500, height = 20, size = 1.1, offset = {x = 0, y = -70},
+	mode = "vehicle",
+})
+
+local function format_volume(value)
+	return ("%g"):format(math.floor(value * 10 + 0.5) / 10)
+end
+
+function cargo.refresh(player)
+	local volume, capacity = cargo.volume(player), st_machine.stats.get(player).cargo_capacity
+	local label = format_volume(volume) .. "/" .. format_volume(capacity)
+	local full = capacity > 0 and volume >= capacity - 1e-6
+	st_hud.set_bar(player, BAR, volume, capacity, {
+		label = full and label .. " FULL" or label, text_color = full and FULL_COLOR or nil, bold = full,
+	})
+end
+
+cargo.register_on_change(cargo.refresh)
+st_machine.stats.register_on_change(cargo.refresh)
+
 st_machine.cargo = cargo

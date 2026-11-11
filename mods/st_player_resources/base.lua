@@ -60,8 +60,8 @@ end
 
 local CREDITS_HUD = "st_player_resources:credits"
 st_hud.register_text(CREDITS_HUD, {
-	position = {x = 1, y = 0}, offset = {x = -10, y = 30}, size = 1.3, color = 0xFFFFFF,
-	align = "right", background = {color = "#00000040"},
+	position = {x = 1, y = 0}, offset = {x = -10, y = 22}, size = 1.3, color = 0xFFFFFF,
+	align = "right",
 })
 
 local function show_credits(player)

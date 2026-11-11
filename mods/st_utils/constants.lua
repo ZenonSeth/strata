@@ -27,6 +27,8 @@ return {
 		-- Burn rate multipliers on burn_per_second
 		dig_mult = 2,
 		climb_mult = 1.5,
+		-- Empty tank: sideways and climb top speeds are this fraction of the current stats
+		empty_speed_mult = 0.1,
 		-- Credits per litre at the pump
 		price_per_litre = 1,
 	},
@@ -38,6 +40,8 @@ return {
 	upgrade_recipe_mult = 5,
 	-- Credits per hit point the repair station charges for the stock hull (other hulls cost materials)
 	repair_price_per_hp = 2,
+	-- Gauge bar colors, shared by the HUD and the station windows
+	colors = {hull = "#b85450", fuel = "#4f9a60", cargo = "#b8923a"},
 	-- kinds of interior node use; nodes are tagged with one, game logic listens for it
 	interact = {
 		upgrade = "upgrade",

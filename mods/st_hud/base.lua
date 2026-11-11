@@ -12,7 +12,7 @@ local shown = {}
 
 -- def: {color = ColorString, width, height (px), offset = {x, y} from bottom center,
 -- mode = only shown in this mode (default: always),
--- decimal = show one decimal in the label while max is 100 or less}
+-- decimal = show one decimal in the label while max is 100 or less, size = label font multiplier}
 function st_hud.register_bar(id, def)
 	elements[id] = {kind = "bar", def = def}
 end
@@ -23,6 +23,11 @@ end
 -- background = {color = ColorString, padding = {x, y} px} for a rectangle behind the text}
 function st_hud.register_text(id, def)
 	elements[id] = {kind = "text", def = def}
+end
+
+-- def: {height = px, color = ColorString, mode = optional}; a full-width bar along the top of the screen
+function st_hud.register_strip(id, def)
+	elements[id] = {kind = "strip", def = def}
 end
 
 local function visible(player, element)
@@ -47,6 +52,7 @@ local function create_bar(player, def)
 	local text = player:hud_add({
 		type = "text", position = anchor, offset = off, z_index = Z_TEXT,
 		text = "", number = TEXT_COLOR, alignment = {x = 0, y = 0},
+		size = def.size and {x = def.size, y = 0} or nil,
 	})
 	return {ids = {bg, fill, text}, fill = fill, text = text}
 end
@@ -112,6 +118,18 @@ end
 local function render(player, id)
 	local element = elements[id]
 	local name = player:get_player_name()
+	if element.kind == "strip" then
+		shown[name] = shown[name] or {}
+		if visible(player, element) and not shown[name][id] then
+			local def = element.def
+			shown[name][id] = {ids = {player:hud_add({
+				type = "image", position = {x = 0, y = 0}, z_index = Z_BG - 1,
+				text = "[fill:1x1:" .. def.color,
+				scale = {x = -100, y = def.height}, alignment = {x = 1, y = 1},
+			})}}
+		end
+		return
+	end
 	local data = model[name] and model[name][id]
 	if not data or not visible(player, element) then
 		return
@@ -136,7 +154,17 @@ local function render(player, id)
 	end
 	-- The bar length is value / max; max only changes the label
 	local fraction = data.max > 0 and math.max(0, math.min(data.value / data.max, 1)) or 0
-	local label = bar_label(data.value, data.max, element.def.decimal)
+	local label = data.label or bar_label(data.value, data.max, element.def.decimal)
+	local text_color = data.text_color or TEXT_COLOR
+	if text_color ~= (view.text_color or TEXT_COLOR) then
+		view.text_color = text_color
+		player:hud_change(view.text, "number", text_color)
+	end
+	local style = data.bold and 1 or 0
+	if style ~= (view.style or 0) then
+		view.style = style
+		player:hud_change(view.text, "style", style)
+	end
 	if fraction ~= view.fraction then
 		view.fraction = fraction
 		player:hud_change(view.fill, "scale", {x = fraction, y = 1})
@@ -170,8 +198,10 @@ local function store(player, id, kind, data)
 	render(player, id)
 end
 
-function st_hud.set_bar(player, id, value, max)
-	store(player, id, "bar", {value = value, max = max})
+-- opts: label replaces the default "value/max" text; text_color = 0xRRGGBB and bold for the label
+function st_hud.set_bar(player, id, value, max, opts)
+	opts = opts or {}
+	store(player, id, "bar", {value = value, max = max, label = opts.label, text_color = opts.text_color, bold = opts.bold})
 end
 
 function st_hud.set_text(player, id, label)
@@ -184,6 +214,14 @@ st_mode.register_on_change(function(player)
 			render(player, id)
 		else
 			hide(player, id)
+		end
+	end
+end)
+
+core.register_on_joinplayer(function(player)
+	for id, element in pairs(elements) do
+		if element.kind == "strip" then
+			render(player, id)
 		end
 	end
 end)

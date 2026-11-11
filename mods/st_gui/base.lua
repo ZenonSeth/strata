@@ -19,9 +19,9 @@ function st_gui.input_bg(x, y, w, h)
 	return ("background9[%g,%g;%g,%g;%s;false;%s]"):format(x, y, w, h, theme.input, theme.input_slice)
 end
 
--- Row (or column) of image tabs, each an icon over a background image. They are image buttons, so
--- they can sit outside the window edge (noclip). Returns formspec elements; spec fields:
---   x, y, w, h (size of one tab), tabs = {{id=, image=, tooltip=}, ...}, selected = id
+-- Row (or column) of tabs, each an icon (image) or a text label over a background image. They are
+-- buttons, so they can sit outside the window edge (noclip). Returns formspec elements; spec fields:
+--   x, y, w, h (size of one tab), tabs = {{id=, image= or label=, tooltip=}, ...}, selected = id
 --   bg, bg_selected (textures; bg_selected defaults to bg), vertical (bool), spacing (default 0.1)
 --   prefix (button name prefix, default "tab_"), selected_scale (default 1.1; grows around the tab center)
 -- Read clicks with st_gui.tab_clicked(fields, prefix).
@@ -48,12 +48,18 @@ function st_gui.tab_bar(spec)
 			w, h = w * scale, h * scale
 			bg = bg_selected
 		end
+		local button
+		if tab.label then
+			button = ("button[%g,%g;%g,%g;%s;%s]"):format(x, y, w, h, name, core.formspec_escape(tab.label))
+		else
+			-- Only image_button draws a foreground image; a plain button ignores fgimg
+			button = ("image_button[%g,%g;%g,%g;%s;%s;;true;false]"):format(
+				x, y, w, h, core.formspec_escape(tab.image), name)
+		end
 		local part = table.concat({
 			("style[%s;noclip=true;bgimg=%s;bgimg_hovered=%s;bgimg_pressed=%s;border=false]"):format(
 				name, bg, bg, bg_selected),
-			-- Only image_button draws a foreground image; a plain button ignores fgimg
-			("image_button[%g,%g;%g,%g;%s;%s;;true;false]"):format(
-				x, y, w, h, core.formspec_escape(tab.image), name),
+			button,
 			tab.tooltip and ("tooltip[%s;%s]"):format(name, core.formspec_escape(tab.tooltip)) or "",
 		})
 		-- Selected tab is emitted last so it draws on top of its neighbours

@@ -1,14 +1,14 @@
 local FORMNAME = "st_company:main"
-local WIDTH, HEIGHT = 13, 9
-local TAB_SIZE = 0.8
+local WIDTH, HEIGHT = 13, 10.5
+local TAB_W, TAB_H = 2.2, 0.8
 local TAB_X = 0.4
-local TAB_Y = -TAB_SIZE
+local TAB_Y = -TAB_H
 
--- Placeholder tab art until real icons exist
 local TABS = {
-	{id = "sell", title = "Sell", tooltip = "Sell", image = "[fill:32x32:#c8a040"},
-	{id = "recipes", title = "Recipes", tooltip = "Recipes", image = "[fill:32x32:#5a9a6a"},
+	{id = "recipes", title = "Buy"},
+	{id = "sell", title = "Sell"},
 }
+local DEFAULT_TAB = "sell"
 
 local TABLE_X, TABLE_W = 0.4, WIDTH - 0.8
 local TABLE_Y = st_gui.CONTENT_Y
@@ -49,12 +49,19 @@ local function sell_tab(player, name)
 		fs[#fs + 1] = ("button[%g,%g;4,%g;sell_all;Sell Everything]"):format(x + 6.4, BUTTON_Y, BUTTON_H)
 	end
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.45,
-		esc(("Credits: %s     Hold value: %s credits"):format(
-			format_credits(resources.get_credits(player)), format_credits(hold_value))))
+		esc(("Hold value: %s credits"):format(format_credits(hold_value))))
 	return table.concat(fs)
 end
 
-local LEGEND_X, LEGEND_STEP, LEGEND_ICON = 7.2, 2.6, 0.6
+local LEGEND_STEP, LEGEND_ICON = 2.6, 0.4
+local BUY_TABLE_H = 4.9
+local DIM_TEXT = "#b0aa9e"
+local INFO_Y, INFO_STEP = TABLE_Y + BUY_TABLE_H + 0.95, 0.5
+
+local category_titles = {}
+for _, category in ipairs(st_machine_data.upgrades) do
+	category_titles[category.id] = category.title
+end
 
 -- Icon cell value 1 is a smelter recipe (paper), 2 an upgrade (arrow)
 local RECIPE_COLUMNS = {
@@ -112,55 +119,71 @@ local function recipe_table(player, selected_name)
 		end
 	end
 	return st_gui.list_table({
-		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = TABLE_H, name = "recipes",
+		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = BUY_TABLE_H, name = "recipes",
 		columns = RECIPE_COLUMNS, rows = rows, selected = selected,
 	})
 end
 
 local function recipes_tab(player, name)
 	local recipe = st_recipes.get(selected_item[name] or "")
-	local detail = "Select a recipe to buy it."
+	local fs = {recipe_table(player, selected_item[name])}
+	local legend_y = TABLE_Y + BUY_TABLE_H + 0.15
+	for i, key in ipairs({"recipe", "upgrade"}) do
+		local x = TABLE_X + (i - 1) * LEGEND_STEP
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;st_company_%s.png]"):format(x, legend_y, LEGEND_ICON, LEGEND_ICON, key)
+		fs[#fs + 1] = ("label[%g,%g;%s]"):format(x + LEGEND_ICON + 0.15, legend_y + LEGEND_ICON / 2,
+			key == "recipe" and "Recipe" or "Upgrade")
+	end
+	local lines = {"Select a recipe to see its details."}
 	if recipe then
-		local label = ("%s (%s)"):format(recipe.description, ingredients_text(player, recipe))
+		local cost
 		if st_recipes.has(player, recipe.name) then
-			detail = label .. ": you know this recipe."
+			cost = "Owned"
 		elseif st_recipes.is_available(player, recipe.name) then
-			detail = ("%s: %s credits"):format(label, format_credits(recipe.price))
+			cost = format_credits(recipe.price) .. " credits"
 		else
-			detail = label .. ": find every ingredient first."
+			cost = "Locked - find every ingredient first"
+		end
+		lines = {
+			recipe.description,
+			{"Type: ", recipe.kind == "material" and "Crafting recipe"
+				or "Upgrade for " .. (category_titles[recipe.kind] or recipe.kind):lower()},
+			{"Cost: ", cost},
+			{"Requires: ", ingredients_text(player, recipe)},
+		}
+	end
+	for i, line in ipairs(lines) do
+		local y = INFO_Y + (i - 1) * INFO_STEP
+		if type(line) == "table" then
+			fs[#fs + 1] = ("hypertext[%g,%g;%g,0.5;;<global color=%s><style color=%s>%s</style>%s]"):format(
+				TABLE_X, y - 0.2, TABLE_W, st_gui.theme.text, DIM_TEXT, esc(line[1]), esc(line[2]))
+		else
+			fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, y, esc(line))
 		end
 	end
-	local fs = {
-		recipe_table(player, selected_item[name]),
-		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.4, esc(detail)),
-	}
 	if recipe and st_recipes.can_buy(player, recipe.name) then
-		fs[#fs + 1] = ("button[%g,%g;3.5,%g;buy_recipe;Buy Recipe]"):format(TABLE_X, BUTTON_Y, BUTTON_H)
-	end
-	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.45,
-		esc(("Credits: %s"):format(format_credits(resources.get_credits(player)))))
-	for i, key in ipairs({"recipe", "upgrade"}) do
-		local x = LEGEND_X + (i - 1) * LEGEND_STEP
-		fs[#fs + 1] = ("image[%g,%g;%g,%g;st_company_%s.png]"):format(x, HEIGHT - 0.75, LEGEND_ICON, LEGEND_ICON, key)
-		fs[#fs + 1] = ("label[%g,%g;%s]"):format(x + LEGEND_ICON + 0.2, HEIGHT - 0.45, key == "recipe" and "Recipe" or "Upgrade")
+		fs[#fs + 1] = ("button[%g,%g;3.5,%g;buy_recipe;Buy Recipe]"):format(
+			WIDTH - TABLE_X - 3.5, HEIGHT - 0.4 - BUTTON_H, BUTTON_H)
 	end
 	return table.concat(fs)
 end
 
 local function build(player)
 	local name = player:get_player_name()
-	local tab = selected_tab[name] or TABS[1].id
+	local tab = selected_tab[name] or DEFAULT_TAB
 	local tabs, title = {}, ""
 	for i, def in ipairs(TABS) do
-		tabs[i] = {id = def.id, image = def.image, tooltip = def.tooltip}
+		tabs[i] = {id = def.id, label = def.title}
 		if def.id == tab then
 			title = def.title
 		end
 	end
 	local fs = {
 		st_gui.header(WIDTH, HEIGHT, "Company Contact - " .. title),
+		("hypertext[%g,0.25;5,0.5;;<global halign=right color=%s>Credits: %s]"):format(
+			WIDTH - 5.4, st_gui.theme.text, esc(format_credits(resources.get_credits(player)))),
 		st_gui.tab_bar({
-			x = TAB_X, y = TAB_Y, w = TAB_SIZE, h = TAB_SIZE, selected_scale = 1,
+			x = TAB_X, y = TAB_Y, w = TAB_W, h = TAB_H, selected_scale = 1, spacing = 0,
 			tabs = tabs, selected = tab, prefix = "co_",
 			bg = "st_upgrades_tab_bg.png", bg_selected = "st_upgrades_tab_bg_sel.png",
 		}),

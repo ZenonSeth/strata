@@ -3,7 +3,7 @@ local WIDTH, HEIGHT = 12, 6.8
 local MARGIN = 0.6
 local BAR_Y, BAR_W, BAR_H, BAR_BORDER = 2.3, WIDTH - 2 * MARGIN, 0.9, 0.05
 local BUTTON_W, BUTTON_GAP, BUTTON_H = 3.5, 0.15, 0.9
-local BAR_COLOR, BAR_BG = "#d32f2f", "#1b1c1e"
+local BAR_COLOR, BAR_BG = st_utils.constants.colors.hull, "#1b1c1e"
 
 local stats = st_machine.stats
 local hull = st_machine.hull
@@ -120,7 +120,7 @@ local function build(player)
 	local y = BAR_Y + BAR_H + 0.5
 	local lines = {}
 	if not p.full then
-		lines[1] = "The hull is undamaged."
+		lines[1] = "The hull does not need repairs."
 	else
 		lines[1] = ("Repair all: %s"):format(step_text(p.full, stored, credits))
 		if p.stage then

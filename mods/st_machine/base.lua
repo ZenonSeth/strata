@@ -73,17 +73,19 @@ local START_POS = vector.new(st_utils.constants.shop_x, SURFACE_Y + 1, SLICE_Z)
 -- Machine glow in full daylight; it scales down with the world light level
 local MAX_GLOW = 10
 
+st_hud.register_strip("st_machine:top_bar", {height = 44, color = "#00000080"})
+
 local DEPTH_HUD = "st_machine:depth"
 local DEPTH_INTERVAL = 0.5
 st_hud.register_text(DEPTH_HUD, {
-	position = {x = 0.5, y = 0}, offset = {x = 0, y = 30}, size = 1.3, color = 0xFFFFFF,
+	position = {x = 0.5, y = 0}, offset = {x = -120, y = 22}, size = 1.3, color = 0xFFFFFF,
 	mode = "vehicle",
 })
 
 local SPEED_HUD = "st_machine:vertical_speed"
 st_hud.register_text(SPEED_HUD, {
-	position = {x = 1, y = 1}, offset = {x = -10, y = -30}, size = 1.3, color = 0xFFFFFF,
-	align = "right", mode = "vehicle", background = {color = "#00000040"},
+	position = {x = 0.5, y = 0}, offset = {x = 120, y = 22}, size = 1.3, color = 0xFFFFFF,
+	mode = "vehicle",
 })
 
 local function update_speed(player, vel_y)
@@ -350,7 +352,9 @@ local function control_step(session, player, pos, control, dtime)
 	end
 
 	local vel = session.obj:get_velocity()
-	local target_vx = ((control.right and 1 or 0) - (control.left and 1 or 0)) * my_stats.move_speed
+	local speed_mult = fuel.is_empty(player) and FUEL.empty_speed_mult or 1
+	local top_thrust = my_stats.thrust * speed_mult
+	local target_vx = ((control.right and 1 or 0) - (control.left and 1 or 0)) * my_stats.move_speed * speed_mult
 	if align_x then
 		target_vx = math.max(-ALIGN_SPEED, math.min(ALIGN_SPEED, (align_x - pos.x) * ALIGN_RATE))
 	end
@@ -364,12 +368,12 @@ local function control_step(session, player, pos, control, dtime)
 	end
 	if climbing then
 		accel_y = THRUST_ACCEL / (1 + RATED_DRAG * cargo.weight(player) / my_stats.thrust_rating) - session.gravity
-		if vel.y > my_stats.thrust then
-			vel.y = approach(vel.y, my_stats.thrust, ACCEL * dtime)
+		if vel.y > top_thrust then
+			vel.y = approach(vel.y, top_thrust, ACCEL * dtime)
 			accel_y = 0
 		else
 			-- The engine integrates accel between steps, so stop it at the cap instead of overshooting
-			accel_y = math.min(accel_y, (my_stats.thrust - vel.y) / dtime)
+			accel_y = math.min(accel_y, (top_thrust - vel.y) / dtime)
 		end
 	end
 	vel.y = math.max(vel.y, -MAX_FALL_SPEED)
@@ -498,9 +502,10 @@ local function board(player, session)
 	player:set_camera({mode = "first"})
 	-- player:set_properties({zoom_fov = 0})
 	reset_look(player)
-	player:hud_set_flags({wielditem = false, crosshair = false})
+	player:hud_set_flags({wielditem = false, crosshair = false, hotbar = true})
 	fuel.refresh(player)
 	hull.refresh(player)
+	st_machine.cargo.refresh(player)
 	update_depth(player, session.obj:get_pos())
 	player:set_sky({fog = {fog_distance = VIEW_DISTANCE, fog_start = FOG_START}})
 end
