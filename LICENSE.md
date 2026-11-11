@@ -24,7 +24,6 @@ Third-party assets, with their licenses and authors, are listed below.
 - Source: http://incompetech.com
 - Files: `menu/theme.ogg` (an edited, shortened excerpt of the original)
 - License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
-- Attribution: "Mirage" Kevin MacLeod (incompetech.com). Licensed under Creative Commons: By Attribution 4.0 License
 
 ### "Clean Soul" (on-foot music)
 
@@ -32,4 +31,10 @@ Third-party assets, with their licenses and authors, are listed below.
 - Source: http://incompetech.com
 - Files: `mods/st_audio/sounds/st_audio_music_foot.ogg` (an edited, shortened excerpt of the original)
 - License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
-- Attribution: "Clean Soul" Kevin MacLeod (incompetech.com). Licensed under Creative Commons: By Attribution 4.0 License
+
+### "Comfortable Mystery" (underground music)
+
+- Author: Kevin MacLeod (incompetech.com)
+- Source: http://incompetech.com
+- Files: `mods/st_audio/sounds/st_audio_music_underground_1.ogg`, `_2.ogg`, `_3.ogg` (edited, shortened excerpts of the original)
+- License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

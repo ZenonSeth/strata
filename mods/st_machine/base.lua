@@ -137,6 +137,16 @@ local function update_depth(player, pos)
 	local depth, old = -y, last_depth[name]
 	if depth ~= old then
 		last_depth[name] = depth
+		local playing = st_audio.music.current(player)
+		if depth >= 10 then
+			if playing ~= "underground" then
+				st_audio.music.play(player, "underground", function()
+					return (last_depth[name] or 0) >= 10
+				end)
+			end
+		elseif depth > 1 and playing == "foot" then
+			st_audio.music.stop(player)
+		end
 		for _, fn in ipairs(depth_listeners) do
 			fn(player, depth, old)
 		end

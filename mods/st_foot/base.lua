@@ -23,7 +23,4 @@ st_mode.register_mode("foot", {
 		player:hud_set_flags({wielditem = true, crosshair = true, hotbar = false})
 		st_audio.music.play(player, "foot")
 	end,
-	on_exit = function(player)
-		st_audio.music.stop(player)
-	end,
 })

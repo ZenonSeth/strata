@@ -132,7 +132,7 @@ local function recipes_tab(player, name)
 		local x = TABLE_X + (i - 1) * LEGEND_STEP
 		fs[#fs + 1] = ("image[%g,%g;%g,%g;st_company_%s.png]"):format(x, legend_y, LEGEND_ICON, LEGEND_ICON, key)
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(x + LEGEND_ICON + 0.15, legend_y + LEGEND_ICON / 2,
-			key == "recipe" and "Recipe" or "Upgrade")
+			key == "recipe" and "= Recipe" or "= Upgrade")
 	end
 	local lines = {"Select a recipe to see its details."}
 	if recipe then

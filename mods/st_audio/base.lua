@@ -24,23 +24,41 @@ end
 
 -- Music: one current track per player
 
+-- Silence between clips of a scheduled track, in seconds
+local MIN_GAP, MAX_GAP = 30, 90
+
 local tracks = {}
--- player name -> {track = name, handle = handle or nil}
+-- player name -> {track = name, handle = handle or nil, clip = sound or nil, last = clip index, job = job or nil}
 local current_music = {}
 
+-- def: {sound = name} for a looping track, or {clips = {{sound = name, length = seconds}, ...}}
+-- for a track that plays a random clip (never the same twice in a row) after each stretch of silence
 function music.register_track(name, def)
-	tracks[name] = {sound = def.sound, gain = def.gain or 1, enabled = def.enabled ~= false}
+	tracks[name] = {sound = def.sound, clips = def.clips, gain = def.gain or 1, enabled = def.enabled ~= false}
 end
 
 function music.set_track_enabled(name, value)
 	tracks[name].enabled = value
 end
 
-local function halt_music(state)
+function music.current(player)
+	local state = current_music[player:get_player_name()]
+	return state and state.track
+end
+
+local function halt_sound(state)
 	if state.handle then
 		core.sound_stop(state.handle)
 		state.handle = nil
 	end
+end
+
+local function halt_music(state)
+	if state.job then
+		state.job:cancel()
+		state.job = nil
+	end
+	halt_sound(state)
 end
 
 local function apply_music(player)
@@ -49,31 +67,68 @@ local function apply_music(player)
 	if not state then
 		return
 	end
-	halt_music(state)
+	halt_sound(state)
 	local def = tracks[state.track]
-	if not def.enabled or not enabled(player, "music") then
+	local sound = def.sound or state.clip
+	if not sound or not def.enabled or not enabled(player, "music") then
 		return
 	end
-	state.handle = core.sound_play(def.sound, {
+	state.handle = core.sound_play(sound, {
 		to_player = pname,
 		gain = def.gain * volume(player, "music"),
-		loop = true,
+		loop = def.sound ~= nil,
 	})
 end
 
--- Replaces whatever was playing; remembered while disabled so enabling it later starts it
-function music.play(player, track)
-	assert(tracks[track], "st_audio: unknown music track '" .. tostring(track) .. "'")
+local function schedule_clip(pname, state)
+	state.clip = nil
+	state.job = core.after(math.random(MIN_GAP, MAX_GAP), function()
+		local player = core.get_player_by_name(pname)
+		if not player or current_music[pname] ~= state then
+			return
+		end
+		if state.can_play and not state.can_play(player) then
+			music.stop(player)
+			return
+		end
+		local clips = tracks[state.track].clips
+		local i
+		repeat
+			i = math.random(#clips)
+		until i ~= state.last or #clips == 1
+		state.last = i
+		state.clip = clips[i].sound
+		apply_music(player)
+		state.job = core.after(clips[i].length, function()
+			if current_music[pname] ~= state then
+				return
+			end
+			halt_sound(state)
+			schedule_clip(pname, state)
+		end)
+	end)
+end
+
+-- Replaces whatever was playing; remembered while disabled so enabling it later starts it.
+-- can_play(player), for a clips track, is checked after each silence; if false the track stops.
+function music.play(player, track, can_play)
+	local def = tracks[track]
+	assert(def, "st_audio: unknown music track '" .. tostring(track) .. "'")
 	local pname = player:get_player_name()
 	local state = current_music[pname]
-	if state and state.track == track and state.handle then
+	if state and state.track == track and (state.handle or def.clips) then
 		return
 	end
 	if state then
 		halt_music(state)
 	end
-	current_music[pname] = {track = track}
-	apply_music(player)
+	state = {track = track, can_play = can_play}
+	current_music[pname] = state
+	if def.clips then
+		schedule_clip(pname, state)
+	else
+		apply_music(player)
+	end
 end
 
 function music.stop(player)
@@ -235,3 +290,12 @@ core.register_on_leaveplayer(function(player)
 end)
 
 music.register_track("foot", {sound = "st_audio_music_foot", gain = 1.0})
+
+music.register_track("underground", {
+	clips = {
+		{sound = "st_audio_music_underground_1", length = 63.9},
+		{sound = "st_audio_music_underground_2", length = 99.5},
+		{sound = "st_audio_music_underground_3", length = 28.8},
+	},
+	gain = 1.0,
+})
