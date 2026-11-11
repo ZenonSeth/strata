@@ -9,9 +9,12 @@ stats.base = {
 	fuel_use = st_machine_data.get_upgrade("engine").levels[1].stats.fuel_use,
 	-- Dig time is st_hardness / dig_speed
 	dig_speed = st_machine_data.get_upgrade("drill").levels[1].stats.dig_speed,
-	-- Max climb speed (nodes/s) with an empty hold
-	thrust = 3,
-	can_dig_up = false,
+	-- Top climb speed (nodes/s); cargo weight lowers the climb acceleration, not this
+	thrust = st_machine_data.get_upgrade("thrusters").levels[1].stats.thrust,
+	-- Cargo weight the thrusters are built to carry (see RATED_DRAG in base.lua)
+	thrust_rating = st_machine_data.get_upgrade("thrusters").levels[1].stats.thrust_rating,
+	-- Set by the thrusters: only jets and rockets dig upwards
+	can_dig_up = st_machine_data.get_upgrade("thrusters").levels[1].stats.can_dig_up,
 	-- Highest node tier (st_tier) the drill bit digs; harder nodes are solid walls
 	drill_tier = st_machine_data.get_upgrade("drill").levels[1].stats.drill_tier,
 	-- Total cargo volume the hold can take
@@ -27,9 +30,7 @@ stats.base = {
 }
 
 -- Applying an upgrade overwrites these stat values
-stats.upgrades = {
-	dig_up = {can_dig_up = true},
-}
+stats.upgrades = {}
 
 local cache = {}
 local storage = core.get_mod_storage()
@@ -194,6 +195,32 @@ function stats.equip_level(player, id, level_name)
 	local entry = built_levels(player)[id] or {}
 	entry.equipped = level_name
 	built_levels(player)[id] = entry
+	save_levels(player)
+	return true
+end
+
+-- Deletes a built part (and its condition); an equipped one falls back to the stock level. Returns ok, reason
+function stats.remove_level(player, id, level_name)
+	local category = st_machine_data.get_upgrade(id)
+	local index = category and level_index(category, level_name)
+	if not index or index == 1 then
+		return false, "The stock part cannot be removed."
+	end
+	local entry = built_levels(player)[id]
+	if not is_built(entry, category, index) then
+		return false, "Not built."
+	end
+	if entry.equipped == level_name then
+		local ok, reason = stats.can_equip(player, id, category.levels[1].name)
+		if not ok then
+			return false, reason
+		end
+		entry.equipped = nil
+	end
+	entry.built[level_name] = nil
+	if entry.current then
+		entry.current[level_name] = nil
+	end
 	save_levels(player)
 	return true
 end

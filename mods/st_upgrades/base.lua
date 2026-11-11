@@ -37,14 +37,14 @@ local SWATCH_SECTIONS = {
 local SWATCH_Y = 2.2
 
 -- Tabs that list the parts of an upgrade category (st_machine_data.upgrades)
-local TAB_CATEGORY = {fuel = "tank", hull = "hull", cargo = "cargo", drill = "drill", engine = "engine"}
+local TAB_CATEGORY = {fuel = "tank", hull = "hull", cargo = "cargo", drill = "drill", engine = "engine", thrusters = "thrusters"}
 
 local PART_X, PART_W = 0.7, 11.6
 local PART_NAME_Y = 1.75
 local PART_STAT_Y = 2.35
 local PART_TABLE_Y, PART_TABLE_H = 2.75, 3.0
 local PART_BUTTON_Y, PART_BUTTON_H = 6.45, 0.8
-local TITLE_FONT, NORMAL_FONT = 1.6, 1.25
+local TITLE_FONT, NORMAL_FONT = 1.5, 1.15
 
 local PART_COLUMN = {title = "Part", spec = "text,width=13,padding=0.3"}
 local STAT_COLUMN = {spec = "text,width=7,padding=0.3"}
@@ -89,6 +89,9 @@ end
 local stats = st_machine.stats
 
 local function format_stat(stat, value)
+	if stat.names then
+		return stat.names[value]
+	end
 	value = value * (stat.scale or 1)
 	if stat.format then
 		return stat.format:format(value)
@@ -181,7 +184,8 @@ local function category_tab(player, category)
 	end
 	local columns = {PART_COLUMN, {title = category.stat.label, spec = STAT_COLUMN.spec}}
 	for _, extra in ipairs(category.extra or {}) do
-		columns[#columns + 1] = {title = extra.label, spec = STAT_COLUMN.spec}
+		local spec = extra.width and ("text,width=%g,padding=0.3"):format(extra.width) or STAT_COLUMN.spec
+		columns[#columns + 1] = {title = extra.label, spec = spec}
 	end
 	if category.condition then
 		columns[#columns + 1] = CONDITION_COLUMN

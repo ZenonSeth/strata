@@ -5,6 +5,10 @@ st_machine_data.modpath = core.get_modpath(core.get_current_modname())
 st_machine_data.upgrades = {}
 local by_id = {}
 
+function st_machine_data.get_upgrade(id)
+	return by_id[id]
+end
+
 local function check(category)
 	local id = category.id
 	assert(type(id) == "string" and not by_id[id], "st_machine_data: bad or duplicate category id " .. tostring(id))
@@ -36,13 +40,9 @@ local function check(category)
 	end
 end
 
-for _, file in ipairs({"tanks", "hulls", "cargo", "drills", "engines"}) do
+for _, file in ipairs({"tanks", "hulls", "cargo", "thrusters", "drills", "engines"}) do
 	local category = dofile(st_machine_data.modpath .. "/" .. file .. ".lua")
 	check(category)
 	by_id[category.id] = category
 	table.insert(st_machine_data.upgrades, category)
-end
-
-function st_machine_data.get_upgrade(id)
-	return by_id[id]
 end

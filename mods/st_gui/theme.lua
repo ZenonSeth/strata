@@ -3,7 +3,7 @@
 local TEXT = "#e8e0d0"
 local BUTTON_SLICE = 5
 -- Multiplies the player's font size in every themed formspec
-local FONT_SCALE = 1.25
+local FONT_SCALE = 1.15
 
 local theme = {
 	text = TEXT,

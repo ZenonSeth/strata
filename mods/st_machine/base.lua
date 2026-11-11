@@ -25,7 +25,8 @@ local function engine_sound(session, player, control)
 	end
 	sfx.start_loop(player, "engine", engine)
 	if has_fuel and climbing and not session.dig then
-		sfx.start_loop(player, "burner", "burner")
+		local propeller = stats.get_level(player, "thrusters").kind == "propeller"
+		sfx.start_loop(player, "burner", propeller and "helicopter" or "burner")
 	else
 		sfx.stop_loop(player, "burner")
 	end
@@ -46,8 +47,10 @@ local FOG_START = 0.4
 local FOLLOW_SPEED = 8
 -- How fast the machine reaches its target speed (nodes/s^2)
 local ACCEL = 50
--- Climb speed is thrust / (1 + cargo weight * CARGO_DRAG)
-local CARGO_DRAG = 0.05
+-- Thrust acceleration is THRUST_ACCEL / (1 + RATED_DRAG * cargo weight / thrust_rating); gravity still pulls against it
+local THRUST_ACCEL = 65
+-- At the rated weight the net climb accel is 10% of the empty-hold one
+local RATED_DRAG = 2.25
 local MAX_FALL_SPEED = 30
 -- Easing onto the dig row/column
 local ALIGN_SPEED = 3
@@ -76,6 +79,18 @@ st_hud.register_text(DEPTH_HUD, {
 	position = {x = 0.5, y = 0}, offset = {x = 0, y = 30}, size = 1.3, color = 0xFFFFFF,
 	mode = "vehicle",
 })
+
+local SPEED_HUD = "st_machine:vertical_speed"
+st_hud.register_text(SPEED_HUD, {
+	position = {x = 1, y = 1}, offset = {x = -10, y = -30}, size = 1.3, color = 0xFFFFFF,
+	align = "right", mode = "vehicle", background = {color = "#00000040"},
+})
+
+local function update_speed(player, vel_y)
+	-- Rounded to a tenth; "+0.0" is shown as "0.0" so it never flickers between signs
+	local speed = math.floor(vel_y * 10 + 0.5) / 10
+	st_hud.set_text(player, SPEED_HUD, string.format(speed > 0 and "V: +%.1f m/s" or "V: %.1f m/s", speed + 0))
+end
 
 local PAD_HUD = "st_machine:pad"
 st_hud.register_text(PAD_HUD, {
@@ -348,9 +363,14 @@ local function control_step(session, player, pos, control, dtime)
 		burn_fuel(player, 1, dtime)
 	end
 	if climbing then
-		local climb = my_stats.thrust / (1 + cargo.weight(player) * CARGO_DRAG)
-		vel.y = approach(vel.y, climb, ACCEL * dtime)
-		accel_y = 0
+		accel_y = THRUST_ACCEL / (1 + RATED_DRAG * cargo.weight(player) / my_stats.thrust_rating) - session.gravity
+		if vel.y > my_stats.thrust then
+			vel.y = approach(vel.y, my_stats.thrust, ACCEL * dtime)
+			accel_y = 0
+		else
+			-- The engine integrates accel between steps, so stop it at the cap instead of overshooting
+			accel_y = math.min(accel_y, (my_stats.thrust - vel.y) / dtime)
+		end
 	end
 	vel.y = math.max(vel.y, -MAX_FALL_SPEED)
 	vel.z = 0
@@ -359,29 +379,49 @@ local function control_step(session, player, pos, control, dtime)
 end
 
 local EXHAUST_INTERVAL = 0.1
-local EXHAUST_PER_NOZZLE = 3
-local EMPTY_EXHAUST_PER_NOZZLE = 1
+-- Per thruster kind (see thrusters.lua): particles per nozzle per burst (full tank, empty tank), downward speed, size and lifetime
+-- as {minimum, random extra}; spread is the random sideways offset (nodes) of the spawn point; static = a single-frame texture
+local EXHAUST_PROFILES = {
+	propeller = {
+		count = 2, empty_count = 0, speed = {3, 2}, size = {0.5, 0.3}, life = {0.12, 0.12}, spread = 0.1, static = true,
+		texture = {name = "st_machine_wind.png", blend = "alpha"},
+	},
+	jet = {count = 3, empty_count = 1, speed = {2.5, 1.5}, size = {0.75, 0.45}, life = {0.4, 0.4}, spread = 0.03,
+		texture = EXHAUST_TEXTURE},
+	rocket = {
+		count = 6, empty_count = 1, speed = {5, 3}, size = {1.2, 1}, life = {0.5, 0.5}, spread = 0.03,
+		texture = {name = "st_machine_exhaust.png^[multiply:#ffa060", blend = "alpha", scale_tween = {1, 2.2}},
+	},
+}
 
 local function spawn_exhaust(session, player, dtime)
+	local profile = EXHAUST_PROFILES[stats.get_level(player, "thrusters").kind]
+	if not profile then
+		return
+	end
 	session.exhaust_timer = (session.exhaust_timer or 0) + dtime
 	if session.exhaust_timer < EXHAUST_INTERVAL then
 		return
 	end
 	session.exhaust_timer = session.exhaust_timer - EXHAUST_INTERVAL
 	local pos = session.obj:get_pos()
-	local count = fuel.is_empty(player) and EMPTY_EXHAUST_PER_NOZZLE or EXHAUST_PER_NOZZLE
+	local count = fuel.is_empty(player) and profile.empty_count or profile.count
 	for _, nozzle in ipairs(NOZZLES) do
 		local origin = vector.add(pos, vector.rotate(nozzle, vector.new(0, session.yaw, 0)))
 		for _ = 1, count do
-			local lifetime = 0.4 + math.random() * 0.4
+			local lifetime = profile.life[1] + math.random() * profile.life[2]
 			core.add_particle({
-				pos = vector.offset(origin, math.random() * 0.06 - 0.03, 0, math.random() * 0.06 - 0.03),
-				velocity = vector.new(math.random() * 0.6 - 0.3, -2.5 - math.random() * 1.5, math.random() * 0.6 - 0.3),
+				pos = vector.offset(origin, (math.random() - 0.5) * 2 * profile.spread, 0, (math.random() - 0.5) * 2 * profile.spread),
+				velocity = vector.new(math.random() * 0.6 - 0.3, -profile.speed[1] - math.random() * profile.speed[2],
+					math.random() * 0.6 - 0.3),
 				expirationtime = lifetime,
-				size = 0.75 + math.random() * 0.45,
-				texture = EXHAUST_TEXTURE,
-				animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = lifetime + 0.1},
+				size = profile.size[1] + math.random() * profile.size[2],
+				texture = profile.texture,
+				animation = not profile.static and
+					{type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = lifetime + 0.1} or nil,
 				glow = 12,
+				collisiondetection = true,
+				collision_removal = true,
 			})
 		end
 	end
@@ -403,7 +443,7 @@ local function impact(session, player, pos, vel_y)
 	})
 	hull.damage(player, st_utils.constants.max_fall_damage * t)
 end
-for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner"}) do
+for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner", "helicopter"}) do
 	st_audio.sfx.register(name, {sound = "st_machine_" .. name, category = "vehicle", gain = ENGINE_GAIN})
 end
 
@@ -587,6 +627,7 @@ local function vehicle_step(player, dtime)
 		session.glow = glow
 		session.obj:set_properties({glow = glow})
 	end
+	update_speed(player, session.obj:get_velocity().y)
 	session.depth_timer = session.depth_timer + dtime
 	if session.depth_timer >= DEPTH_INTERVAL then
 		session.depth_timer = session.depth_timer - DEPTH_INTERVAL
@@ -638,6 +679,8 @@ function st_machine.destroy(player)
 				texture = EXHAUST_TEXTURE,
 				animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = lifetime + 0.1},
 				glow = 14,
+				collisiondetection = true,
+				collision_removal = true,
 			})
 		end
 	end

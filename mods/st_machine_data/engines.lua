@@ -4,7 +4,7 @@
 return {
 	id = "engine",
 	title = "Engine",
-	stat = {key = "move_speed", label = "Speed", unit = "n/s"},
+	stat = {key = "move_speed", label = "Speed", unit = "m/s"},
 	extra = {{key = "fuel_use", label = "Fuel use", format = "x%g"}},
 	levels = {
 		{name = "stock", description = "Stock motor", stats = {move_speed = 3.5, fuel_use = 1}},
