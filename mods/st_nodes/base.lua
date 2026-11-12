@@ -155,8 +155,8 @@ local function tier_hardness(tier)
 	return math.floor(h * 100 + 0.5) / 100
 end
 
-local function has_texture(file)
-	local f = io.open(st_nodes.modpath .. "/textures/" .. file, "rb")
+local function has_texture(file, modpath)
+	local f = io.open((modpath or st_nodes.modpath) .. "/textures/" .. file, "rb")
 	if f then
 		f:close()
 		return true
@@ -275,7 +275,7 @@ end
 local function register_embedded(node_name, description, file, color, mark, host, def, cell)
 	def.tiles = {rock_tile(host)}
 	local overlay
-	if has_texture(file) then
+	if has_texture(file, cell and st_materials.modpath) then
 		overlay = cell and cell_tile(file) or world_tile(file)
 	else
 		overlay = placeholder_overlay(color, mark)
@@ -304,7 +304,7 @@ for host, s in ipairs(strata) do
 
 	for _, g in ipairs(gems) do
 		register_embedded(data.gem_node(g.name, s.name), st_materials.get(g.name).description .. " (" .. s.name .. ")",
-			"st_nodes_gem_" .. g.name .. ".png", name_color(g.name), 6, host, {
+			"st_materials_" .. g.name .. ".png", name_color(g.name), 6, host, {
 				st_material = g.name,
 				st_tier = g.tier,
 				st_yield = 1,

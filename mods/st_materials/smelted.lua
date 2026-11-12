@@ -11,7 +11,7 @@ return {
 	{name = "nickel_steel", description = "Nickel steel", from = {iron = 1, nickel = 1}, fuel_cost = 2},
 	{name = "hardened_steel", description = "Hardened steel", from = {steel = 1, nickel = 1}, fuel_cost = 3},
 	{name = "aluminum_plate", description = "Aluminum plate", from = {aluminum = 2, graphite = 1}, fuel_cost = 3},
-	{name = "fine_wiring", description = "Fine wiring", from = {gold = 1}, fuel_cost = 1},
+	{name = "gold_wire", description = "Gold wire", from = {gold = 1}, fuel_cost = 1},
 	{name = "titanium_alloy", description = "Titanium alloy", from = {titanium = 2, oil = 1}, fuel_cost = 4},
 	{name = "tungsten_carbide", description = "Tungsten carbide", from = {tungsten = 2, graphite = 1}, fuel_cost = 5},
 	{name = "deep_alloy", description = "Deep alloy", from = {nickel_steel = 2, titanium = 1}, fuel_cost = 6},

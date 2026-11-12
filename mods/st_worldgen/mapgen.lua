@@ -394,7 +394,7 @@ end)
 core.register_on_generated(make_placer(buildings))
 
 -- Debug content in the slice, to look at textures and try things: a row of every ore (poor,
--- regular, rich) on topsoil
+-- regular, rich) on topsoil, with two of every gem in the row above
 local DEBUG_GENERATE = true
 local DEBUG_ROW_X, DEBUG_ROW_Y = 20, 2
 
@@ -410,6 +410,15 @@ if DEBUG_GENERATE then
 			end
 			x = x + 1
 		end
+	end
+	x = DEBUG_ROW_X
+	for _, g in ipairs(world.gems) do
+		local id = core.get_content_id(world.gem_node(g.name, strata[1].name))
+		for _ = 1, 2 do
+			debug_nodes[#debug_nodes + 1] = {x, DEBUG_ROW_Y + 1, id}
+			x = x + 1
+		end
+		x = x + 1
 	end
 	core.register_on_generated(make_placer(debug_nodes))
 end
