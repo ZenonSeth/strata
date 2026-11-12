@@ -4,6 +4,7 @@ local function register(name, description, texture, boxes)
 		description = description,
 		drawtype = "nodebox",
 		paramtype = "light",
+		light_source = 12,
 		tiles = {
 			texture .. "_top.png", texture .. "_bottom.png",
 			texture .. "_left.png", texture .. "_right.png",

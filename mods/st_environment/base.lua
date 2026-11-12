@@ -17,9 +17,11 @@ end
 -- Base look plus optional overrides, for depth layers that change it
 st_environment.set_player_lighting = player_lighting.apply
 
+-- Day/night cycle is off for now: time is frozen at 7am
+core.settings:set("time_speed", "0")
+
 core.register_on_joinplayer(function(player)
-	-- Permanent daylight until the machine goes below y = -10
-	player:override_day_night_ratio(1)
+	core.set_timeofday(7 / 24)
 	player_lighting.apply(player)
 	-- Invisible sun that still casts shadows
 	player:set_sun({texture = "blank.png"})
