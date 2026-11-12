@@ -38,3 +38,10 @@ Third-party assets, with their licenses and authors, are listed below.
 - Source: http://incompetech.com
 - Files: `mods/st_audio/sounds/st_audio_music_underground_1.ogg`, `_2.ogg`, `_3.ogg` (edited, shortened excerpts of the original)
 - License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+### "Dark Star" (ending music)
+
+- Author: Kevin MacLeod (incompetech.com)
+- Source: http://incompetech.com
+- Files: `mods/st_audio/sounds/st_audio_music_ending.ogg` (a cut version of the original, otherwise unmodified)
+- License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

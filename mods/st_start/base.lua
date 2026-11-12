@@ -187,13 +187,23 @@ end)
 -- Right-clicking the display digger boards the machine, which is respawned at its saved position if gone
 st_interior.register_on_use(st_utils.constants.interact.drive, function(player_name)
 	local player = core.get_player_by_name(player_name)
-	if player and st_mode.get(player) == "foot" then
-		st_mode.set(player, "vehicle")
+	if not player or st_mode.get(player) ~= "foot" then
+		return
 	end
+	if not st_mail.has_read(player_name, "welcome") then
+		core.chat_send_player(player_name, "The vehicle is locked. Check the mail on the computer.")
+		return
+	end
+	st_mode.set(player, "vehicle")
 end)
 
 -- Runs after st_mode's join handler, which puts every player in the default mode
 core.register_on_joinplayer(function(player)
+	local name = player:get_player_name()
+	-- Oldest first, so the welcome mail ends up on top
+	for _, id in ipairs({"jim", "free_gift", "welcome"}) do
+		st_mail.send_story(name, id)
+	end
 	if player:get_meta():get_string(DONE_KEY) == "" then
 		first_spawn(player)
 	end

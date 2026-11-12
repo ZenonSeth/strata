@@ -65,14 +65,14 @@ register("refinery_ur", "Refinery (tank)", "st_buildings_refinery_ur", {
 })
 
 -- Company contact: light bank-like office facade (3/4 node) next to a red-brick storage
-register("contact_office", "Company contact (office)", "st_buildings_contact_office", {
+register("contact_office", "Company shop (office)", "st_buildings_contact_office", {
 	{-16/32, 2/32, -16/32, 16/32, 8/32, 16/32},
 	{-16/32, -16/32, -14/32, 16/32, 2/32, 16/32},
 	{-14/32, -15/32, -16/32, -6/32, -13/32, -14/32},
 	{6/32, -15/32, -16/32, 14/32, -13/32, -14/32},
 })
 
-register("contact_storage", "Company contact (storage)", "st_buildings_contact_storage", {
+register("contact_storage", "Company shop (storage)", "st_buildings_contact_storage", {
 	{-16/32, 10/32, -16/32, 16/32, 14/32, 16/32},
 	{-16/32, -16/32, -13/32, 16/32, 10/32, 16/32},
 	{-16/32, -16/32, -16/32, -12/32, 10/32, -13/32},

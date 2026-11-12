@@ -33,6 +33,9 @@ end
 
 -- Out of fuel: engine stays on idle, no burner
 local function engine_sound(session, player, control)
+	if session.muted then
+		return
+	end
 	local sfx = st_audio.sfx
 	local climbing = control.up and not control.down
 	local has_fuel = not fuel.is_empty(player)
@@ -100,13 +103,13 @@ local DEPTH_HUD = "st_machine:depth"
 local DEPTH_INTERVAL = 0.5
 st_hud.register_text(DEPTH_HUD, {
 	position = {x = 0.5, y = 0}, offset = {x = -120, y = 22}, size = 1.3, color = 0xFFFFFF,
-	mode = "vehicle",
+	mode = "vehicle", mono = true,
 })
 
 local SPEED_HUD = "st_machine:vertical_speed"
 st_hud.register_text(SPEED_HUD, {
 	position = {x = 0.5, y = 0}, offset = {x = 120, y = 22}, size = 1.3, color = 0xFFFFFF,
-	mode = "vehicle",
+	mode = "vehicle", mono = true,
 })
 
 local function update_speed(player, vel_y)
@@ -203,6 +206,17 @@ local WHEELS = {"wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"}
 local MAX_ROLL_STEP = 1
 
 local sessions = {}
+
+-- Silences the engine and burner until unmuted (e.g. under a fullscreen screen); the next step restarts them
+function st_machine.set_muted(player, muted)
+	local session = sessions[player:get_player_name()]
+	if session then
+		session.muted = muted or nil
+	end
+	if muted then
+		stop_engine_sound(player)
+	end
+end
 
 local colors = st_machine.colors
 local color_listeners = {}
@@ -845,6 +859,7 @@ st_mode.register_mode("vehicle", {
 		if not session then
 			return
 		end
+		session.muted = nil
 		if session.destroyed then
 			discard(name)
 			st_environment.set_player_lighting(player)

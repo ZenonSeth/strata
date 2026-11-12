@@ -44,6 +44,8 @@ return {
 	upgrade_recipe_mult = 5,
 	-- Credits per hit point the repair station charges for the stock hull (other hulls cost materials)
 	repair_price_per_hp = 2,
+	-- Story: what the player owes the company at the start, in credits
+	story = {starting_debt = 10000000},
 	-- Gauge bar colors, shared by the HUD and the station windows
 	colors = {hull = "#b85450", fuel = "#4f9a60", cargo = "#b8923a"},
 	-- kinds of interior node use; nodes are tagged with one, game logic listens for it

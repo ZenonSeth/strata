@@ -20,7 +20,8 @@ end
 -- def: {position = {x, y} screen anchor, offset = {x, y} px, size = font multiplier,
 -- color = 0xRRGGBB, mode = only shown in this mode (default: always),
 -- align = "right" keeps the right edge fixed at the anchor (default: centered),
--- background = {color = ColorString, padding = {x, y} px} for a rectangle behind the text}
+-- background = {color = ColorString, padding = {x, y} px} for a rectangle behind the text,
+-- mono = true for a monospace font}
 function st_hud.register_text(id, def)
 	elements[id] = {kind = "text", def = def}
 end
@@ -96,7 +97,7 @@ local function create_text(player, def, label)
 	local hud = player:hud_add({
 		type = "text", position = def.position, offset = text_offset,
 		size = {x = def.size or 1, y = 0}, number = def.color or TEXT_COLOR,
-		alignment = alignment, text = label, z_index = Z_TEXT,
+		alignment = alignment, text = label, z_index = Z_TEXT, style = def.mono and 4 or 0,
 	})
 	ids[#ids + 1] = hud
 	return {ids = ids, text = hud, background = background, label = label}

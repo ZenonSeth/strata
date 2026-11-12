@@ -34,6 +34,11 @@ local function bar(level, max)
 	return table.concat(fs)
 end
 
+-- Empty tank and no credits: digging is off, so there is no way to earn fuel money
+local function stranded(player)
+	return st_machine.fuel.is_empty(player) and resources.get_credits(player) <= 0
+end
+
 local function build(player)
 	local name = player:get_player_name()
 	local level = st_machine.fuel.get(player)
@@ -50,6 +55,9 @@ local function build(player)
 		{id = "fill_half", text = "Fill tank to 50%"},
 		{id = "fill_full", text = "Fill tank to 100%"},
 	}
+	if stranded(player) then
+		labels = {{id = "free_half", text = "Refuel 50% with credit"}}
+	end
 	for i, button in ipairs(labels) do
 		fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;%s]"):format(
 			MARGIN + (i - 1) * (BUTTON_W + BUTTON_GAP), HEIGHT - BUTTON_H - 0.4, BUTTON_W, BUTTON_H, button.id, button.text)
@@ -110,6 +118,13 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		messages[name] = space <= 0 and "The tank is full." or buy(player, math.min(BUY_LITRES, space))
 	elseif fields.fill_half then
 		messages[name] = fill_to(player, 0.5)
+	elseif fields.free_half then
+		if stranded(player) then
+			local litres = st_machine.fuel.add(player, st_machine.stats.get(player).max_fuel / 2)
+			local cost = math.ceil(litres * price * 100 - 1e-6) / 100
+			st_story.add_debt(player, cost)
+			messages[name] = ("Refueled %.1f L on credit. Debt +%s."):format(litres, format_credits(cost))
+		end
 	elseif fields.fill_full then
 		messages[name] = fill_to(player, 1)
 	else

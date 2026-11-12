@@ -191,7 +191,7 @@ local function build(player)
 	local list = known_recipes(player)
 	if #list == 0 then
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(MARGIN, TOP + 0.5,
-			esc("You do not know any recipes yet. Buy them from the company contact."))
+			esc("You do not know any recipes yet. Buy them from the company shop."))
 		return table.concat(fs)
 	end
 	local hold, store = cargo.get(player), storage.get(player)

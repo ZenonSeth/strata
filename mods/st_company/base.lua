@@ -7,6 +7,7 @@ local TAB_Y = -TAB_H
 local TABS = {
 	{id = "recipes", title = "Buy"},
 	{id = "sell", title = "Sell"},
+	{id = "debt", title = "Debt"},
 }
 local DEFAULT_TAB = "sell"
 
@@ -23,6 +24,7 @@ local format_credits = resources.format_credits
 
 local selected_tab = {}
 local selected_item = {}
+local debt_message = {}
 
 local function sell_tab(player, name)
 	local table_fs, list, selected = st_inventory.cargo_table(player, {
@@ -180,6 +182,57 @@ local function recipes_tab(player, name)
 	return table.concat(fs)
 end
 
+local PAY_FIELD_W, PAY_BUTTON_W = 5, 2.5
+
+local ENDING_FORM = "st_company:ending"
+local ENDING_W, ENDING_H = 16, 9
+local ENDING_BUTTON_W = 5
+local ENDING_TEXT = "<global halign=center color=#e8e4d8><big><b>Congratulations!</b></big>\n\n"
+	.. "You paid off a debt that no corporate overlord ever expected you to.\n"
+	.. "You beat the system, and found one ending of the game!\n\n"
+	.. "You can leave now, or continue playing."
+
+-- Black screen; allow_close[false] and the open window also stop the player moving
+local function show_ending(player)
+	st_story.set_ending_debt_found(player)
+	st_machine.set_muted(player, true)
+	st_audio.sfx.stop_all_loops(player)
+	st_audio.music.play(player, "ending")
+	local x = (ENDING_W - 2 * ENDING_BUTTON_W - 0.4) / 2
+	core.show_formspec(player:get_player_name(), ENDING_FORM, table.concat({
+		"formspec_version[8]",
+		("size[%g,%g]"):format(ENDING_W, ENDING_H),
+		"bgcolor[#000000;both;#000000]",
+		"allow_close[false]",
+		("hypertext[1,1.5;%g,4.5;;%s]"):format(ENDING_W - 2, ENDING_TEXT),
+		("button[%g,%g;%g,0.9;ending_continue;Continue playing]"):format(x, ENDING_H - 1.7, ENDING_BUTTON_W),
+		("button[%g,%g;%g,0.9;ending_leave;Leave game]"):format(x + ENDING_BUTTON_W + 0.4, ENDING_H - 1.7, ENDING_BUTTON_W),
+	}))
+end
+
+local function debt_tab(player, name)
+	local debt = st_story.get_debt(player)
+	local headline = debt > 0 and ("<big>%s credits</big>"):format(esc(format_credits(debt))) or "<big>Congrats!</big>"
+	local fs = {
+		("hypertext[%g,%g;%g,2.2;;<global halign=center color=%s><style color=%s>%s</style>\n%s]"):format(
+			TABLE_X, TABLE_Y + 0.4, TABLE_W, st_gui.theme.text, DIM_TEXT,
+			debt > 0 and "Debt remaining" or "Debt paid off", headline),
+	}
+	local pay_y = HEIGHT / 2 + 0.6
+	local x = (WIDTH - (PAY_FIELD_W + 0.3 + PAY_BUTTON_W)) / 2
+	fs[#fs + 1] = ("label[%g,%g;Amount to pay:]"):format(x, pay_y - 0.3)
+	fs[#fs + 1] = st_gui.input_bg(x, pay_y, PAY_FIELD_W, BUTTON_H)
+	fs[#fs + 1] = ("field[%g,%g;%g,%g;amount;;]"):format(x, pay_y, PAY_FIELD_W, BUTTON_H)
+	fs[#fs + 1] = "field_close_on_enter[amount;false]"
+	fs[#fs + 1] = ("button[%g,%g;%g,%g;pay;Pay]"):format(x + PAY_FIELD_W + 0.3, pay_y, PAY_BUTTON_W, BUTTON_H)
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(x, pay_y + BUTTON_H + 0.5, esc(debt_message[name] or ""))
+	if debt <= 0 then
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;leave_strata;Leave Strata]"):format(
+			(WIDTH - 4) / 2, pay_y + BUTTON_H + 1.3, 4, BUTTON_H)
+	end
+	return table.concat(fs)
+end
+
 local function build(player)
 	local name = player:get_player_name()
 	local tab = selected_tab[name] or DEFAULT_TAB
@@ -191,7 +244,7 @@ local function build(player)
 		end
 	end
 	local fs = {
-		st_gui.header(WIDTH, HEIGHT, "Company Contact - " .. title),
+		st_gui.header(WIDTH, HEIGHT, "Company Shop - " .. title),
 		("hypertext[%g,0.25;5,0.5;;<global halign=right color=%s>Credits: %s]"):format(
 			WIDTH - 5.4, st_gui.theme.text, esc(format_credits(resources.get_credits(player)))),
 		st_gui.tab_bar({
@@ -202,6 +255,8 @@ local function build(player)
 	}
 	if tab == "sell" then
 		fs[#fs + 1] = sell_tab(player, name)
+	elseif tab == "debt" then
+		fs[#fs + 1] = debt_tab(player, name)
 	else
 		fs[#fs + 1] = recipes_tab(player, name)
 	end
@@ -221,6 +276,22 @@ local function sell(player, item, count)
 	end
 end
 
+local function pay_debt(player, text)
+	local amount = st_story.parse_amount(text)
+	if not amount then
+		return "Enter an amount, such as 250 or 1,000.50."
+	end
+	local paid = math.min(amount, st_story.get_debt(player))
+	if paid <= 0 then
+		return "You owe nothing."
+	end
+	if not resources.spend_credits(player, paid) then
+		return ("You only have %s credits."):format(format_credits(resources.get_credits(player)))
+	end
+	st_story.pay_debt(player, paid)
+	return ("Paid %s credits."):format(format_credits(paid))
+end
+
 core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname ~= FORMNAME or fields.quit then
 		return
@@ -228,7 +299,12 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	local name = player:get_player_name()
 	local tab = st_gui.tab_clicked(fields, "co_")
 	if tab then
-		selected_tab[name], selected_item[name] = tab, nil
+		selected_tab[name], selected_item[name], debt_message[name] = tab, nil, nil
+	elseif fields.leave_strata and st_story.get_debt(player) <= 0 then
+		show_ending(player)
+		return
+	elseif fields.pay or fields.key_enter_field == "amount" then
+		debt_message[name] = pay_debt(player, fields.amount)
 	elseif fields.sell_one and selected_item[name] then
 		sell(player, selected_item[name], 1)
 	elseif fields.sell_stack and selected_item[name] then
@@ -270,7 +346,23 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	st_company.show(player)
 end)
 
+core.register_on_player_receive_fields(function(player, formname, fields)
+	if formname ~= ENDING_FORM then
+		return
+	end
+	local name = player:get_player_name()
+	if fields.ending_continue then
+		st_audio.music.stop(player)
+		st_machine.set_muted(player, false)
+		core.close_formspec(name, ENDING_FORM)
+	elseif fields.ending_leave then
+		core.disconnect_player(name, "You paid off your debt. Thanks for playing!")
+	elseif fields.quit then
+		show_ending(player)
+	end
+end)
+
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
-	selected_tab[name], selected_item[name] = nil, nil
+	selected_tab[name], selected_item[name], debt_message[name] = nil, nil, nil
 end)

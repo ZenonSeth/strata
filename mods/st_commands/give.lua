@@ -1,4 +1,4 @@
--- Debug window: add or remove credits, items and owned machine parts through the same APIs the game uses
+-- Debug window: add or remove credits, debt, items and owned machine parts through the same APIs the game uses
 local FORMNAME = "st_commands:give"
 local WIDTH, HEIGHT = 13, 12.8
 local MARGIN = 0.4
@@ -12,6 +12,7 @@ local TARGETS = {
 local TABS = {
 	{id = "items", label = "Items"},
 	{id = "upgrades", label = "Upgrades"},
+	{id = "debt", label = "Debt"},
 }
 
 local Y_TABS = st_gui.CONTENT_Y - 0.2
@@ -132,12 +133,28 @@ local function build_upgrades(player, st)
 	})
 end
 
+local function build_debt(player, st)
+	local half = (TABLE_W - 0.2) / 2
+	return table.concat({
+		("label[%g,%g;%s]"):format(MARGIN, Y_TABS + 1.2,
+			esc("Debt: " .. st_player_resources.format_credits(st_story.get_debt(player)))),
+		st_gui.input_bg(MARGIN, Y_TABS + 1.8, 5, 0.7),
+		("field[%g,%g;5,0.7;debt_amount;;]"):format(MARGIN, Y_TABS + 1.8),
+		"field_close_on_enter[debt_amount;false]",
+		("button[%g,%g;%g,0.7;debt_add;Add]"):format(MARGIN, Y_TABS + 2.7, half),
+		("button[%g,%g;%g,0.7;debt_remove;Remove]"):format(MARGIN + half + 0.2, Y_TABS + 2.7, half),
+		("label[%g,%g;%s]"):format(MARGIN, Y_TABS + 3.8, esc(st.status)),
+	})
+end
+
+local BUILDERS = {upgrades = build_upgrades, debt = build_debt}
+
 local function build(player)
 	local st = get_state(player:get_player_name())
 	return table.concat({
 		st_gui.header(WIDTH, HEIGHT, "Give (debug)"),
 		tab_buttons(st),
-		st.tab == "upgrades" and build_upgrades(player, st) or build_items(player, st),
+		(BUILDERS[st.tab] or build_items)(player, st),
 	})
 end
 
@@ -186,6 +203,18 @@ local function change_part(player, st, mode)
 	return ok and (label .. " removed") or reason
 end
 
+local function change_debt(player, text, mode)
+	local amount = st_story.parse_amount(text)
+	if not amount then
+		return "Enter an amount, such as 250 or 1,000.50"
+	end
+	if mode == "add" then
+		st_story.add_debt(player, amount)
+		return ("Added %s debt"):format(st_player_resources.format_credits(amount))
+	end
+	return ("Removed %s debt"):format(st_player_resources.format_credits(st_story.pay_debt(player, amount)))
+end
+
 core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname ~= FORMNAME or fields.quit or not core.check_player_privs(player, {give = true}) then
 		return
@@ -206,6 +235,15 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 			st.status = change_part(player, st, "build")
 		elseif fields.part_remove then
 			st.status = change_part(player, st, "remove")
+		end
+		show(player)
+		return
+	end
+	if st.tab == "debt" then
+		if fields.debt_add then
+			st.status = change_debt(player, fields.debt_amount, "add")
+		elseif fields.debt_remove then
+			st.status = change_debt(player, fields.debt_amount, "remove")
 		end
 		show(player)
 		return

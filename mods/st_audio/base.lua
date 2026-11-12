@@ -291,6 +291,8 @@ end)
 
 music.register_track("foot", {sound = "st_audio_music_foot", gain = 1.0})
 
+music.register_track("ending", {sound = "st_audio_music_ending", gain = 1.0})
+
 music.register_track("underground", {
 	clips = {
 		{sound = "st_audio_music_underground_1", length = 63.9},

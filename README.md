@@ -3,7 +3,7 @@
 A side-view digging machine game, built for the Luanti Game Jam 2026.
 
 Dig down through ever denser rock in your drilling machine. Haul ore up in
-your cargo hold, then sell it to the company contact or stash it in your
+your cargo hold, then sell it to the company shop or stash it in your
 mechanic shop. Spend the credits on a bigger fuel tank and tougher drill
 bits so you can go deeper.
 
