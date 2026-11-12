@@ -382,3 +382,16 @@ core.register_node("st_nodes:barrier", {
 	buildable_to = false,
 	groups = {not_in_creative_inventory = 1},
 })
+
+-- Invisible, non-walkable layer in front of the slice so liquids cannot flow forward
+core.register_node("st_nodes:liquid_stop", {
+	description = "Liquid Stop",
+	drawtype = "airlike",
+	paramtype = "light",
+	sunlight_propagates = true,
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	buildable_to = false,
+	groups = {not_in_creative_inventory = 1},
+})

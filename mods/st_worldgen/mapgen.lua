@@ -235,6 +235,31 @@ core.register_on_generated(function(vm, minp, maxp)
 	vm:calc_lighting()
 end)
 
+-- One layer in front of the slice, under the surface, so liquids stay in the slice
+local c_liquid_stop = core.get_content_id("st_nodes:liquid_stop")
+core.register_on_generated(function(vm, minp, maxp)
+	local z = slice_z - 1
+	if z < minp.z or z > maxp.z then
+		return
+	end
+	local x0, x1 = math.max(minp.x, -half_width), math.min(maxp.x, half_width)
+	local y1 = math.min(maxp.y, surface_y - 1)
+	if x0 > x1 or minp.y > y1 then
+		return
+	end
+	vm:get_data(data)
+	local area = VoxelArea(vm:get_emerged_area())
+	for y = minp.y, y1 do
+		local vi = area:index(x0, y, z)
+		for _ = x0, x1 do
+			data[vi] = c_liquid_stop
+			vi = vi + 1
+		end
+	end
+	vm:set_data(data)
+	vm:calc_lighting()
+end)
+
 -- Writes {x, y, content id, z (default: the slice)} entries into generated chunks
 local function make_placer(nodes)
 	return function(vm, minp, maxp)
