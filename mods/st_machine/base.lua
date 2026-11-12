@@ -72,7 +72,7 @@ local ACCEL = 50
 local THRUST_ACCEL = 65
 -- At the rated weight the net climb accel is 10% of the empty-hold one
 local RATED_DRAG = 2.25
-local MAX_FALL_SPEED = 30
+local MAX_FALL_SPEED = st_utils.constants.max_fall_speed
 -- Easing onto the dig row/column
 local ALIGN_SPEED = 3
 local ALIGN_RATE = 10
@@ -507,11 +507,11 @@ local function impact(session, player, pos, vel_y)
 	if was_grounded ~= false or not on_ground or fall < MIN_IMPACT_SPEED then
 		return
 	end
-	local t = math.min(1, (fall - MIN_IMPACT_SPEED) / (MAX_FALL_SPEED - MIN_IMPACT_SPEED))
+	local t = st_utils.impact_scale(fall)
 	st_audio.sfx.play("vehicle_tire_impact", {
 		pos = pos, gain = IMPACT_GAIN_MIN + (IMPACT_GAIN_MAX - IMPACT_GAIN_MIN) * t,
 	})
-	hull.damage(player, st_utils.constants.max_fall_damage * t)
+	hull.damage(player, st_utils.impact_damage(fall))
 end
 for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner", "helicopter"}) do
 	st_audio.sfx.register(name, {sound = "st_machine_" .. name, category = "vehicle", gain = ENGINE_GAIN})
@@ -738,6 +738,15 @@ local function show_death_screen(player)
 	core.show_formspec(player:get_player_name(), DEATH_FORM, table.concat(fs))
 end
 
+-- The player driving this machine entity, or nil
+function st_machine.owner(obj)
+	for name, session in pairs(sessions) do
+		if session.obj == obj then
+			return core.get_player_by_name(name)
+		end
+	end
+end
+
 function st_machine.is_dead(player)
 	local session = sessions[player:get_player_name()]
 	return session ~= nil and session.destroyed == true
@@ -763,22 +772,7 @@ function st_machine.destroy(player)
 	session.destroyed = true
 	local pos = session.obj:get_pos()
 	if pos then
-		for _ = 1, EXPLOSION_PARTICLES do
-			local lifetime = 0.5 + math.random() * 0.8
-			core.add_particle({
-				pos = pos,
-				velocity = vector.new(
-					(math.random() - 0.5) * 8, math.random() * 6, (math.random() - 0.5) * 8),
-				acceleration = vector.new(0, -6, 0),
-				expirationtime = lifetime,
-				size = 1.5 + math.random() * 1.5,
-				texture = EXHAUST_TEXTURE,
-				animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = lifetime + 0.1},
-				glow = 14,
-				collisiondetection = true,
-				collision_removal = true,
-			})
-		end
+		st_utils.puff(pos, EXPLOSION_PARTICLES, 1, EXHAUST_TEXTURE, true)
 	end
 	-- The camera rig stays so the view is frozen where the machine blew up
 	session.obj:remove()
