@@ -207,7 +207,6 @@ for i, s in ipairs(strata) do
 end
 
 -- Surface row: topsoil with a top and side overlay; snow and sand reuse the grass art, recoloured
-local CLEAR_TILE = fill("#00000000")
 local SIDE_STRIP_W, SIDE_STRIP_H = 256, 32
 
 -- The side file is one strip, one node row tall; stack it to span the world-aligned tile
@@ -234,7 +233,12 @@ for _, t in ipairs(SURFACE_TYPES) do
 		side = "st_nodes_surface_grass_side.png"
 	end
 	top = top .. suffix
-	side = stack_rows(side) .. suffix
+	-- The side art is baked into the rock tile: an overlay layer flickers
+	local rock_file = "st_nodes_rock_" .. strata[1].name .. ".png"
+	local side_tile = rock_tile(1)
+	if has_texture(rock_file) then
+		side_tile = world_tile("(" .. rock_file .. ")^((" .. stack_rows(side) .. ")" .. suffix .. ")")
+	end
 	-- Backdrop cover (behind the slice): the top art world-aligned on every side
 	core.register_node("st_nodes:surface_" .. t.name .. "_back", {
 		description = t.description .. " (backdrop)",
@@ -245,9 +249,7 @@ for _, t in ipairs(SURFACE_TYPES) do
 	})
 	core.register_node("st_nodes:surface_" .. t.name, {
 		description = t.description,
-		tiles = {rock_tile(1)},
-		-- Side overlay disabled: it flickers; `side` is built but unused
-		overlay_tiles = {top, CLEAR_TILE, CLEAR_TILE, CLEAR_TILE, CLEAR_TILE, CLEAR_TILE},
+		tiles = {top, rock_tile(1), side_tile, side_tile, side_tile, side_tile},
 		groups = st_utils.get_common_groups({not_in_creative_inventory = 1}),
 		st_tier = strata[1].tier,
 		st_hardness = tier_hardness(strata[1].tier),
