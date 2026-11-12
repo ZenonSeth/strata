@@ -313,6 +313,29 @@ for host, s in ipairs(strata) do
 	end
 end
 
+-- Rock formations: obstacle mesh nodes, one per mesh variant, solid like any rock
+local FORMATION_SCALE = 1.1
+local FULL_BOX = {type = "fixed", fixed = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}}
+for _, f in ipairs(data.formations) do
+	local file = "st_nodes_formation_" .. f.name .. ".png"
+	for n = 1, data.formation_variants do
+		core.register_node(data.formation_node(f.name, n), {
+			description = f.description,
+			drawtype = "mesh",
+			mesh = "st_nodes_rock_" .. n .. ".obj",
+			visual_scale = FORMATION_SCALE,
+			tiles = {has_texture(file) and file or fill("#808080")},
+			paramtype = "light",
+			collision_box = FULL_BOX,
+			selection_box = FULL_BOX,
+			groups = st_utils.get_common_groups({not_in_creative_inventory = 1}),
+			drop = "",
+			st_tier = f.tier,
+			st_hardness = tier_hardness(f.tier),
+		})
+	end
+end
+
 -- Liquids: only source nodes are collected, they never renew
 local LIQUIDS = {
 	oil = {viscosity = 3, color = "#1c1a14", light = 0},

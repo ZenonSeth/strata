@@ -15,9 +15,11 @@ return function(world)
 	local floor, ceil, sin, sqrt = math.floor, math.ceil, math.sin, math.sqrt
 	local AVG_SIZE = {
 		pocket = 50 * SIZE ^ 3, vein = 33 * SIZE, seam = 150 * SIZE ^ 2, gem = 2.5, lake = 250 * SIZE ^ 3,
+		clump = 5, boulder = 100,
 	}
 	local REACH = {
 		pocket = ceil(5 * SIZE), vein = ceil(22 * SIZE), seam = ceil(16 * SIZE), gem = 4, lake = ceil(10 * SIZE),
+		clump = 2, boulder = 7,
 	}
 	-- Must cover the biggest reach of any deposit shape
 	local MARGIN = 0
@@ -42,8 +44,19 @@ return function(world)
 		host_of[rock] = rock
 	end
 
-	-- Ores and liquids first, gems last (a gem may replace ore)
+	-- Formations first (ore and gems only replace plain rock), then ores and liquids, gems last
+	-- (a gem may replace ore)
 	local kinds = {}
+	for _, f in ipairs(world.formations) do
+		local ids = {}
+		for n = 1, world.formation_variants do
+			ids[n] = core.get_content_id(world.formation_node(f.name, n))
+		end
+		kinds[#kinds + 1] = {
+			curve = f.curve, density = f.rarity, shape = f.shape, avg = AVG_SIZE[f.shape],
+			ids = ids, variants = true, replace = is_rock,
+		}
+	end
 	for _, m in ipairs(world.materials) do
 		local kind = {curve = m.curve, density = m.density}
 		if m.liquid then
@@ -134,6 +147,25 @@ return function(world)
 		end
 	end
 
+	-- Small blobs and lone pieces
+	function shapes.clump(rng, ox, oy, oz, put)
+		if rng:next(0, 99) < 60 then
+			put(ox, oy, oz)
+			if rng:next(0, 3) == 0 then
+				put(ox + rng:next(-1, 1), oy + rng:next(-1, 1), oz)
+			end
+			return
+		end
+		local r = rng:next(10, 20) / 10
+		blob(rng, ox, oy, oz, put, r, r * rng:next(6, 10) / 10, r * rng:next(6, 10) / 10, true)
+	end
+
+	-- Big flat blobs, wider than tall
+	function shapes.boulder(rng, ox, oy, oz, put)
+		local r = rng:next(30, 65) / 10
+		blob(rng, ox, oy, oz, put, r, r * rng:next(30, 50) / 100, r * rng:next(6, 10) / 10, true)
+	end
+
 	function shapes.vein(rng, ox, oy, oz, put)
 		local len = round(rng:next(15, 35) * SIZE)
 		local dx, dy, dz = rng:next(-100, 100) / 100, rng:next(-60, 60) / 100, rng:next(-100, 100) / 100
@@ -186,6 +218,11 @@ return function(world)
 			local vi = area:index(x, y, z)
 			local current = data[vi]
 			if not kind.replace[current] then
+				return
+			end
+			if kind.variants then
+				local pick = PcgRandom((x * 73856093 + y * 19349663 + z * 83492791) % 2147483647)
+				data[vi] = kind.ids[pick:next(1, #kind.ids)]
 				return
 			end
 			local ids = kind.ids or kind.by_host[host_of[current]]
