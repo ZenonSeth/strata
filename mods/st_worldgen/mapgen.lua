@@ -8,9 +8,8 @@ local slice_z = constants.slice_z
 local half_width = constants.world_half_width
 -- param2 that picks the darker palette entry of the rock nodes
 local BACK_PARAM2 = 255
--- Surface biomes by x: snow west of SNOW_X, sand east of DESERT_X, grass between
-local SNOW_X = -700
-local DESERT_X = 700
+-- Surface biome ranges are in constants; the edge between two wanders by up to this many nodes
+local BIOME_EDGE_JITTER = 50
 local strata = world.strata
 
 -- Picks the rock inside a stratum overlap. Flat in z, so the backing wall continues the slice.
@@ -23,11 +22,70 @@ local NOISE_PARAMS = {
 -- The class does not add the world seed like core.get_value_noise_map would
 NOISE_PARAMS.seed = (NOISE_SEED + (tonumber(core.get_mapgen_setting("seed")) or 0)) % 2147483647
 
+local world_seed = tonumber(core.get_mapgen_setting("seed")) or 0
+
+-- Hills above the surface. The height scales from HILL_SLICE_SCALE in the slice up to full a
+-- HILL_RAMP_Z behind it (sine), and rises (sine) from nothing at HILL_FLAT_R around the shop to
+-- full at HILL_FULL_R, so the buildings stay on flat ground.
+local HILL_MAX = 18
+local HILL_SLICE_SCALE = 0.25
+local HILL_RAMP_Z = 60
+local HILL_FLAT_R, HILL_FULL_R = 45, 120
+local HILL_NOISE = {
+	offset = 0, scale = 0.8, spread = {x = 80, y = 80, z = 80},
+	seed = (3917 + world_seed) % 2147483647, octaves = 2, persist = 0.5, lacunarity = 2,
+}
+local HILL_TOP = surface_y + HILL_MAX
+
+local EDGE_NOISE = {
+	offset = 0, scale = BIOME_EDGE_JITTER * 0.7, spread = {x = 40, y = 40, z = 40},
+	seed = (6203 + world_seed) % 2147483647, octaves = 2, persist = 0.5, lacunarity = 2,
+}
+
+-- How far each cell of x0..x1, z0..z1 is shifted when looking up its biome; same layout as hill_map
+local function edge_map(x0, x1, z0, z1)
+	return ValueNoiseMap(EDGE_NOISE, {x = x1 - x0 + 1, y = z1 - z0 + 1, z = 1}):get_2d_map_flat({x = x0, y = z0})
+end
+
+local biomes = constants.biomes
+local function biome_at(x, shift)
+	local bx = x + shift
+	for i = 1, #biomes - 1 do
+		if bx < biomes[i].x_end then
+			return biomes[i].name
+		end
+	end
+	return biomes[#biomes].name
+end
+
+-- Hill height (0 or more) per cell of x0..x1, z0..z1 (z >= slice_z), flat, row by z
+local function hill_map(x0, x1, z0, z1)
+	local w = x1 - x0 + 1
+	local noise = ValueNoiseMap(HILL_NOISE, {x = w, y = z1 - z0 + 1, z = 1}):get_2d_map_flat({x = x0, y = z0})
+	local heights = {}
+	for z = z0, z1 do
+		local dz = z - slice_z
+		local zf = HILL_SLICE_SCALE + (1 - HILL_SLICE_SCALE) * math.sin(math.pi / 2 * math.min(1, dz / HILL_RAMP_Z))
+		for x = x0, x1 do
+			local i = (z - z0) * w + (x - x0) + 1
+			local d = math.sqrt((x - constants.shop_x) ^ 2 + dz ^ 2)
+			local rf = math.sin(math.pi / 2 * math.min(1, math.max(0, (d - HILL_FLAT_R) / (HILL_FULL_R - HILL_FLAT_R))))
+			heights[i] = math.floor(HILL_MAX * math.min(1, math.max(0, noise[i])) * zf * rf + 0.5)
+		end
+	end
+	return heights
+end
+
 local shapes = dofile(core.get_modpath("st_nodes") .. "/shapes.lua")
 
 local c_grass = core.get_content_id("st_nodes:surface_grass")
 local c_snow = core.get_content_id("st_nodes:surface_snow")
 local c_sand = core.get_content_id("st_nodes:surface_sand")
+local c_grass_back = core.get_content_id("st_nodes:surface_grass_back")
+local c_snow_back = core.get_content_id("st_nodes:surface_snow_back")
+local c_sand_back = core.get_content_id("st_nodes:surface_sand_back")
+local c_surface = {grass = c_grass, snow = c_snow, sand = c_sand}
+local c_surface_back = {grass = c_grass_back, snow = c_snow_back, sand = c_sand_back}
 local c_stratum = {}
 -- rock content id -> {[mask] = {content ids}}, mask 0 being the rock itself
 local c_shaped = {}
@@ -74,7 +132,7 @@ local param2 = {}
 core.register_on_generated(function(vm, minp, maxp)
 	local z_min = math.max(minp.z, slice_z)
 	local z_max = math.min(maxp.z, slice_z + BACK_DEPTH)
-	local y_max = math.min(maxp.y, surface_y)
+	local y_max = math.min(maxp.y, HILL_TOP)
 	local x_min = math.max(minp.x, -half_width)
 	local x_max = math.min(maxp.x, half_width)
 	if z_min > z_max or minp.y > y_max or x_min > x_max then
@@ -89,7 +147,7 @@ core.register_on_generated(function(vm, minp, maxp)
 	-- The slice is generated one node wider than the chunk, so rock on the chunk edge can see
 	-- its neighbours; the extra ring is put back as it was before writing
 	local px0, px1 = math.max(minp.x - 1, emin.x, -half_width), math.min(maxp.x + 1, emax.x, half_width)
-	local py0, py1 = math.max(minp.y - 1, emin.y), math.min(math.min(maxp.y + 1, surface_y), emax.y)
+	local py0, py1 = math.max(minp.y - 1, emin.y), math.min(math.min(maxp.y + 1, HILL_TOP), emax.y)
 
 	local size = {x = maxp.x - minp.x + 1, y = maxp.y - minp.y + 1, z = maxp.z - minp.z + 1}
 	local noise_w = size.x + 2
@@ -97,11 +155,12 @@ core.register_on_generated(function(vm, minp, maxp)
 	local noise = ValueNoiseMap(NOISE_PARAMS, {x = noise_w, y = size.y + 2, z = 1}):get_2d_map_flat(
 		{x = minp.x - 1, y = minp.y - 1})
 
+	local hills = hill_map(minp.x - 1, maxp.x + 1, z_min, z_max)
+	local edges = edge_map(minp.x - 1, maxp.x + 1, z_min, z_max)
+
 	local rows = {}
 	for y = py0, py1 do
-		if y == surface_y then
-			rows[y] = {c_grass}
-		else
+		if y < surface_y then
 			local a, b, t = strata_at(surface_y - y)
 			rows[y] = {c_stratum[a], b and c_stratum[b], t}
 		end
@@ -110,15 +169,24 @@ core.register_on_generated(function(vm, minp, maxp)
 	local function fill_row(z, xa, xb, ya, yb)
 		for y = ya, yb do
 			local row = rows[y]
-			local id_a, id_b, t = row[1], row[2], row[3]
 			local vi = area:index(xa, y, z)
 			local ni = (y - (minp.y - 1)) * noise_w + (xa - (minp.x - 1)) + 1
-			if y == surface_y then
+			if y >= surface_y then
+				-- Ground column up to the hill height, the surface node on top, air above
+				local hi = (z - z_min) * noise_w + (xa - (minp.x - 1)) + 1
+				local ids = z ~= slice_z and c_surface_back or c_surface
 				for x = xa, xb do
-					data[vi] = x < SNOW_X and c_snow or x > DESERT_X and c_sand or c_grass
+					local top = surface_y + hills[hi]
+					if y == top then
+						data[vi] = ids[biome_at(x, edges[hi])]
+					elseif y < top then
+						data[vi] = c_stratum[1]
+					end
 					vi = vi + 1
+					hi = hi + 1
 				end
-			elseif id_b then
+			elseif row[2] then
+				local id_a, id_b, t = row[1], row[2], row[3]
 				for _ = xa, xb do
 					local u = 0.5 + noise[ni] * 0.5
 					data[vi] = u < t and id_b or id_a
@@ -127,7 +195,7 @@ core.register_on_generated(function(vm, minp, maxp)
 				end
 			else
 				for _ = xa, xb do
-					data[vi] = id_a
+					data[vi] = row[1]
 					vi = vi + 1
 				end
 			end
@@ -315,10 +383,8 @@ local DECOR_DEPTH = BACK_DEPTH
 local TUFT_DENSITY = 0.3
 local TUFT_VARIANTS = 3
 -- {noise (0..1) above, chance per cell}, low to high
-local TREE_LEVELS = {{0.75, 0.04}, {0.83, 0.10}, {0.91, 0.20}}
+local TREE_LEVELS = {{0.50, 0.05}, {0.60, 0.12}, {0.70, 0.22}}
 local BUSH_LEVELS = {{0.75, 0.08}, {0.83, 0.22}, {0.91, 0.45}}
-local world_seed = tonumber(core.get_mapgen_setting("seed")) or 0
-
 local function patch_noise(seed, spread)
 	return {
 		offset = 0, scale = 1, spread = {x = spread, y = spread, z = spread},
@@ -377,9 +443,8 @@ end
 local CLEAR_Z_MAX = slice_z + 2
 
 core.register_on_generated(function(vm, minp, maxp)
-	local y = surface_y + 1
 	local z0, z1 = math.max(minp.z, slice_z + 1), math.min(maxp.z, slice_z + DECOR_DEPTH)
-	if y < minp.y or y > maxp.y or z0 > z1 then
+	if maxp.y <= surface_y or minp.y > HILL_TOP + 1 or z0 > z1 then
 		return
 	end
 	vm:get_data(data)
@@ -388,12 +453,16 @@ core.register_on_generated(function(vm, minp, maxp)
 	local size = {x = maxp.x - minp.x + 1, y = z1 - z0 + 1, z = 1}
 	local tree_map = ValueNoiseMap(TREE_NOISE, size):get_2d_map_flat({x = minp.x, y = z0})
 	local bush_map = ValueNoiseMap(BUSH_NOISE, size):get_2d_map_flat({x = minp.x, y = z0})
+	local hills = hill_map(minp.x, maxp.x, z0, z1)
+	local edges = edge_map(minp.x, maxp.x, z0, z1)
 	for z = z0, z1 do
 		for x = math.max(minp.x, -half_width), math.min(maxp.x, half_width) do
 			local ni = (z - z0) * size.x + (x - minp.x) + 1
-			local biome = x < SNOW_X and "snow" or x > DESERT_X and "sand" or "grass"
-			local i = area:index(x, y, z)
-			local free = not (z <= CLEAR_Z_MAX and keep_clear_x[x])
+			local y = surface_y + 1 + hills[ni]
+			local biome = biome_at(x, edges[ni])
+			local inside = y >= minp.y and y <= maxp.y
+			local i = inside and area:index(x, y, z)
+			local free = inside and not (z <= CLEAR_Z_MAX and keep_clear_x[x])
 			if free and y < maxp.y and cell_random(x, z, 4) < patch_chance(TREE_LEVELS, tree_map[ni]) then
 				local tree = trees[biome]
 				data[i] = tree.base
@@ -417,33 +486,3 @@ core.register_on_generated(function(vm, minp, maxp)
 end)
 
 core.register_on_generated(make_placer(buildings))
-
--- Debug content in the slice, to look at textures and try things: a row of every ore (poor,
--- regular, rich) on topsoil, with two of every gem in the row above
-local DEBUG_GENERATE = true
-local DEBUG_ROW_X, DEBUG_ROW_Y = 20, 2
-
-local debug_nodes = {}
-if DEBUG_GENERATE then
-	local x = DEBUG_ROW_X
-	for _, m in ipairs(world.materials) do
-		if not m.liquid then
-			for _, richness in ipairs({"poor", "regular", "rich"}) do
-				local id = core.get_content_id(world.ore_node(m.name, richness, strata[1].name))
-				debug_nodes[#debug_nodes + 1] = {x, DEBUG_ROW_Y, id}
-				x = x + 1
-			end
-			x = x + 1
-		end
-	end
-	x = DEBUG_ROW_X
-	for _, g in ipairs(world.gems) do
-		local id = core.get_content_id(world.gem_node(g.name, strata[1].name))
-		for _ = 1, 2 do
-			debug_nodes[#debug_nodes + 1] = {x, DEBUG_ROW_Y + 1, id}
-			x = x + 1
-		end
-		x = x + 1
-	end
-	core.register_on_generated(make_placer(debug_nodes))
-end

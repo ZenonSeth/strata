@@ -7,6 +7,12 @@ return {
 	-- The playable world: x runs from -world_half_width to world_half_width, and y from the height
 	-- above the surface down to the depth below it (both in unscaled metres, times DEPTH_SCALE)
 	world_half_width = 2000,
+	-- Surface biomes west to east, each an x range (contiguous; the mapgen roughens the edges)
+	biomes = {
+		{name = "snow", x_start = -2000, x_end = -700},
+		{name = "grass", x_start = -700, x_end = 700},
+		{name = "sand", x_start = 700, x_end = 2000},
+	},
 	world_height = 30000,
 	world_depth = 31000,
 	-- x of each surface building: the shop's column with the entrance (the machine starts at its pad),

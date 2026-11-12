@@ -235,6 +235,14 @@ for _, t in ipairs(SURFACE_TYPES) do
 	end
 	top = top .. suffix
 	side = stack_rows(side) .. suffix
+	-- Backdrop cover (behind the slice): the top art world-aligned on every side
+	core.register_node("st_nodes:surface_" .. t.name .. "_back", {
+		description = t.description .. " (backdrop)",
+		tiles = {world_tile(top)},
+		groups = st_utils.get_common_groups({not_in_creative_inventory = 1}),
+		st_tier = strata[1].tier,
+		st_hardness = tier_hardness(strata[1].tier),
+	})
 	core.register_node("st_nodes:surface_" .. t.name, {
 		description = t.description,
 		tiles = {rock_tile(1)},
