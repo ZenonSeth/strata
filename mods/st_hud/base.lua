@@ -220,6 +220,7 @@ st_mode.register_on_change(function(player)
 end)
 
 core.register_on_joinplayer(function(player)
+	player:hud_set_flags({basic_debug = false})
 	for id, element in pairs(elements) do
 		if element.kind == "strip" then
 			render(player, id)

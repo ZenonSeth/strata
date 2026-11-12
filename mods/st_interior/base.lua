@@ -1,6 +1,3 @@
--- Every interior node goes through here so they all share the same dig groups
-local DIG_GROUPS = {cracky = 1}
-
 -- Footstep sound material per node name; nodes not listed make no footstep sound
 local FOOTSTEP_MATERIAL = {}
 for material, names in pairs({
@@ -32,11 +29,6 @@ local function register_node(name, def)
 	if material then
 		def.sounds = {footstep = {name = "st_interior_footstep_" .. material, gain = 1.0}}
 	end
-	local groups = table.copy(DIG_GROUPS)
-	for group, value in pairs(def.groups or {}) do
-		groups[group] = value
-	end
-	def.groups = groups
 	core.register_node("st_interior:" .. name, def)
 end
 st_interior.register_node = register_node

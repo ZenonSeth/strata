@@ -106,7 +106,6 @@ core.register_node("st_interior:digger_display", {
 		-DIGGER_HALF_X, -0.5, -DIGGER_HALF_Z,
 		DIGGER_HALF_X, -0.5 + 0.44 * DIGGER_SCALE, DIGGER_HALF_Z,
 	}},
-	groups = {cracky = 1},
 	use_kind = st_utils.constants.interact.drive,
 	on_rightclick = st_interior.make_on_rightclick(st_utils.constants.interact.drive),
 	on_construct = function(pos)
