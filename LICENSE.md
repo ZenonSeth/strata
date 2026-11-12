@@ -45,3 +45,19 @@ Third-party assets, with their licenses and authors, are listed below.
 - Source: http://incompetech.com
 - Files: `mods/st_audio/sounds/st_audio_music_ending.ogg` (a cut version of the original, otherwise unmodified)
 - License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+## Original work
+
+Everything not listed under Credits above is original work by Zenon Seth, licensed CC BY-SA 3.0 (media) and LGPL-2.0-only (code). This includes:
+
+- Sound effects (all generated with Python scripts, no third-party recordings or samples):
+  - `mods/st_ambience/sounds/`
+  - `mods/st_interior/sounds/`
+  - `mods/st_machine/sounds/`
+  - `mods/st_refuel/sounds/`
+  - `mods/st_upgrades/sounds/`
+- Models and schematics:
+  - `mods/st_machine/models/digger1.glb`
+  - `mods/st_nodes/models/st_nodes_rock_1.obj`, `st_nodes_rock_2.obj`, `st_nodes_rock_3.obj`
+  - `mods/st_start/schems/shop_home.mts`
+- Source art in `art/` (`.nbx`, `.kra` and `.png` files), the sources of the game textures.
