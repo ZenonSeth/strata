@@ -21,7 +21,7 @@ Copy or clone this folder into the `games/` directory of your Luanti install
 The `art/` folder holds the editable sources of the game's textures and
 nodeboxes. The `.nbx` files are projects of the
 [Luanti Nodebox Editor](https://github.com/ZenonSeth/luanti-nodebox-editor),
-open them there to edit and re-export. The `.kra` files are Krita projects.
+open them there to edit and re-export.
 
 ## License
 
