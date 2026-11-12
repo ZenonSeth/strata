@@ -5,8 +5,9 @@ local TAB_X = 0.4
 local TAB_Y = -TAB_H
 
 local TABS = {
-	{id = "recipes", title = "Buy"},
 	{id = "sell", title = "Sell"},
+	{id = "recipes", title = "Blueprints"},
+	{id = "consumables", title = "Consumables"},
 	{id = "debt", title = "Debt"},
 }
 local DEFAULT_TAB = "sell"
@@ -210,6 +211,11 @@ local function show_ending(player)
 	}))
 end
 
+local function consumables_tab()
+	return ("hypertext[%g,%g;%g,1;;<global halign=center color=%s>Nothing for sale yet - coming soon]"):format(
+		TABLE_X, TABLE_Y + 1, TABLE_W, st_gui.theme.text)
+end
+
 local function debt_tab(player, name)
 	local debt = st_story.get_debt(player)
 	local headline = debt > 0 and ("<big>%s credits</big>"):format(esc(format_credits(debt))) or "<big>Congrats!</big>"
@@ -255,6 +261,8 @@ local function build(player)
 	}
 	if tab == "sell" then
 		fs[#fs + 1] = sell_tab(player, name)
+	elseif tab == "consumables" then
+		fs[#fs + 1] = consumables_tab()
 	elseif tab == "debt" then
 		fs[#fs + 1] = debt_tab(player, name)
 	else
