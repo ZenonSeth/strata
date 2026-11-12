@@ -39,3 +39,47 @@ function st_utils.puff(pos, count, scale, texture, animated)
 		})
 	end
 end
+
+-- player name -> {id, job} of their current popup
+local popups = {}
+
+local function clear_popup(player_name)
+	local popup = popups[player_name]
+	if not popup then
+		return
+	end
+	popup.job:cancel()
+	local player = core.get_player_by_name(player_name)
+	if player then
+		player:hud_remove(popup.id)
+	end
+	popups[player_name] = nil
+end
+
+-- One short line of text mid-screen (or near the bottom); replaces any popup already showing
+function st_utils.show_popup(player_name, text, time, at_bottom)
+	local player = core.get_player_by_name(player_name)
+	if not player then
+		return
+	end
+	clear_popup(player_name)
+	local id = player:hud_add({
+		type = "text",
+		position = {x = 0.5, y = at_bottom and 1 or 0.5},
+		offset = {x = 0, y = at_bottom and -100 or 40},
+		text = text,
+		style = 1,
+		alignment = {x = 0, y = 0},
+		number = 0xDFDFDF,
+	})
+	popups[player_name] = {id = id, job = core.after(time or 3, clear_popup, player_name)}
+end
+
+core.register_on_leaveplayer(function(player)
+	local name = player:get_player_name()
+	local popup = popups[name]
+	if popup then
+		popup.job:cancel()
+		popups[name] = nil
+	end
+end)

@@ -8,6 +8,7 @@ local META_Y = LIST_Y + LIST_H + 0.4
 local BODY_Y, BODY_H = META_Y + 0.9, 3.8
 local BUTTON_H = 0.6
 local UNREAD_TEXT = "#ffffff"
+local READ_TEXT = "#d2d2d2"
 
 local function date(time)
 	return os.date("%Y-%m-%d", time)
@@ -28,7 +29,7 @@ local function list_elements(items, selected)
 	local selected_row = 0
 	for i, item in ipairs(items) do
 		-- The row colour beats highlight_text, so the selected row is coloured dark here
-		cells[#cells + 1] = item.id == selected and colors.bg or (item.read and colors.text or UNREAD_TEXT)
+		cells[#cells + 1] = item.id == selected and colors.bg or (item.read and READ_TEXT or UNREAD_TEXT)
 		cells[#cells + 1] = item.read and "" or "*"
 		cells[#cells + 1] = esc(item.from)
 		cells[#cells + 1] = esc(item.subject)

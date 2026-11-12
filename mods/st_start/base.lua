@@ -94,6 +94,54 @@ local function ensure_diggers(origin, last, delay)
 	end
 end
 
+local LETTER_TEXT = table.concat({
+	"<center><big><b>DO YOU LIKE GEMS?</b></big>",
+	"<big><b>DO YOU LIKE BEING RICH?</b></big>",
+	"<b>WE'VE GOT GOOD NEWS.</b></center>",
+	"",
+	"Dear Valued Future Millionaire,",
+	"",
+	"You have been <i>personally selected</i> (along with 40,000 others) for a once-in-a-lifetime opportunity with <b>Excelsior Deep Yield Group</b>: digging for riches on the planet Strata!",
+	"",
+	"<b>WE PROVIDE:</b>",
+	"- A state-of-the-art digging machine*",
+	"- Your very own plot of mineral-rich land**",
+	"- Your own mechanic shop",
+	"- Unlimited earning potential***",
+	"",
+	"No experience needed! No questions asked!",
+	"",
+	"Simply sign below and start digging. The only thing between you and a life of luxury is <i>dirt</i>!",
+	"",
+	"<i>*Machine is \"pre-owned.\" **Land is \"technically\" ours. ***Subject to terms.</i>",
+	"",
+	"Sincerely,",
+	"<i>Chad Brightwell, Vice President of Your Success</i>",
+	"",
+	"<mono>Terms and conditions are available upon request, in a separate building, during business hours that don't exist.</mono>",
+}, "\n")
+
+local LETTER_FORM = "st_start:letter"
+local LETTER_KEY = "st_start:letter_agreed"
+
+local function show_letter(name)
+	local fs = "formspec_version[9]size[11,15.6]no_prepend[]allow_close[false]bgcolor[#00000000;true;#000000B4]"
+		.. "box[0.5,0.3;10,15;#EBDDA6FF]"
+		.. "box[0.5,0.3;10,0.08;#D4C285FF]"
+		.. ("hypertext[1.3,1.0;8.4,12.2;letter;<style color=#3B2F1A size=15>%s</style>]")
+			:format(core.formspec_escape(LETTER_TEXT))
+		.. "style[agree;bgcolor=#00000000;border=false;textcolor=#3B2F1A;font=bold]"
+		.. "button[3.5,13.7;4,0.9;agree;Agree]"
+	core.show_formspec(name, LETTER_FORM, fs)
+end
+
+core.register_on_player_receive_fields(function(player, formname, fields)
+	if formname == LETTER_FORM and fields.agree then
+		player:get_meta():set_string(LETTER_KEY, "1")
+		core.close_formspec(player:get_player_name(), LETTER_FORM)
+	end
+end)
+
 local function first_spawn(player)
 	local name = player:get_player_name()
 	local size = get_interior_size()
@@ -114,6 +162,7 @@ local function first_spawn(player)
 		ensure_diggers(origin, last, DIGGER_SPAWN_DELAY)
 		place_player(joined, origin, last)
 		joined:get_meta():set_string(DONE_KEY, "1")
+			show_letter(name)
 	end)
 end
 
@@ -191,7 +240,7 @@ st_interior.register_on_use(st_utils.constants.interact.drive, function(player_n
 		return
 	end
 	if not st_mail.has_read(player_name, "welcome") then
-		core.chat_send_player(player_name, "The vehicle is locked. Check the mail on the computer.")
+		st_utils.show_popup(player_name, "The vehicle is locked. Check the mail on the computer.")
 		return
 	end
 	st_mode.set(player, "vehicle")
@@ -206,5 +255,7 @@ core.register_on_joinplayer(function(player)
 	end
 	if player:get_meta():get_string(DONE_KEY) == "" then
 		first_spawn(player)
+	elseif player:get_meta():get_string(LETTER_KEY) == "" then
+		show_letter(name)
 	end
 end)
