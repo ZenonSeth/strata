@@ -125,6 +125,7 @@ local function strata_at(depth)
 end
 
 local place_deposits = dofile(core.get_modpath("st_worldgen") .. "/deposits.lua")(world)
+local carve_caverns = dofile(core.get_modpath("st_worldgen") .. "/caverns.lua")(world)
 
 local data = {}
 local param2 = {}
@@ -227,10 +228,14 @@ core.register_on_generated(function(vm, minp, maxp)
 		end
 	end
 
+	-- Caverns reach back into the backing wall; the slice itself is carved after the deposits
+	carve_caverns(data, area, x_min, x_max, minp.y, y_max, math.max(z_min, slice_z + 1), z_max)
+
 	-- Ore, gems and liquids only in the diggable slice; the backing wall stays plain rock
 	if z_min == slice_z then
 		place_deposits(data, area, {x = px0, y = py0, z = minp.z}, {x = px1, y = py1, z = maxp.z},
 			py1, slice_z, slice_z)
+		carve_caverns(data, area, px0, px1, py0, py1, slice_z, slice_z)
 
 		-- Rock picks its shape from the four neighbours in the slice
 		local ystride = area.ystride

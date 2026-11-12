@@ -1,4 +1,4 @@
--- Loads strata, materials, gems and formations and scales their depths (also loaded by the mapgen script).
+-- Loads strata, materials, gems, formations and caverns and scales their depths (also loaded by the mapgen script).
 -- The data files are unscaled metres; the world is DEPTH_SCALE times that.
 local DEPTH_SCALE = 0.25
 -- Multiply every material density (ores and liquids) and every gem rarity
@@ -13,6 +13,7 @@ local data = {
 	materials = dofile(path .. "/materials.lua"),
 	gems = dofile(path .. "/gems.lua"),
 	formations = dofile(path .. "/formations.lua"),
+	caverns = dofile(path .. "/caverns.lua"),
 	-- Mesh variants per formation (st_nodes_rock_<n>.obj)
 	formation_variants = 3,
 }
@@ -46,7 +47,7 @@ for _, g in ipairs(data.gems) do
 	g.rarity = g.rarity * GEM_RARITY_SCALE
 end
 
-for _, list in ipairs({data.materials, data.gems, data.formations}) do
+for _, list in ipairs({data.materials, data.gems, data.formations, {data.caverns}}) do
 	for _, m in ipairs(list) do
 		for _, point in ipairs(m.curve) do
 			point[1] = scaled(point[1])
