@@ -1,6 +1,6 @@
 # Licenses
 
-- Code (Lua and any other source): LGPL-2.0-only
+- Code (Lua and any other source): LGPL-3.0-only
 - Media (textures, models, sounds, etc.): CC BY-SA 3.0
 
 Third-party assets, with their licenses and authors, are listed below.
@@ -48,7 +48,7 @@ Third-party assets, with their licenses and authors, are listed below.
 
 ## Original work
 
-Everything not listed under Credits above is original work by Zenon Seth, licensed CC BY-SA 3.0 (media) and LGPL-2.0-only (code). This includes:
+Everything not listed under Credits above is original work by Zenon Seth, licensed CC BY-SA 3.0 (media) and LGPL-3.0-only (code). This includes:
 
 - Sound effects (all generated with Python scripts, no third-party recordings or samples):
   - `mods/st_ambience/sounds/`

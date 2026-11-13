@@ -35,5 +35,5 @@ The `art/` folder holds the editable sources of the game's textures and nodeboxe
 ## License
 
 See [LICENSE.md](LICENSE.md).
-- Code: LGPL-2.0-only
+- Code: LGPL-3.0-only
 - Media: CC BY-SA 3.0 

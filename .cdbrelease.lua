@@ -27,7 +27,7 @@ return {
 	tags = {},
 	content_warnings = {},
 	ai_disclosure = "GENERATED",
-	license = "LGPL-2.0-only",
+	license = "LGPL-3.0-only",
 	media_license = "CC-BY-SA-3.0",
 	long_description = readtext("README.md"),
 	repo = "https://github.com/ZenonSeth/strata",
