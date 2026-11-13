@@ -1,0 +1,25 @@
+-- Data only. Gems; mohs is the real hardness, rounded (the last few are made up).
+-- Where they are in the world is in str_nodes.
+return {
+	{name = "lapis", description = "Lapis lazuli", kind = "gem", mohs = 5, volume = 0.5, weight = 0.1, price_rank = 13},
+	{name = "turquoise", description = "Turquoise", kind = "gem", mohs = 5, volume = 0.5, weight = 0.1, price_rank = 13},
+	{name = "opal", description = "Opal", kind = "gem", mohs = 6, volume = 0.5, weight = 0.1, price_rank = 15},
+	{name = "jade", description = "Jade", kind = "gem", mohs = 6, volume = 0.5, weight = 0.1, price_rank = 15},
+	{name = "moonstone", description = "Moonstone", kind = "gem", mohs = 6, volume = 0.5, weight = 0.1, price_rank = 15},
+	{name = "amazonite", description = "Amazonite", kind = "gem", mohs = 6, volume = 0.5, weight = 0.1, price_rank = 15},
+	{name = "peridot", description = "Peridot", kind = "gem", mohs = 7, volume = 0.5, weight = 0.1, price_rank = 18},
+	{name = "garnet", description = "Garnet", kind = "gem", mohs = 7, volume = 0.5, weight = 0.1, price_rank = 18},
+	{name = "amethyst", description = "Amethyst", kind = "gem", mohs = 7, volume = 0.5, weight = 0.1, price_rank = 18},
+	{name = "tourmaline", description = "Tourmaline", kind = "gem", mohs = 7, volume = 0.5, weight = 0.1, price_rank = 18},
+	{name = "aquamarine", description = "Aquamarine", kind = "gem", mohs = 8, volume = 0.5, weight = 0.1, price_rank = 20},
+	{name = "topaz", description = "Topaz", kind = "gem", mohs = 8, volume = 0.5, weight = 0.1, price_rank = 20},
+	{name = "spinel", description = "Spinel", kind = "gem", mohs = 8, volume = 0.5, weight = 0.1, price_rank = 22},
+	{name = "emerald", description = "Emerald", kind = "gem", mohs = 8, volume = 0.5, weight = 0.1, price_rank = 23},
+	{name = "alexandrite", description = "Alexandrite", kind = "gem", mohs = 8, volume = 0.5, weight = 0.1, price_rank = 24},
+	{name = "ruby", description = "Ruby", kind = "gem", mohs = 9, volume = 0.5, weight = 0.1, price_rank = 20},
+	{name = "sapphire", description = "Sapphire", kind = "gem", mohs = 9, volume = 0.5, weight = 0.1, price_rank = 26},
+	{name = "diamond", description = "Diamond", kind = "gem", mohs = 10, volume = 0.5, weight = 0.1, price_rank = 28},
+	{name = "dragonstone", description = "Dragonstone", kind = "gem", mohs = 11, volume = 0.5, weight = 0.1, price_rank = 31},
+	{name = "starstone", description = "Starstone", kind = "gem", mohs = 11, volume = 0.5, weight = 0.1, price_rank = 33},
+	{name = "voidstone", description = "Voidstone", kind = "gem", mohs = 12, volume = 0.5, weight = 0.1, price_rank = 36},
+}

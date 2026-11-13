@@ -1,0 +1,348 @@
+local storage = core.get_mod_storage()
+
+-- Remove or comment out this block to allow multiplayer
+core.register_on_prejoinplayer(function()
+	if not core.is_singleplayer() then
+		return "Strata is singleplayer only: multiplayer has not been tested.\n"
+			.. "To try it anyway, comment out the singleplayer check in mods/str_start/base.lua."
+	end
+end)
+
+local grid = str_utils.constants.interior
+local SCHEMATIC = core.get_modpath("str_start") .. "/schems/shop_home.mts"
+local SLOT_KEY = "str_start:slot"
+local DONE_KEY = "str_start:started"
+local BED_FOOT = "str_interior:home_bed_foot"
+local DIGGER = "str_interior:digger_display"
+local SPAWN_MARKER = "str_interior:shop_floor_spawn"
+-- Seconds before the display digger's model appears on first spawn
+local DIGGER_SPAWN_DELAY = 1
+-- Feet this far above the bed foot node's centre (its top face), so the drop onto the blanket is small
+local FEET_ABOVE_BED = 0.5
+
+local function slot_origin(slot)
+	return vector.new(
+		grid.origin.x + (slot % grid.columns) * grid.spacing,
+		grid.origin.y,
+		grid.origin.z - math.floor(slot / grid.columns) * grid.spacing)
+end
+
+-- Lowest corner of the player's interior, nil before their first spawn
+function str_start.get_origin(player)
+	local slot = tonumber(player:get_meta():get_string(SLOT_KEY))
+	return slot and slot_origin(slot)
+end
+
+local function allocate_slot(player)
+	local slot = storage:get_int("next_slot")
+	storage:set_int("next_slot", slot + 1)
+	player:get_meta():set_string(SLOT_KEY, tostring(slot))
+	return slot_origin(slot)
+end
+
+local function blocked(pos)
+	local def = core.registered_nodes[core.get_node(pos).name]
+	return not def or def.walkable
+end
+
+-- Put the player on top of the node at node_pos (feet up_by above its centre), looking along its front,
+-- or the opposite way with `behind`
+local function stand_on(player, node_pos, up_by, behind)
+	player:set_pos(vector.offset(node_pos, 0, up_by, 0))
+	local yaw = core.dir_to_yaw(str_interior.facedir_front[core.get_node(node_pos).param2 % 4])
+	player:set_look_horizontal(behind and yaw + math.pi or yaw)
+	player:set_look_vertical(0)
+end
+
+local function place_player(player, origin, last)
+	local foot = core.find_nodes_in_area(origin, last, BED_FOOT)[1]
+	if foot then
+		if blocked(vector.offset(foot, 0, 1, 0)) or blocked(vector.offset(foot, 0, 2, 0)) then
+			core.log("warning", "str_start: no headroom above the bed foot at " .. core.pos_to_string(foot))
+		end
+		stand_on(player, foot, FEET_ABOVE_BED)
+		return
+	end
+	core.log("error", "str_start: no " .. BED_FOOT .. " in the interior, using the shop spawn marker")
+	local marker = core.find_nodes_in_area(origin, last, SPAWN_MARKER)[1]
+	if marker then
+		stand_on(player, marker, FEET_ABOVE_BED, true)
+	else
+		player:set_pos(vector.offset(origin, 1, 1, 1))
+		player:set_look_vertical(0)
+	end
+end
+
+-- Size of the interior schematic, read once; nil if it cannot be read
+local interior_size
+local function get_interior_size()
+	if not interior_size then
+		local schematic = core.read_schematic(SCHEMATIC, {write_yslice_prob = "none"})
+		interior_size = schematic and schematic.size
+	end
+	return interior_size
+end
+
+-- Loads the interior's blocks, then calls on_done(player), with nil if the player left meanwhile
+local function emerge_interior(name, origin, last, on_done)
+	core.emerge_area(origin, last, function(_, action, calls_remaining)
+		if action == core.EMERGE_ERRORED then
+			core.log("error", "str_start: emerging the interior of " .. name .. " failed")
+		end
+		if calls_remaining > 0 then
+			return
+		end
+		on_done(core.get_player_by_name(name))
+	end)
+end
+
+-- The display entities are not saved; delay (seconds) is optional
+local function ensure_diggers(origin, last, delay)
+	for _, pos in ipairs(core.find_nodes_in_area(origin, last, DIGGER)) do
+		str_interior.ensure_digger_entity(pos, 5, delay)
+	end
+end
+
+local LETTER_TEXT = table.concat({
+	"<center><big><b>DO YOU LIKE GEMS?</b></big>",
+	"<big><b>DO YOU LIKE BEING RICH?</b></big>",
+	"<b>WE'VE GOT GOOD NEWS.</b></center>",
+	"",
+	"Dear Valued Future Millionaire,",
+	"",
+	"You have been <i>personally selected</i> (along with 40,000 others) for a once-in-a-lifetime opportunity with <b>Excelsior Deep Yield Group</b>: digging for riches on the planet Strata!",
+	"",
+	"<b>WE PROVIDE:</b>",
+	"- A state-of-the-art digging machine*",
+	"- Your very own plot of mineral-rich land**",
+	"- Your own mechanic shop",
+	"- Unlimited earning potential***",
+	"",
+	"No experience needed! No questions asked!",
+	"",
+	"Simply sign below and start digging. The only thing between you and a life of luxury is <i>dirt</i>!",
+	"",
+	"<i>*Machine is \"pre-owned.\" **Land is \"technically\" ours. ***Subject to terms.</i>",
+	"",
+	"Sincerely,",
+	"<i>Chad Brightwell, Vice President of Your Success</i>",
+	"",
+	"<mono>Terms and conditions are available upon request, in a separate building, during business hours that don't exist.</mono>",
+}, "\n")
+
+local LETTER_FORM = "str_start:letter"
+local LETTER_KEY = "str_start:letter_agreed"
+
+local function show_letter(name)
+	local fs = "formspec_version[9]size[11,15.6]no_prepend[]allow_close[false]bgcolor[#00000000;true;#000000B4]"
+		.. "box[0.5,0.3;10,15;#EBDDA6FF]"
+		.. "box[0.5,0.3;10,0.08;#D4C285FF]"
+		.. ("hypertext[1.3,1.0;8.4,12.2;letter;<style color=#3B2F1A size=15>%s</style>]")
+			:format(core.formspec_escape(LETTER_TEXT))
+		.. "style[agree;bgcolor=#00000000;border=false;textcolor=#3B2F1A;font=bold]"
+		.. "button[3.5,13.7;4,0.9;agree;Agree]"
+	core.show_formspec(name, LETTER_FORM, fs)
+end
+
+core.register_on_player_receive_fields(function(player, formname, fields)
+	if formname == LETTER_FORM and fields.agree then
+		player:get_meta():set_string(LETTER_KEY, "1")
+		core.close_formspec(player:get_player_name(), LETTER_FORM)
+	end
+end)
+
+local function first_spawn(player)
+	local name = player:get_player_name()
+	local size = get_interior_size()
+	if not size then
+		core.log("error", "str_start: cannot read " .. SCHEMATIC .. ", spawning normally")
+		return
+	end
+	local origin = str_start.get_origin(player) or allocate_slot(player)
+	local last = vector.offset(vector.add(origin, size), -1, -1, -1)
+	-- On foot right away so the vehicle mode does not start a machine; the unloaded map holds the player
+	str_mode.set(player, "foot")
+	player:set_pos(origin)
+	emerge_interior(name, origin, last, function(joined)
+		if not joined then
+			return -- still not started: the next join tries again, in the same slot
+		end
+		core.place_schematic(origin, SCHEMATIC, "0", nil, true)
+		ensure_diggers(origin, last, DIGGER_SPAWN_DELAY)
+		place_player(joined, origin, last)
+		joined:get_meta():set_string(DONE_KEY, "1")
+			show_letter(name)
+	end)
+end
+
+-- player name -> {hud, alpha, t, ready, origin, last} while their interior loads for an entry
+local entering = {}
+local FADE = 0.6
+-- player name -> {t, alpha, switched, hud} while boarding the machine behind a black screen
+local boarding = {}
+local BOARD_TIMEOUT = 15
+
+local function new_fade_hud(player)
+	return player:hud_add({
+		type = "image", position = {x = 0.5, y = 0.5}, alignment = {x = 0, y = 0},
+		scale = {x = -100, y = -100}, text = "[fill:8x8:#000000^[opacity:0", z_index = 1000,
+	})
+end
+
+local function set_fade(player, trip, alpha)
+	local value = math.floor(math.max(0, math.min(1, alpha)) * 255 + 0.5)
+	if value ~= trip.alpha then
+		trip.alpha = value
+		player:hud_change(trip.hud, "text", "[fill:8x8:#000000^[opacity:" .. value)
+	end
+end
+
+local function finish_entry(player, name, trip)
+	entering[name] = nil
+	if trip.hud and player then
+		player:hud_remove(trip.hud)
+	end
+	if not player or str_mode.get(player) ~= "vehicle" then
+		return
+	end
+	local marker = core.find_nodes_in_area(trip.origin, trip.last, SPAWN_MARKER)[1]
+	if not marker then
+		core.log("error", "str_start: no " .. SPAWN_MARKER .. " in the interior of " .. name)
+		core.chat_send_player(name, "Your workshop has no entrance.")
+		str_machine.set_frozen(player, false)
+		return
+	end
+	ensure_diggers(trip.origin, trip.last)
+	str_machine.set_frozen(player, false)
+	str_mode.set(player, "foot")
+	stand_on(player, marker, FEET_ABOVE_BED, true)
+end
+
+core.register_globalstep(function(dtime)
+	for name, trip in pairs(entering) do
+		local player = core.get_player_by_name(name)
+		if not player then
+			entering[name] = nil
+		else
+			trip.t = trip.t + dtime
+			set_fade(player, trip, trip.t / FADE)
+			if trip.ready and trip.t >= FADE then
+				finish_entry(player, name, trip)
+			end
+		end
+	end
+end)
+
+core.register_on_leaveplayer(function(player)
+	entering[player:get_player_name()] = nil
+end)
+
+-- From driving: fade to black while the player's interior loads, then cut to them on foot at the shop spawn marker
+function str_start.enter_workshop(player)
+	local name = player:get_player_name()
+	if entering[name] or str_mode.get(player) ~= "vehicle" then
+		return
+	end
+	local origin, size = str_start.get_origin(player), get_interior_size()
+	if not (origin and size) then
+		core.log("error", "str_start: no interior to enter for " .. name)
+		core.chat_send_player(name, "Your workshop is not ready yet.")
+		return
+	end
+	local last = vector.offset(vector.add(origin, size), -1, -1, -1)
+	local trip = {t = 0, alpha = 0, ready = false, origin = origin, last = last, hud = new_fade_hud(player)}
+	entering[name] = trip
+	str_machine.set_frozen(player, true)
+	emerge_interior(name, origin, last, function()
+		trip.ready = true
+	end)
+end
+
+local MENU_FORM = "str_start:workshop"
+
+function str_start.show_workshop_menu(player)
+	local cost = str_refuel.full_cost(player)
+	local label = cost > 0 and ("Full Refuel (%s credits)"):format(str_player_resources.format_credits(cost))
+		or "Full Refuel (tank full)"
+	local y = str_gui.CONTENT_Y
+	local fs = str_gui.header(8, y + 3.5, "Mechanic shop")
+		.. ("button_exit[1,%g;6,0.9;enter;Enter Workshop]"):format(y)
+		.. ("button[1,%g;6,0.9;refuel;%s]"):format(y + 1.1, core.formspec_escape(label))
+		.. ("button[1,%g;6,0.9;deposit;Deposit All]"):format(y + 2.2)
+	core.show_formspec(player:get_player_name(), MENU_FORM, fs)
+end
+
+core.register_on_player_receive_fields(function(player, formname, fields)
+	if formname ~= MENU_FORM then
+		return
+	end
+	if fields.enter then
+		str_start.enter_workshop(player)
+	elseif fields.refuel then
+		str_refuel.fill_full(player)
+		str_start.show_workshop_menu(player)
+	elseif fields.deposit then
+		str_storage.deposit_all(player)
+		str_start.show_workshop_menu(player)
+	end
+end)
+
+core.register_on_leaveplayer(function(player)
+	entering[player:get_player_name()] = nil
+end)
+
+-- Right-clicking the display digger boards the machine, which is respawned at its saved position if gone
+str_interior.register_on_use(str_utils.constants.interact.drive, function(player_name)
+	local player = core.get_player_by_name(player_name)
+	if not player or str_mode.get(player) ~= "foot" then
+		return
+	end
+	if not str_mail.has_read(player_name, "welcome") then
+		str_utils.show_popup(player_name, "The vehicle is locked. Check the mail on the computer.")
+		return
+	end
+	if boarding[player_name] then
+		return
+	end
+	boarding[player_name] = {t = 0, alpha = 0, switched = false, hud = new_fade_hud(player)}
+end)
+
+core.register_globalstep(function(dtime)
+	for name, trip in pairs(boarding) do
+		local player = core.get_player_by_name(name)
+		if not player then
+			boarding[name] = nil
+		else
+			trip.t = trip.t + dtime
+			if not trip.switched then
+				set_fade(player, trip, trip.t / FADE)
+				if trip.t >= FADE then
+					trip.switched, trip.t = true, 0
+					str_mode.set(player, "vehicle")
+				end
+			elseif str_machine.get_pos(player) or trip.t > BOARD_TIMEOUT then
+				-- The machine exists: cut from black
+				player:hud_remove(trip.hud)
+				boarding[name] = nil
+			end
+		end
+	end
+end)
+
+core.register_on_leaveplayer(function(player)
+	boarding[player:get_player_name()] = nil
+end)
+
+-- Runs after str_mode's join handler, which puts every player in the default mode
+core.register_on_joinplayer(function(player)
+	local name = player:get_player_name()
+	-- Oldest first, so the welcome mail ends up on top
+	for _, id in ipairs({"jim", "free_gift", "welcome"}) do
+		str_mail.send_story(name, id)
+	end
+	if player:get_meta():get_string(DONE_KEY) == "" then
+		first_spawn(player)
+	elseif player:get_meta():get_string(LETTER_KEY) == "" then
+		show_letter(name)
+	end
+end)
