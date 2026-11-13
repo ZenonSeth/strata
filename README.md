@@ -24,6 +24,14 @@ Copy or clone this folder into the `games/` directory of your Luanti install (or
 
 The `art/` folder holds the editable sources of the game's textures and nodeboxes. The `.nbx` files are projects of the [Luanti Nodebox Editor](https://github.com/ZenonSeth/luanti-nodebox-editor), open them there to edit and re-export.
 
+## How it was made
+- All the code was generated through claude code.
+- Sound effects were generated with python scripts written by claude code.
+- Music is from the amazing Kevin MacLeod (See license file for details)
+- Art is a mixture of hand drawn in Krita, Affinity Photo 2, and some generation via python scripts based on sketches.
+- Nodeboxes + their textures were made using the Luanti Nodebox Editor project (see above)
+- Digger model was hand-made in Blockbench.
+
 ## License
 
 See [LICENSE.md](LICENSE.md).
