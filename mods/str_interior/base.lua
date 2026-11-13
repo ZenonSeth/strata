@@ -26,7 +26,7 @@ end
 local function register_node(name, def)
 	def.is_ground_content = false
 	if def.pointable == nil and not def.on_rightclick then
-		def.pointable = false
+		def.pointable = "blocking"
 	end
 	local material = FOOTSTEP_MATERIAL[name]
 	if material then
