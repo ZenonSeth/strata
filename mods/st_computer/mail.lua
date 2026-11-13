@@ -31,22 +31,21 @@ local function list_elements(items, selected)
 		-- The row colour beats highlight_text, so the selected row is coloured dark here
 		cells[#cells + 1] = item.id == selected and colors.bg or (item.read and READ_TEXT or UNREAD_TEXT)
 		cells[#cells + 1] = item.read and "" or "*"
-		cells[#cells + 1] = esc(item.from)
-		cells[#cells + 1] = esc(item.subject)
 		cells[#cells + 1] = date(item.time)
+		cells[#cells + 1] = esc(item.subject)
 		if item.id == selected then
 			selected_row = i
 		end
 	end
-	local specs = "text,width=1;text,width=10;text,width=26;text,width=8"
+	local specs = "text,width=1;text,width=7;text,width=14"
 	local w = WIDTH - 2 * MARGIN
 	local options = "tableoptions[border=false;background=%s;highlight=%s;highlight_text=%s]"
 	return table.concat({
 		options:format(colors.bg, colors.bg, colors.muted),
 		"tablecolumns[" .. specs .. "]",
-		("table[%g,%g;%g,%g;mail_header;,From,Subject,Date;0]"):format(MARGIN, LIST_Y, w, HEADER_H),
+		("table[%g,%g;%g,%g;mail_header;,Date,Subject;0]"):format(MARGIN, LIST_Y, w, HEADER_H),
 		options:format(colors.bg, colors.text, colors.bg),
-		("tablecolumns[color,span=4;%s]"):format(specs),
+		("tablecolumns[color,span=3;%s]"):format(specs),
 		("table[%g,%g;%g,%g;mail_list;%s;%d]"):format(MARGIN, LIST_Y + HEADER_H, w, LIST_H - HEADER_H,
 			table.concat(cells, ","), selected_row),
 	})

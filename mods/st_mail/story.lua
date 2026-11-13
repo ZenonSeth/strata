@@ -61,7 +61,7 @@ return {
 			"",
 			"- Don't sell all your coal. You'll want some for smelting your ore into better stuff, and that's what digger upgrades are built from.",
 			"- Buy the lights from the Company Shop. They're not really free, whatever the company says, but you'll dig deeper when you can see where you're going.",
-			"- Your first good upgrade should be a bigger fuel tank. The copper one holds four times what your stock tank does, and that's a lot more time spent digging.",
+			"- Your first good upgrade should be a bigger cargo hold. The copper one carries a lot more than your stock hold does, and that's fewer trips back up to sell.",
 			"",
 			"Keep your head down and keep digging. Maybe we'll cross paths down there.",
 			"",
