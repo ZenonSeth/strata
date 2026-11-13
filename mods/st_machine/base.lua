@@ -103,7 +103,7 @@ local MAX_GLOW = 10
 st_hud.register_strip("st_machine:top_bar", {height = 44, color = "#00000080"})
 
 local DEPTH_HUD = "st_machine:depth"
-local DEPTH_INTERVAL = 0.5
+local DEPTH_INTERVAL = 0.2
 st_hud.register_text(DEPTH_HUD, {
 	position = {x = 0.5, y = 0}, offset = {x = -120, y = 22}, size = 1.3, color = 0xFFFFFF,
 	mode = "vehicle", mono = true,
@@ -138,7 +138,7 @@ end
 local function update_depth(player, pos)
 	local y = math.floor(pos.y + 0.5) - START_POS.y
 	local label = y > 0 and "Height" or "Depth"
-	st_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm", label, y))
+	st_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm  X: %d", label, y, math.floor(pos.x + 0.5)))
 	local name = player:get_player_name()
 	local depth, old = -y, last_depth[name]
 	if depth ~= old then
@@ -329,6 +329,8 @@ local function classify(pos, entry, on_ground, can_dig_up, drill_tier)
 		return "blocked"
 	elseif not def.walkable then
 		return "free"
+	elseif def.st_platform and dir.y >= 0 then
+		return "blocked"
 	elseif def.diggable == false or (dir.y == 0 and not on_ground)
 			or (dir.y > 0 and not can_dig_up) or (def.st_tier or 0) > drill_tier then
 		return "blocked"
@@ -370,6 +372,9 @@ local function take_node(pos, player)
 	st_machine.notify_dig(player, pos, node_name, "drill")
 	if item then
 		cargo.add(player, item, def.st_yield or 1)
+	end
+	if def and def.st_on_dug then
+		def.st_on_dug(player)
 	end
 	return true
 end
@@ -665,20 +670,27 @@ local function clamp_look(player)
 	end
 end
 
--- Shows the prompt of the active pad the machine stands on; a fresh Down press uses it.
--- Returns true if that left vehicle mode.
+-- Shows the prompt of the pad under the machine, else of the interactable node behind it; a fresh Aux1
+-- press uses it. Returns true if that left vehicle mode.
 local function pad_step(session, player, pos, control)
-	local pad = not session.dig and st_pads.get(vector.round(vector.new(
-		pos.x, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z))) or nil
-	local label = pad and ("[Down] " .. pad.label) or ""
+	local target, use_pos
+	if not session.dig then
+		use_pos = vector.round(vector.new(pos.x, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z))
+		target = st_pads.get(use_pos)
+		if not target then
+			use_pos = vector.round(vector.new(pos.x, pos.y, SLICE_Z + 1))
+			target = st_interact.get(use_pos)
+		end
+	end
+	local label = target and ("[" .. st_utils.interact_key_name(player) .. "] " .. target.label) or ""
 	if label ~= session.pad_label then
 		session.pad_label = label
 		st_hud.set_text(player, PAD_HUD, label)
 	end
-	local pressed = control.down and not session.down_held
-	session.down_held = control.down
-	if pad and pressed then
-		pad.on_use(player)
+	local pressed = control.aux1 and not session.aux1_held
+	session.aux1_held = control.aux1
+	if target and pressed then
+		target.on_use(player, use_pos)
 		return st_mode.get(player) ~= "vehicle"
 	end
 	return false
@@ -733,6 +745,16 @@ local function vehicle_step(player, dtime)
 		session.save_timer = 0
 		player:get_meta():set_string(SAVED_POS_KEY, core.pos_to_string(pos, 3))
 	end
+	if session.frozen then
+		session.obj:set_velocity(vector.zero())
+		session.obj:set_acceleration(vector.zero())
+		session.aux1_held = control.aux1
+		if session.pad_label ~= "" then
+			session.pad_label = ""
+			st_hud.set_text(player, PAD_HUD, "")
+		end
+		return
+	end
 	if pad_step(session, player, pos, control) then
 		return
 	end
@@ -775,6 +797,36 @@ function st_machine.owner(obj)
 			return core.get_player_by_name(name)
 		end
 	end
+end
+
+-- Position of the player's machine, or nil if they are not driving one
+function st_machine.get_pos(player)
+	local session = sessions[player:get_player_name()]
+	return session and session.obj:get_pos()
+end
+
+-- A frozen machine holds still and ignores the controls, pads and interactables (used while travelling)
+function st_machine.set_frozen(player, frozen)
+	local session = sessions[player:get_player_name()]
+	if session then
+		session.frozen = frozen or nil
+	end
+end
+
+-- Moves the machine and its camera rig to pos; the caller must have the map there ready
+function st_machine.teleport(player, pos)
+	local session = sessions[player:get_player_name()]
+	if not session or session.destroyed then
+		return
+	end
+	session.obj:set_pos(pos)
+	session.obj:set_velocity(vector.zero())
+	session.rig:set_pos(vector.add(pos, session.cam_offset))
+	session.rig:set_velocity(vector.zero())
+	session.last_pos = pos
+	session.last_x = nil
+	session.was_grounded = nil
+	session.prev_vel_y = 0
 end
 
 function st_machine.is_dead(player)

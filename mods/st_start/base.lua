@@ -175,10 +175,69 @@ local function first_spawn(player)
 	end)
 end
 
--- player name -> true while their interior is loading for an entry
+-- player name -> {hud, alpha, t, ready, origin, last} while their interior loads for an entry
 local entering = {}
+local FADE = 0.6
+-- player name -> {t, alpha, switched, hud} while boarding the machine behind a black screen
+local boarding = {}
+local BOARD_TIMEOUT = 15
 
--- From driving: load the player's interior, then put them on foot at the shop spawn marker
+local function new_fade_hud(player)
+	return player:hud_add({
+		type = "image", position = {x = 0.5, y = 0.5}, alignment = {x = 0, y = 0},
+		scale = {x = -100, y = -100}, text = "[fill:8x8:#000000^[opacity:0", z_index = 1000,
+	})
+end
+
+local function set_fade(player, trip, alpha)
+	local value = math.floor(math.max(0, math.min(1, alpha)) * 255 + 0.5)
+	if value ~= trip.alpha then
+		trip.alpha = value
+		player:hud_change(trip.hud, "text", "[fill:8x8:#000000^[opacity:" .. value)
+	end
+end
+
+local function finish_entry(player, name, trip)
+	entering[name] = nil
+	if trip.hud and player then
+		player:hud_remove(trip.hud)
+	end
+	if not player or st_mode.get(player) ~= "vehicle" then
+		return
+	end
+	local marker = core.find_nodes_in_area(trip.origin, trip.last, SPAWN_MARKER)[1]
+	if not marker then
+		core.log("error", "st_start: no " .. SPAWN_MARKER .. " in the interior of " .. name)
+		core.chat_send_player(name, "Your workshop has no entrance.")
+		st_machine.set_frozen(player, false)
+		return
+	end
+	ensure_diggers(trip.origin, trip.last)
+	st_machine.set_frozen(player, false)
+	st_mode.set(player, "foot")
+	stand_on(player, marker, FEET_ABOVE_BED, true)
+end
+
+core.register_globalstep(function(dtime)
+	for name, trip in pairs(entering) do
+		local player = core.get_player_by_name(name)
+		if not player then
+			entering[name] = nil
+		else
+			trip.t = trip.t + dtime
+			set_fade(player, trip, trip.t / FADE)
+			if trip.ready and trip.t >= FADE then
+				finish_entry(player, name, trip)
+			end
+		end
+	end
+end)
+
+core.register_on_leaveplayer(function(player)
+	entering[player:get_player_name()] = nil
+end)
+
+-- From driving: fade to black while the player's interior loads, then cut to them on foot at the shop spawn marker
 function st_start.enter_workshop(player)
 	local name = player:get_player_name()
 	if entering[name] or st_mode.get(player) ~= "vehicle" then
@@ -191,21 +250,11 @@ function st_start.enter_workshop(player)
 		return
 	end
 	local last = vector.offset(vector.add(origin, size), -1, -1, -1)
-	entering[name] = true
-	emerge_interior(name, origin, last, function(joined)
-		entering[name] = nil
-		if not joined or st_mode.get(joined) ~= "vehicle" then
-			return
-		end
-		local marker = core.find_nodes_in_area(origin, last, SPAWN_MARKER)[1]
-		if not marker then
-			core.log("error", "st_start: no " .. SPAWN_MARKER .. " in the interior of " .. name)
-			core.chat_send_player(name, "Your workshop has no entrance.")
-			return
-		end
-		ensure_diggers(origin, last)
-		st_mode.set(joined, "foot")
-		stand_on(joined, marker, FEET_ABOVE_BED, true)
+	local trip = {t = 0, alpha = 0, ready = false, origin = origin, last = last, hud = new_fade_hud(player)}
+	entering[name] = trip
+	st_machine.set_frozen(player, true)
+	emerge_interior(name, origin, last, function()
+		trip.ready = true
 	end)
 end
 
@@ -252,7 +301,36 @@ st_interior.register_on_use(st_utils.constants.interact.drive, function(player_n
 		st_utils.show_popup(player_name, "The vehicle is locked. Check the mail on the computer.")
 		return
 	end
-	st_mode.set(player, "vehicle")
+	if boarding[player_name] then
+		return
+	end
+	boarding[player_name] = {t = 0, alpha = 0, switched = false, hud = new_fade_hud(player)}
+end)
+
+core.register_globalstep(function(dtime)
+	for name, trip in pairs(boarding) do
+		local player = core.get_player_by_name(name)
+		if not player then
+			boarding[name] = nil
+		else
+			trip.t = trip.t + dtime
+			if not trip.switched then
+				set_fade(player, trip, trip.t / FADE)
+				if trip.t >= FADE then
+					trip.switched, trip.t = true, 0
+					st_mode.set(player, "vehicle")
+				end
+			elseif st_machine.get_pos(player) or trip.t > BOARD_TIMEOUT then
+				-- The machine exists: cut from black
+				player:hud_remove(trip.hud)
+				boarding[name] = nil
+			end
+		end
+	end
+end)
+
+core.register_on_leaveplayer(function(player)
+	boarding[player:get_player_name()] = nil
 end)
 
 -- Runs after st_mode's join handler, which puts every player in the default mode

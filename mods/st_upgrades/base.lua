@@ -112,7 +112,8 @@ local function listed_levels(player, category)
 end
 
 -- Text like "1 Bronze (have 0), 2 Iron ore (have 1)" and whether storage plus cargo hold all of it
-local function needs(player, level)
+-- plain leaves out the "(have N)" counts
+local function needs(player, level, plain)
 	local stored = st_storage.get(player)
 	for material, count in pairs(st_machine.cargo.get(player)) do
 		stored[material] = (stored[material] or 0) + count
@@ -128,7 +129,9 @@ local function needs(player, level)
 		if have < need then
 			ok = false
 		end
-		parts[#parts + 1] = ("%d %s (have %d)"):format(need, st_materials.get(material).description, have)
+		local description = st_materials.get(material).description
+		parts[#parts + 1] = plain and ("%d %s"):format(need, description)
+			or ("%d %s (have %d)"):format(need, description, have)
 	end
 	return table.concat(parts, ", "), ok
 end
@@ -226,8 +229,68 @@ local function category_tab(player, category)
 	return table.concat(fs)
 end
 
-local function items_tab()
-	return ("label[%g,%g;Coming soon]"):format(PART_X, PART_NAME_Y)
+-- Items made here land in the player's own bench list (shared by every part of the station), then are moved to the hotbar by hand
+local BENCH_LIST, BENCH_SLOTS = "st_upgrades_bench", 8
+local ITEMS_Y, ITEMS_H = 1.1, 3.0
+local CREATE_W = 3
+local BENCH_LABEL_Y, BENCH_Y = 5.75, 6.0
+local HOTBAR_LABEL_Y, HOTBAR_Y = 7.35, 7.6
+
+-- From is taken from storage, then the cargo hold
+local CRAFTABLES = {
+	{name = "sign", item = "st_signs:sign", description = "Sign", count = 10, from = {lead = 1, coal = 1},
+		info = "Placed behind the machine to mark the way"},
+	{name = "platform", item = "st_platforms:platform", description = "Platform", count = 5, from = {steel = 1},
+		info = "Placed below the machine to stand on; dig it from above"},
+	{name = "elevator_stop", item = "st_elevators:stop_station", description = "Elevator Stop", count = 1,
+		from = {steel = 4, lens_glass = 2, copper_wire = 1},
+		info = "Placed below the surface, 250 m from other stops; needs a surface station in the column"},
+	{name = "elevator_surface", item = "st_elevators:surface_station", description = "Elevator Surface", count = 1,
+		from = {steel = 8, lens_glass = 4, gold_wire = 1, amazonite = 1},
+		info = "Placed at the surface; the stops below it connect to it"},
+}
+local ITEM_COLUMNS = {
+	{title = "Item", spec = "text,width=11,padding=0.3"},
+	{title = "Needs", spec = "text,width=22,padding=0.3"},
+}
+
+local selected_item = {}
+
+local function items_tab(player)
+	local chosen = selected_item[player:get_player_name()]
+	local rows, selected, picked = {}, 0, nil
+	for i, def in ipairs(CRAFTABLES) do
+		local text, ok = needs(player, def, true)
+		local item = def.count > 1 and ("%s x%d"):format(def.description, def.count) or def.description
+		rows[i] = {color = ok and st_gui.theme.text or st_gui.theme.muted, cells = {item, text}}
+		if def.name == chosen then
+			selected, picked = i, def
+		end
+	end
+	local detail, create = "Select an item.", false
+	if picked then
+		local _, ok = needs(player, picked)
+		detail = picked.description .. "\n" .. picked.info
+		create = ok
+	end
+	local fs = {
+		st_gui.list_table({
+			x = PART_X, y = ITEMS_Y, w = PART_W, h = ITEMS_H, name = "items",
+			columns = ITEM_COLUMNS, rows = rows, selected = selected,
+		}),
+		("hypertext[%g,%g;%g,%g;;<global color=%s>%s]"):format(PART_X + CREATE_W + 0.3, ITEMS_Y + ITEMS_H,
+			PART_W - CREATE_W - 0.3, BENCH_LABEL_Y - 0.1 - ITEMS_Y - ITEMS_H, st_gui.theme.text, esc(detail)),
+	}
+	if create then
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;create_item;Create]"):format(
+			PART_X, ITEMS_Y + ITEMS_H + 0.3, CREATE_W, PART_BUTTON_H)
+	end
+	fs[#fs + 1] = ("label[%g,%g;Crafted items]"):format(PART_X, BENCH_LABEL_Y)
+	fs[#fs + 1] = ("list[current_player;%s;%g,%g;%d,1;0.25]"):format(BENCH_LIST, PART_X, BENCH_Y, BENCH_SLOTS)
+	fs[#fs + 1] = ("label[%g,%g;Your hotbar]"):format(PART_X, HOTBAR_LABEL_Y)
+	fs[#fs + 1] = ("list[current_player;main;%g,%g;8,1;0.25]"):format(PART_X, HOTBAR_Y)
+	fs[#fs + 1] = ("listring[current_player;%s]listring[current_player;main]"):format(BENCH_LIST)
+	return table.concat(fs)
 end
 
 local function build(player)
@@ -248,7 +311,7 @@ local function build(player)
 	if tab == "color" then
 		fs[#fs + 1] = color_tab(player)
 	elseif tab == "items" then
-		fs[#fs + 1] = items_tab()
+		fs[#fs + 1] = items_tab(player)
 	elseif TAB_CATEGORY[tab] then
 		fs[#fs + 1] = category_tab(player, st_machine_data.get_upgrade(TAB_CATEGORY[tab]))
 	end
@@ -278,6 +341,15 @@ local function play_build_strikes(player)
 	end)
 end
 
+local function take_materials(player, from)
+	for material, amount in pairs(from) do
+		amount = amount - st_storage.remove(player, material, amount)
+		if amount > 0 then
+			st_machine.cargo.remove(player, material, amount)
+		end
+	end
+end
+
 -- Takes the materials from shop storage, then the cargo hold, and marks the part built, if the recipe is owned and all are there
 local function build_part(player, category, level)
 	if not level or not level.from or stats.has_level(player, category.id, level.name)
@@ -288,14 +360,38 @@ local function build_part(player, category, level)
 	if not ok then
 		return
 	end
-	for material, amount in pairs(level.from) do
-		amount = amount - st_storage.remove(player, material, amount)
-		if amount > 0 then
-			st_machine.cargo.remove(player, material, amount)
-		end
-	end
+	take_materials(player, level.from)
 	stats.build_level(player, category.id, level.name)
 	play_build_strikes(player)
+end
+
+local function handle_item_fields(player, fields)
+	local name = player:get_player_name()
+	local def
+	for _, candidate in ipairs(CRAFTABLES) do
+		if candidate.name == selected_item[name] then
+			def = candidate
+		end
+	end
+	if fields.items then
+		local event = core.explode_table_event(fields.items)
+		if event.type ~= "CHG" and event.type ~= "DCL" then
+			return
+		end
+		selected_item[name] = CRAFTABLES[event.row] and CRAFTABLES[event.row].name
+	elseif fields.create_item and def then
+		local stack = ItemStack(def.item .. " " .. def.count)
+		local _, ok = needs(player, def)
+		if not ok or not player:get_inventory():room_for_item(BENCH_LIST, stack) then
+			return
+		end
+		take_materials(player, def.from)
+		player:get_inventory():add_item(BENCH_LIST, stack)
+		play_build_strikes(player)
+	else
+		return
+	end
+	st_upgrades.show(name)
 end
 
 local function handle_category_fields(player, category, fields)
@@ -336,6 +432,10 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		st_upgrades.show(player:get_player_name())
 		return
 	end
+	if selected_tab[player:get_player_name()] == "items" then
+		handle_item_fields(player, fields)
+		return
+	end
 	local category = st_machine_data.get_upgrade(TAB_CATEGORY[selected_tab[player:get_player_name()] or ""] or "")
 	if category then
 		handle_category_fields(player, category, fields)
@@ -351,9 +451,31 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	end
 end)
 
+local function craftable_item(name)
+	for _, def in ipairs(CRAFTABLES) do
+		if def.item == name then
+			return true
+		end
+	end
+	return false
+end
+
+core.register_allow_player_inventory_action(function(_, action, inv, info)
+	if action == "move" and info.to_list == BENCH_LIST then
+		return craftable_item(inv:get_stack(info.from_list, info.from_index):get_name()) and info.count or 0
+	elseif action == "put" and info.listname == BENCH_LIST then
+		return craftable_item(info.stack:get_name()) and info.stack:get_count() or 0
+	end
+end)
+
+core.register_on_joinplayer(function(player)
+	player:get_inventory():set_size(BENCH_LIST, BENCH_SLOTS)
+end)
+
 core.register_on_leaveplayer(function(player)
 	selected_tab[player:get_player_name()] = nil
 	selected_level[player:get_player_name()] = nil
+	selected_item[player:get_player_name()] = nil
 end)
 
 st_interior.register_on_use(st_utils.constants.interact.upgrade, st_upgrades.show)

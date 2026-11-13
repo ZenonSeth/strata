@@ -66,7 +66,7 @@ function st_utils.show_popup(player_name, text, time, at_bottom)
 	local id = player:hud_add({
 		type = "text",
 		position = {x = 0.5, y = at_bottom and 1 or 0.5},
-		offset = {x = 0, y = at_bottom and -100 or 40},
+		offset = {x = 0, y = at_bottom and -160 or 40},
 		text = text,
 		style = 1,
 		alignment = {x = 0, y = 0},
@@ -83,3 +83,9 @@ core.register_on_leaveplayer(function(player)
 		popups[name] = nil
 	end
 end)
+
+-- Name of the interact key to show in prompts: the Aux1 button on touch, E on desktop
+function st_utils.interact_key_name(player)
+	local info = core.get_player_window_information(player:get_player_name())
+	return (info and info.touch_controls) and "Aux1" or "E"
+end

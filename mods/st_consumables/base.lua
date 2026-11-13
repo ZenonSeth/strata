@@ -1,15 +1,7 @@
 local SLOTS = 8
-local FORMNAME = "st_consumables:popup"
 
 local stats = st_machine.stats
 local hulls = st_machine_data.get_upgrade("hull")
-
-local function popup(player, text)
-	local fs = st_gui.header(8, 3, "Repair kit") ..
-		("label[0.5,1.4;%s]"):format(core.formspec_escape(text)) ..
-		"button_exit[2.5,2;3,0.8;ok;OK]"
-	core.show_formspec(player:get_player_name(), FORMNAME, fs)
-end
 
 local function hull_index(player)
 	local name = stats.get_level(player, "hull").name
@@ -26,7 +18,7 @@ local use = {
 	end,
 	repair = function(player, def)
 		if hull_index(player) > def.level then
-			popup(player, "This kit is too weak for your hull.")
+			st_utils.show_popup(player:get_player_name(), "This kit is too weak for your hull.", 2, true)
 			return false
 		end
 		return st_machine.hull.add(player, def.amount) > 0
