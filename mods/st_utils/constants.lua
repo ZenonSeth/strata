@@ -29,6 +29,8 @@ return {
 	max_fall_speed = 30,
 	-- Hull damage of a landing at terminal fall speed; scales linearly from 0 at min_impact_speed
 	max_fall_damage = 150,
+	-- Machine in any liquid: sideways speed multiplier and terminal fall speed (nodes/s); no thrust
+	liquid = {speed_mult = 0.5, max_fall_speed = 4},
 	-- Share of a falling rock's downward speed handed to the machine it hits
 	rock_momentum_transfer = 0.5,
 	fuel = {

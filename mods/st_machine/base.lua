@@ -37,7 +37,7 @@ local function engine_sound(session, player, control)
 		return
 	end
 	local sfx = st_audio.sfx
-	local climbing = control.up and not control.down
+	local climbing = control.up and not control.down and not session.liquid
 	local has_fuel = not fuel.is_empty(player)
 	local engine = "engine_idle"
 	if has_fuel then
@@ -76,6 +76,7 @@ local THRUST_ACCEL = 65
 -- At the rated weight the net climb accel is 10% of the empty-hold one
 local RATED_DRAG = 2.25
 local MAX_FALL_SPEED = st_utils.constants.max_fall_speed
+local LIQUID = st_utils.constants.liquid
 -- Easing onto the dig row/column
 local ALIGN_SPEED = 3
 local ALIGN_RATE = 10
@@ -434,13 +435,16 @@ local function control_step(session, player, pos, control, dtime)
 	local vel = session.obj:get_velocity()
 	local speed_mult = fuel.is_empty(player) and FUEL.empty_speed_mult or 1
 	local top_thrust = my_stats.thrust * speed_mult
+	if session.liquid then
+		speed_mult = speed_mult * LIQUID.speed_mult
+	end
 	local target_vx = ((control.right and 1 or 0) - (control.left and 1 or 0)) * my_stats.move_speed * speed_mult
 	if align_x then
 		target_vx = math.max(-ALIGN_SPEED, math.min(ALIGN_SPEED, (align_x - pos.x) * ALIGN_RATE))
 	end
 	vel.x = approach(vel.x, target_vx, ACCEL * dtime)
 	local accel_y = -session.gravity
-	local climbing = control.up and not control.down
+	local climbing = control.up and not control.down and not session.liquid
 	if climbing then
 		burn_fuel(player, FUEL.climb_mult, dtime)
 	elseif control.left ~= control.right then
@@ -456,7 +460,7 @@ local function control_step(session, player, pos, control, dtime)
 			accel_y = math.min(accel_y, (top_thrust - vel.y) / dtime)
 		end
 	end
-	vel.y = math.max(vel.y, -MAX_FALL_SPEED)
+	vel.y = math.max(vel.y, -(session.liquid and LIQUID.max_fall_speed or MAX_FALL_SPEED))
 	vel.z = 0
 	session.obj:set_velocity(vel)
 	session.obj:set_acceleration(vector.new(0, accel_y, 0))
@@ -540,7 +544,7 @@ local function animate(session, player, control, dtime)
 	if session.destroyed then
 		return
 	end
-	if control.up then
+	if control.up and not session.liquid then
 		spawn_exhaust(session, player, dtime)
 	end
 
@@ -729,6 +733,16 @@ local function vehicle_step(player, dtime)
 	end
 	if pad_step(session, player, pos, control) then
 		return
+	end
+	-- Liquid in the node the machine occupies; its damage_per_second hurts the hull
+	local def = node_def(vector.round(pos))
+	session.liquid = def and def.liquidtype and def.liquidtype ~= "none" and def or nil
+	local damage = session.liquid and session.liquid.damage_per_second or 0
+	if damage > 0 then
+		hull.damage(player, damage * dtime)
+		if session.destroyed then
+			return
+		end
 	end
 	control_step(session, player, pos, control, dtime)
 	animate(session, player, control, dtime)

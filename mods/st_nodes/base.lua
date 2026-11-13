@@ -349,7 +349,7 @@ end
 -- Liquids: only source nodes are collected, they never renew
 local LIQUIDS = {
 	oil = {viscosity = 3, color = "#1c1a14", light = 0},
-	lava = {viscosity = 5, color = "#e8501a", light = 13, damage = 4},
+	lava = {viscosity = 5, color = "#e8501a", light = 13, damage = 10},
 }
 
 for _, m in ipairs(materials) do
