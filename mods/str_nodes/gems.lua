@@ -2,10 +2,10 @@
 -- Names, volume, weight and price are in str_materials.
 -- rarity = absolute fraction of nodes that are this gem at weight 1 (placeholder values).
 return {
-	{name = "lapis", tier = 3, shape = "pocket", rarity = 3e-3, curve = {
+	{name = "lapis", tier = 2, shape = "pocket", rarity = 3e-3, curve = {
 		{500, 0.2}, {1500, 1}, {3200, 0.8}, {6000, 0.3}, {10000, 0.1}, {16000, 0},
 	}},
-	{name = "turquoise", tier = 3, shape = "pocket", rarity = 3e-3, curve = {
+	{name = "turquoise", tier = 2, shape = "pocket", rarity = 3e-3, curve = {
 		{600, 0.2}, {1800, 1}, {4000, 0.8}, {7000, 0.3}, {12000, 0.1}, {18000, 0},
 	}},
 	{name = "opal", tier = 4, shape = "pocket", rarity = 2e-3, curve = {
