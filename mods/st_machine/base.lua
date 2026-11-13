@@ -19,7 +19,9 @@ local DUG_SOUND = {
 	eclogite = "hardrock", peridotite = "hardrock", core = "hardrock",
 }
 for _, kind in ipairs({"soil", "gravel", "rock", "hardrock"}) do
-	st_audio.sfx.register("dug_" .. kind, {sound = "st_machine_dug_" .. kind, max_hear_distance = 32})
+	st_audio.sfx.register("dug_" .. kind, {
+		sound = "st_machine_dug_" .. kind, max_hear_distance = 32, pitch = kind == "gravel" and 0.5 or nil,
+	})
 end
 
 local function dug_sound(node_name)
@@ -363,7 +365,7 @@ local function take_node(pos, player)
 	st_nodes.refresh_shapes(pos)
 	local kind = dug_sound(node_name)
 	if kind then
-		st_audio.sfx.play("dug_" .. kind, {pos = pos})
+		st_audio.sfx.play("dug_" .. kind, {player = player})
 	end
 	st_machine.notify_dig(player, pos, node_name, "drill")
 	if item then

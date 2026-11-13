@@ -3,7 +3,7 @@ local fog = {}
 -- Fixed span, independent of the lights upgrades; override is off at and above FADE_START
 local FADE_START = -10
 local FADE_END = -50
-local START_COLOR = {r = 0x90, g = 0xd3, b = 0xf6}
+local START_COLOR = st_environment.sky.DAY_HORIZON
 local STEP = 0.02
 
 local sent = {}
