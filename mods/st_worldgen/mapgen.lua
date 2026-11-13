@@ -175,7 +175,7 @@ core.register_on_generated(function(vm, minp, maxp)
 			if y >= surface_y then
 				-- Ground column up to the hill height, the surface node on top, air above
 				local hi = (z - z_min) * noise_w + (xa - (minp.x - 1)) + 1
-				local ids = z ~= slice_z and c_surface_back or c_surface
+				local ids = (z ~= slice_z and y > surface_y) and c_surface_back or c_surface
 				for x = xa, xb do
 					local top = surface_y + hills[hi]
 					if y == top then
