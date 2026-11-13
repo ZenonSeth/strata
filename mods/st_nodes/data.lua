@@ -1,7 +1,7 @@
 -- Loads strata, materials, gems, formations and caverns and scales their depths (also loaded by the mapgen script).
 -- The data files are unscaled metres; the world is DEPTH_SCALE times that.
 local DEPTH_SCALE = 0.25
--- Multiply every material density (ores and liquids) and every gem rarity
+-- Multiply every material density (ores and liquids) and every gem rarity (strange objects are exempt)
 local ORE_DENSITY_SCALE = 1
 local GEM_RARITY_SCALE = 0.75
 
@@ -45,6 +45,10 @@ for _, m in ipairs(data.materials) do
 end
 for _, g in ipairs(data.gems) do
 	g.rarity = g.rarity * GEM_RARITY_SCALE
+end
+-- Strange objects are placed like gems but are not scaled with them
+for _, g in ipairs(dofile(path .. "/relics.lua")) do
+	data.gems[#data.gems + 1] = g
 end
 
 for _, list in ipairs({data.materials, data.gems, data.formations, {data.caverns}}) do

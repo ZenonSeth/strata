@@ -332,6 +332,7 @@ local function sell(player, item, count)
 	local removed = def and st_machine.cargo.remove(player, item, count) or 0
 	if removed > 0 then
 		resources.add_credits(player, removed * def.price)
+		st_transmissions.count_relic(player:get_player_name(), item, "sold", removed)
 	end
 end
 

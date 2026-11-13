@@ -113,25 +113,37 @@ local function equipment_tab(player)
 	return table.concat(fs)
 end
 
-local selected_transmission = {}
+-- Entries whose signal analysis is open: expanded_analysis[name][index]
+local expanded_analysis = {}
+local GLYPH_SIZE = 24
+local LOG_LINK, LOG_LINK_HOVER, LOG_STAMP = "#e8b040", "#ffd878", "#a9abb0"
+-- Room under the log for buttons
+local LOG_H = HEIGHT - TABLE_Y - 1.6
+
+local function hypertext_escape(text)
+	return (text:gsub("[\\<>]", "\\%0"))
+end
 
 local function transmissions_tab(player, name)
 	local items = st_transmissions.get(name)
-	local rows = {}
-	for i = #items, 1, -1 do
-		rows[#rows + 1] = esc(("%s  %s"):format(os.date("%H:%M", items[i].time), items[i].text))
-	end
-	local selected = math.min(selected_transmission[name] or 1, #rows)
-	local fs = {
-		("textlist[%g,%g;%g,%g;transmission_list;%s;%d;false]"):format(
-			TABLE_X, TABLE_Y, TABLE_W, TABLE_H, table.concat(rows, ","), selected),
+	local open = expanded_analysis[name] or {}
+	local text_color = st_gui.theme.text
+	local lines = {
+		("<global margin=8 color=%s background=#00000055>"):format(text_color),
+		("<tag name=action color=%s hovercolor=%s>"):format(LOG_LINK, LOG_LINK_HOVER),
 	}
-	local item = items[#items - selected + 1]
-	if item then
-		fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.5,
-			esc(core.colorize(muted, "Signal analysis: ") .. (item.analysis or "none")))
+	for i = #items, 1, -1 do
+		local item = items[i]
+		lines[#lines + 1] = ("<style color=%s>Signal %d  %s</style>"):format(LOG_STAMP, i, os.date("%H:%M", item.time))
+		lines[#lines + 1] = st_transmissions.markup(item.text, GLYPH_SIZE)
+		lines[#lines + 1] = ("<action name=analysis_%d>[%s] Signal analysis</action>"):format(i, open[i] and "-" or "+")
+		if open[i] then
+			lines[#lines + 1] = hypertext_escape(item.analysis or "none")
+		end
+		lines[#lines + 1] = ""
 	end
-	return table.concat(fs)
+	return ("hypertext[%g,%g;%g,%g;transmission_log;%s]"):format(
+		TABLE_X, TABLE_Y, TABLE_W, LOG_H, esc(table.concat(lines, "\n")))
 end
 
 local VOLUME_STEP = 10
@@ -301,17 +313,18 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 			return
 		end
 	end
-	if fields.transmission_list then
-		local event = core.explode_textlist_event(fields.transmission_list)
-		if event.type == "CHG" or event.type == "DCL" then
-			selected_transmission[name] = event.index
-			refresh(player)
-		end
+	local analysis = (fields.transmission_log or ""):match("^action:analysis_(%d+)$")
+	if analysis then
+		local open = expanded_analysis[name] or {}
+		open[tonumber(analysis)] = not open[tonumber(analysis)] or nil
+		expanded_analysis[name] = open
+		refresh(player)
 		return
 	end
 	if fields.discard then
 		if selected_item[name] then
-			st_machine.cargo.remove(player, selected_item[name], 1)
+			local removed = st_machine.cargo.remove(player, selected_item[name], 1)
+			st_transmissions.count_relic(name, selected_item[name], "discarded", removed)
 		end
 		return
 	end
@@ -326,5 +339,5 @@ end)
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	selected_tab[name], selected_item[name], armed[name] = nil, nil, nil
-	selected_transmission[name] = nil
+	expanded_analysis[name] = nil
 end)
