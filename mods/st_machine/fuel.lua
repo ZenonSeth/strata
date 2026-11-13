@@ -1,7 +1,7 @@
 local BAR = "st_machine:fuel"
 
 st_hud.register_bar(BAR, {
-	color = st_utils.constants.colors.fuel, width = 240, height = 20, size = 1.1, offset = {x = 130, y = -94},
+	color = st_utils.constants.colors.fuel, width = 240, height = 20, size = 1.1, offset = {x = 130, y = -106},
 	mode = "vehicle", decimal = true,
 })
 

@@ -211,9 +211,60 @@ local function show_ending(player)
 	}))
 end
 
-local function consumables_tab()
-	return ("hypertext[%g,%g;%g,1;;<global halign=center color=%s>Nothing for sale yet - coming soon]"):format(
-		TABLE_X, TABLE_Y + 1, TABLE_W, st_gui.theme.text)
+local CONS_COLUMNS = {
+	{title = "Item", spec = "text,width=20,padding=0.3"},
+	{title = "Price", spec = "text,width=9,padding=0.3,tooltip=Price in credits"},
+}
+local CONS_TABLE_H = 3.9
+local CONS_BUY_Y = TABLE_Y + CONS_TABLE_H + 0.15
+local CONS_SELL_Y = CONS_BUY_Y + 0.95
+local CONS_SLOTS_Y = CONS_SELL_Y + 0.6
+local SLOT_PITCH = 1.25
+local SELL_SLOTS = 4
+local INV_Y = HEIGHT - 1.4
+local cons_message = {}
+
+local function consumables_tab(player, name)
+	local list = st_consumables.available(player)
+	local rows, selected = {}, 0
+	for i, def in ipairs(list) do
+		rows[i] = {cells = {def.description, format_credits(def.price)}}
+		if def.name == selected_item[name] then
+			selected = i
+		end
+	end
+	local fs = {
+		st_gui.list_table({
+			x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = CONS_TABLE_H, name = "consumables",
+			columns = CONS_COLUMNS, rows = rows, selected = selected,
+		}),
+		"style_type[label;valign=center]",
+	}
+	if selected > 0 then
+		fs[#fs + 1] = ("button[%g,%g;2.6,%g;buy_cons_1;Buy 1]"):format(TABLE_X, CONS_BUY_Y, BUTTON_H)
+		fs[#fs + 1] = ("button[%g,%g;2.6,%g;buy_cons_10;Buy 10]"):format(TABLE_X + 2.8, CONS_BUY_Y, BUTTON_H)
+	end
+	local selected_def = st_consumables.items[selected_item[name] or ""]
+	local lines = selected_def and {selected_def.description, selected_def.info, selected_def.note} or {}
+	fs[#fs + 1] = "style_type[label;valign=top]"
+	fs[#fs + 1] = ("label[%g,%g;%g,1.8;%s]"):format(
+		TABLE_X + 5.8, CONS_BUY_Y, TABLE_W - 5.8, esc(table.concat(lines, "\n")))
+	fs[#fs + 1] = "style_type[label;valign=center]"
+	fs[#fs + 1] = ("label[%g,%g;5,0.5;Sell area (50%% of price)]"):format(TABLE_X, CONS_SELL_Y)
+	local inv = st_consumables.sell_inventory_name(player)
+	fs[#fs + 1] = ("list[detached:%s;sell;%g,%g;%d,1;0.25]"):format(inv, TABLE_X, CONS_SLOTS_Y, SELL_SLOTS)
+	fs[#fs + 1] = ("label[%g,%g;%g,0.5;Your hotbar]"):format(TABLE_X, INV_Y - 0.7, TABLE_W)
+	fs[#fs + 1] = ("label[%g,%g;%g,0.5;%s]"):format(TABLE_X + 5.8, INV_Y - 0.7, TABLE_W - 5.8, esc(cons_message[name] or ""))
+	fs[#fs + 1] = ("list[current_player;main;%g,%g;8,1;0.25]"):format(TABLE_X, INV_Y)
+	fs[#fs + 1] = ("listring[detached:%s;sell]listring[current_player;main]"):format(inv)
+	if st_consumables.sell_count(player) > 0 then
+		local x = TABLE_X + SELL_SLOTS * SLOT_PITCH + 0.3
+		fs[#fs + 1] = ("button[%g,%g;3.2,1;sell_cons;Sell]"):format(x, CONS_SLOTS_Y)
+		fs[#fs + 1] = ("label[%g,%g;%g,1;Sell value:\n%s credits]"):format(
+			x + 3.5, CONS_SLOTS_Y, WIDTH - x - 3.9, esc(format_credits(st_consumables.sell_value(player))))
+	end
+	fs[#fs + 1] = "style_type[label;valign=top]"
+	return table.concat(fs)
 end
 
 local function debt_tab(player, name)
@@ -262,7 +313,7 @@ local function build(player)
 	if tab == "sell" then
 		fs[#fs + 1] = sell_tab(player, name)
 	elseif tab == "consumables" then
-		fs[#fs + 1] = consumables_tab()
+		fs[#fs + 1] = consumables_tab(player, name)
 	elseif tab == "debt" then
 		fs[#fs + 1] = debt_tab(player, name)
 	else
@@ -301,12 +352,18 @@ local function pay_debt(player, text)
 end
 
 core.register_on_player_receive_fields(function(player, formname, fields)
-	if formname ~= FORMNAME or fields.quit then
+	if formname ~= FORMNAME then
+		return
+	end
+	if fields.quit then
+		st_consumables.return_items(player)
 		return
 	end
 	local name = player:get_player_name()
 	local tab = st_gui.tab_clicked(fields, "co_")
 	if tab then
+		st_consumables.return_items(player)
+		cons_message[name] = nil
 		selected_tab[name], selected_item[name], debt_message[name] = tab, nil, nil
 	elseif fields.leave_strata and st_story.get_debt(player) <= 0 then
 		show_ending(player)
@@ -336,6 +393,19 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 			local next_recipe = list[math.min(index, #list)]
 			selected_item[name] = next_recipe and next_recipe.name
 		end
+	elseif (fields.buy_cons_1 or fields.buy_cons_10) and selected_item[name] then
+		local _, message = st_consumables.buy(player, selected_item[name], fields.buy_cons_10 and 10 or 1)
+		cons_message[name] = message
+	elseif fields.sell_cons then
+		local value = st_consumables.sell(player)
+		cons_message[name] = value > 0 and ("Sold for %s credits."):format(format_credits(value)) or nil
+	elseif fields.consumables then
+		local event = core.explode_table_event(fields.consumables)
+		if event.type ~= "CHG" and event.type ~= "DCL" then
+			return
+		end
+		local def = st_consumables.available(player)[event.row]
+		selected_item[name] = def and def.name
 	elseif fields.recipes then
 		local event = core.explode_table_event(fields.recipes)
 		if event.type ~= "CHG" and event.type ~= "DCL" then
@@ -372,5 +442,11 @@ end)
 
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
-	selected_tab[name], selected_item[name], debt_message[name] = nil, nil, nil
+	selected_tab[name], selected_item[name], debt_message[name], cons_message[name] = nil, nil, nil, nil
+end)
+
+st_consumables.register_on_sell_change(function(player)
+	if selected_tab[player:get_player_name()] == "consumables" then
+		st_company.show(player)
+	end
 end)

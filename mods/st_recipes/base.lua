@@ -209,6 +209,17 @@ function st_recipes.unlock(player, name)
 	return true
 end
 
+-- Takes the recipe back; returns false if it was not owned
+function st_recipes.revoke(player, name)
+	if not st_recipes.has(player, name) then
+		return false
+	end
+	local player_name = player:get_player_name()
+	load("owned", player_name)[name] = nil
+	save("owned", player_name)
+	return true
+end
+
 core.register_on_leaveplayer(function(player)
 	local player_name = player:get_player_name()
 	cache["found:" .. player_name], cache["owned:" .. player_name] = nil, nil

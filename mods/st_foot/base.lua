@@ -20,7 +20,7 @@ end)
 -- On foot: normal first person, regular player controls
 st_mode.register_mode("foot", {
 	on_enter = function(player)
-		player:hud_set_flags({wielditem = true, crosshair = true, hotbar = false})
+		player:hud_set_flags({wielditem = false, crosshair = true, hotbar = false})
 		st_audio.music.play(player, "foot")
 	end,
 })

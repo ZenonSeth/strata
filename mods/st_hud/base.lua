@@ -221,6 +221,8 @@ end)
 
 core.register_on_joinplayer(function(player)
 	player:hud_set_flags({basic_debug = false})
+	player:hud_set_hotbar_image("st_hud_hotbar.png")
+	player:hud_set_hotbar_selected_image("st_hud_hotbar_selected.png")
 	for id, element in pairs(elements) do
 		if element.kind == "strip" then
 			render(player, id)

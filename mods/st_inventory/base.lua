@@ -72,7 +72,9 @@ end
 
 -- Grid order, left to right then down
 local EQUIPMENT = {"hull", "engine", "drill", "thrusters", "tank", "cargo"}
-local CELL_GAP, CELL_H, LINE_H = 0.3, 2.2, 0.45
+local CELL_GAP, LINE_H = 0.3, 0.45
+-- Row heights fit each row's longest stat list
+local ROW_H = {1.75, 2.2, 1.3}
 local CELL_W = (WIDTH - 0.8 - CELL_GAP) / 2
 
 local function equipment_tab(player)
@@ -82,8 +84,12 @@ local function equipment_tab(player)
 		local category = st_machine_data.get_upgrade(id)
 		local level = stats.get_level(player, id)
 		local x = TABLE_X + ((i - 1) % 2) * (CELL_W + CELL_GAP)
-		local y = st_gui.CONTENT_Y + math.floor((i - 1) / 2) * (CELL_H + CELL_GAP)
-		fs[#fs + 1] = ("box[%g,%g;%g,%g;#1b1c1e]"):format(x, y, CELL_W, CELL_H)
+		local row = math.ceil(i / 2)
+		local y = st_gui.CONTENT_Y
+		for r = 1, row - 1 do
+			y = y + ROW_H[r] + CELL_GAP
+		end
+		fs[#fs + 1] = ("box[%g,%g;%g,%g;#1b1c1e]"):format(x, y, CELL_W, ROW_H[row])
 		fs[#fs + 1] = ("style_type[label;font_size=*1.15]label[%g,%g;%s]style_type[label;font_size=*1]"):format(
 			x + 0.3, y + 0.4, esc(level.description))
 		local lines = {{category.stat, category.stat.label}}
@@ -101,6 +107,9 @@ local function equipment_tab(player)
 				esc(core.colorize(muted, line[2] .. ":") .. " " .. text))
 		end
 	end
+	local hotbar_y = HEIGHT - 1.4
+	fs[#fs + 1] = ("label[%g,%g;%g,0.5;Hotbar]"):format(TABLE_X, hotbar_y - 0.7, TABLE_W)
+	fs[#fs + 1] = ("list[current_player;main;%g,%g;8,1;0.25]"):format(TABLE_X, hotbar_y)
 	return table.concat(fs)
 end
 

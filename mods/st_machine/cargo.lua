@@ -118,7 +118,7 @@ local FULL_COLOR = 0xFF4040
 
 -- Spans the hull and fuel bars above it
 st_hud.register_bar(BAR, {
-	color = st_utils.constants.colors.cargo, width = 500, height = 20, size = 1.1, offset = {x = 0, y = -70},
+	color = st_utils.constants.colors.cargo, width = 500, height = 20, size = 1.1, offset = {x = 0, y = -82},
 	mode = "vehicle",
 })
 
