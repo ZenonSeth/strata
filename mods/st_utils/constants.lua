@@ -34,7 +34,7 @@ return {
 	-- Share of a falling rock's downward speed handed to the machine it hits
 	rock_momentum_transfer = 0.5,
 	fuel = {
-		-- Litres per second while driving sideways (25 L lasts 5 minutes), whatever the tank size
+		-- Litres per second while driving sideways (the stock 20 L tank lasts 4 minutes), whatever the tank size
 		burn_per_second = 25 / 300,
 		-- Burn rate multipliers on burn_per_second
 		dig_mult = 2,
