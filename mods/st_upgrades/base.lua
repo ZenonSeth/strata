@@ -4,9 +4,9 @@ local esc = core.formspec_escape
 
 local WIDTH, HEIGHT = 13, 9.2
 local TAB_SIZE = 1
--- Tabs hang off the left edge, overlapping the window slightly
-local TAB_X = -TAB_SIZE + 0.1
-local TAB_Y = 0.3
+-- Tabs sit on the top edge, overlapping the window slightly
+local TAB_X = 0.4
+local TAB_Y = -TAB_SIZE + 0.1
 
 -- Tab order; the Color tab is special, the others are empty until their upgrades exist
 local TABS = {
@@ -18,6 +18,7 @@ local TABS = {
 	{id = "cargo", title = "Cargo", tooltip = "Cargo hold"},
 	{id = "fuel", title = "Fuel tank", tooltip = "Fuel tank"},
 	{id = "hull", title = "Hull", tooltip = "Hull"},
+	{id = "items", title = "Create Items", tooltip = "Create Items"},
 }
 
 -- Less saturated colors plus neutral, warm and cold grays; each row is one family
@@ -225,23 +226,29 @@ local function category_tab(player, category)
 	return table.concat(fs)
 end
 
+local function items_tab()
+	return ("label[%g,%g;Coming soon]"):format(PART_X, PART_NAME_Y)
+end
+
 local function build(player)
 	local name = player:get_player_name()
 	local tab = selected_tab[name] or TABS[1].id
 	local tabs = {}
 	for i, def in ipairs(TABS) do
-		tabs[i] = {id = def.id, image = "st_upgrades_tab_" .. def.id .. ".png", tooltip = def.tooltip}
+		tabs[i] = {id = def.id, image = def.image or "st_upgrades_tab_" .. def.id .. ".png", tooltip = def.tooltip}
 	end
 	local fs = {
 		st_gui.header(WIDTH, HEIGHT, "Upgrades - " .. tab_title(tab)),
 		st_gui.tab_bar({
-			x = TAB_X, y = TAB_Y, w = TAB_SIZE, h = TAB_SIZE, vertical = true,
+			x = TAB_X, y = TAB_Y, w = TAB_SIZE, h = TAB_SIZE,
 			tabs = tabs, selected = tab,
 			bg = "st_upgrades_tab_bg.png", bg_selected = "st_upgrades_tab_bg_sel.png",
 		}),
 	}
 	if tab == "color" then
 		fs[#fs + 1] = color_tab(player)
+	elseif tab == "items" then
+		fs[#fs + 1] = items_tab()
 	elseif TAB_CATEGORY[tab] then
 		fs[#fs + 1] = category_tab(player, st_machine_data.get_upgrade(TAB_CATEGORY[tab]))
 	end
