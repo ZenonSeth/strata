@@ -84,7 +84,9 @@ register_box("home_bed_head", "Bed", "st_interior_home_bed_head", {
 	{-11/32, -3/32, -16/32, -10/32, 1/32, -2/32},
 	{10/32, -3/32, -16/32, 11/32, 1/32, -2/32},
 }, {
-	use = USE.sleep,
+	-- TODO: sleep feature from todo list
+	-- use = USE.sleep,
+	pointable = true,
 	paramtype2 = "4dir",
 	after_place_node = function(pos, placer)
 		return add_partner(pos, placer, FOOT, toward_foot(pos))
@@ -105,7 +107,9 @@ register_box("home_bed_foot", "Bed (foot)", "st_interior_home_bed_foot", {
 	{-11/32, -3/32, -13/32, -10/32, 1/32, 16/32},
 	{10/32, -3/32, -13/32, 11/32, 1/32, 16/32},
 }, {
-	use = USE.sleep,
+	-- TODO: sleep feature from todo list
+	-- use = USE.sleep,
+	pointable = true,
 	paramtype2 = "4dir",
 	drop = HEAD,
 	groups = {not_in_creative_inventory = 1},

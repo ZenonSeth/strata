@@ -25,6 +25,9 @@ end
 
 local function register_node(name, def)
 	def.is_ground_content = false
+	if def.pointable == nil and not def.on_rightclick then
+		def.pointable = false
+	end
 	local material = FOOTSTEP_MATERIAL[name]
 	if material then
 		def.sounds = {footstep = {name = "st_interior_footstep_" .. material, gain = 1.0}}
