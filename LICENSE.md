@@ -52,11 +52,14 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
 
 - Sound effects (all generated with Python scripts, no third-party recordings or samples):
   - `mods/str_ambience/sounds/`
+  - `mods/str_elevators/sounds/`
   - `mods/str_interior/sounds/`
   - `mods/str_machine/sounds/`
   - `mods/str_refuel/sounds/`
+  - `mods/str_transmissions/sounds/`
   - `mods/str_upgrades/sounds/`
 - Models and schematics:
+  - `mods/str_foot/models/str_foot_player.glb`
   - `mods/str_machine/models/digger1.glb`
   - `mods/str_nodes/models/str_nodes_rock_1.obj`, `str_nodes_rock_2.obj`, `str_nodes_rock_3.obj`
   - `mods/str_start/schems/shop_home.mts`
