@@ -90,6 +90,9 @@ local function restore(pos)
 	end
 end
 
+str_elevators.is_ground, str_elevators.is_clearable = is_ground, is_clearable
+str_elevators.put, str_elevators.restore = put, restore
+
 -- Cell behind the machine, or nil if the machine is not driving
 local function target_pos(player)
 	local pos = str_machine.get_pos(player)

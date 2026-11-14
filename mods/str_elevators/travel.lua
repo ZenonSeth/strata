@@ -27,14 +27,18 @@ end
 
 -- Fades to black, waits the ride time (and for the map), moves the machine and cuts the black away
 function str_elevators.travel(player, x, from_y, to_y)
+	str_elevators.travel_to(player, vector.new(x, to_y, SLICE_Z), math.abs(to_y - from_y))
+end
+
+-- Same ride to any dest cell; distance is the length of the ride in nodes
+function str_elevators.travel_to(player, dest, distance)
 	local name = player:get_player_name()
 	if trips[name] then
 		return
 	end
-	local dest = vector.new(x, to_y, SLICE_Z)
 	local trip = {
 		phase = "in", t = 0, dest = dest, ready = false,
-		duration = math.max(MIN_TIME, math.abs(to_y - from_y) / SPEED),
+		duration = math.max(MIN_TIME, distance / SPEED),
 		hud = player:hud_add({
 			type = "image", position = {x = 0.5, y = 0.5}, alignment = {x = 0, y = 0},
 			scale = {x = -100, y = -100}, text = "[fill:8x8:#000000^[opacity:0", z_index = 1000,
