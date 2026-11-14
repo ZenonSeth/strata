@@ -21,7 +21,7 @@ return {
 		{name = "supercharged_v8", description = "Supercharged V8 engine", stats = {move_speed = 7.5, fuel_use = 2.14},
 			from = {deep_alloy = 8, topaz = 6, graphite = 12, sulphur = 10}},
 		{name = "v12", description = "V12 engine", stats = {move_speed = 8, fuel_use = 2.29},
-			from = {platinum_alloy = 8, ruby = 6, graphite = 12}},
+			from = {platinum_alloy = 8, alexandrite = 6, graphite = 12}},
 		{name = "alpha_v8", description = "Alpha-boosted V8 engine", stats = {move_speed = 8.5, fuel_use = 2.43},
 			from = {platinum_alloy = 8, sapphire = 6, uranium = 12}},
 		{name = "gamma_v12", description = "Gamma-boosted V12 engine", stats = {move_speed = 9, fuel_use = 2.57},

@@ -1,7 +1,7 @@
 -- Data only. Same shape as tanks.lua; stats.drill_tier = highest node tier dug, stats.dig_speed (base 0.5).
 -- extra = more stats the upgrade station shows beside the main one; scale/format only change how they are shown.
 -- Costs: 10 of the level's alloy up to hardened steel, then 8 gems plus 12 body alloy. Placeholder values, not final.
--- Sapphire and ruby bits are the same tier; sapphire digs faster.
+-- Sapphire and alexandrite bits are the same tier; sapphire digs faster.
 return {
 	id = "drill",
 	title = "Drill bit",
@@ -21,13 +21,13 @@ return {
 			from = {quartz = 8, hardened_steel = 12}},
 		{name = "topaz", description = "Topaz-tipped bit", stats = {drill_tier = 7, dig_speed = 4.5},
 			from = {topaz = 8, tungsten_carbide = 12}},
-		{name = "ruby", description = "Ruby-tipped bit", stats = {drill_tier = 8, dig_speed = 5.5},
-			from = {ruby = 8, tungsten_carbide = 12}},
+		{name = "alexandrite", description = "Alexandrite bit", stats = {drill_tier = 8, dig_speed = 5.5},
+			from = {alexandrite = 8, tungsten_carbide = 12}},
 		{name = "sapphire", description = "Sapphire-tipped bit", stats = {drill_tier = 8, dig_speed = 6},
 			from = {sapphire = 8, tungsten_carbide = 12}},
 		{name = "diamond", description = "Diamond-tipped bit", stats = {drill_tier = 9, dig_speed = 6.5},
 			from = {diamond = 8, tungsten_carbide = 12}},
-		{name = "dragonstone", description = "Dragonstone-tipped bit", stats = {drill_tier = 10, dig_speed = 7.5},
+		{name = "dragonstone", description = "Dragonstone bit", stats = {drill_tier = 10, dig_speed = 7.5},
 			from = {dragonstone = 8, tungsten_carbide = 12}},
 	},
 }

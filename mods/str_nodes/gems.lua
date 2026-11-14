@@ -3,15 +3,15 @@
 -- rarity = absolute fraction of nodes that are this gem at weight 1 (placeholder values).
 return {
 	{name = "lapis", tier = 2, shape = "pocket", rarity = 3e-3, curve = {
-		{500, 0.2}, {1500, 1}, {3200, 0.8}, {6000, 0.3}, {10000, 0.1}, {16000, 0},
+		{500, 0.2}, {1500, 1}, {3200, 0.8}, {5000, 0.3}, {7000, 0.1}, {9000, 0},
 	}},
 	{name = "turquoise", tier = 2, shape = "pocket", rarity = 3e-3, curve = {
-		{600, 0.2}, {1800, 1}, {4000, 0.8}, {7000, 0.3}, {12000, 0.1}, {18000, 0},
+		{600, 0.2}, {1800, 1}, {3800, 0.8}, {5500, 0.3}, {7500, 0.1}, {10000, 0},
 	}},
-	{name = "opal", tier = 4, shape = "pocket", rarity = 2e-3, curve = {
+	{name = "opal", tier = 3, shape = "pocket", rarity = 2e-3, curve = {
 		{1600, 0.2}, {3500, 1}, {6000, 0.8}, {9000, 0.3}, {14000, 0.1}, {20000, 0},
 	}},
-	{name = "jade", tier = 4, shape = "pocket", rarity = 2e-3, curve = {
+	{name = "jade", tier = 3, shape = "pocket", rarity = 2e-3, curve = {
 		{2000, 0.2}, {4500, 1}, {8000, 0.8}, {11000, 0.3}, {16000, 0.1}, {22000, 0},
 	}},
 	{name = "moonstone", tier = 4, shape = "pocket", rarity = 2e-3, curve = {
@@ -44,11 +44,11 @@ return {
 	{name = "emerald", tier = 6, shape = "pocket", rarity = 1e-3, curve = {
 		{10500, 0.2}, {13000, 1}, {16000, 0.8}, {19000, 0.3}, {23000, 0.1}, {28000, 0},
 	}},
-	{name = "alexandrite", tier = 6, shape = "pocket", rarity = 1e-3, curve = {
+	{name = "alexandrite", tier = 7, shape = "pocket", rarity = 1e-3, curve = {
 		{11000, 0.2}, {13500, 1}, {16500, 0.8}, {19500, 0.3}, {23000, 0.1}, {29000, 0},
 	}},
-	{name = "ruby", tier = 4, shape = "pocket", rarity = 6e-4, curve = {
-		{5500, 0.2}, {8000, 1}, {12000, 0.8}, {16000, 0.3}, {22000, 0.1}, {28000, 0},
+	{name = "ruby", tier = 4, shape = "pocket", rarity = 1e-3, curve = {
+		{3500, 0.2}, {6000, 1}, {10000, 0.8}, {14000, 0.3}, {20000, 0.1}, {26000, 0},
 	}},
 	{name = "sapphire", tier = 7, shape = "pocket", rarity = 6e-4, curve = {
 		{11000, 0.2}, {13000, 1}, {16500, 0.8}, {20000, 0.3}, {25000, 0.1}, {30000, 0},
