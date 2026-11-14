@@ -404,6 +404,7 @@ local function take_node(pos, player, blasted)
 	if item and not blasted then
 		local yield = def.str_yield or 1
 		local added = cargo.add(player, item, yield)
+		cargo.announce(player, item, added)
 		str_piles.drop(pos, item, yield - added)
 		if added < yield or cargo.volume(player) >= stats.get(player).cargo_capacity - 1e-6 then
 			str_utils.show_popup(player:get_player_name(), "CARGO FULL!", 2, false,
@@ -835,7 +836,9 @@ local function vehicle_step(player, dtime)
 	if not session.pile_cell or not vector.equals(cell, session.pile_cell) then
 		session.pile_cell = cell
 		str_piles.collect(cell, function(item, count)
-			return cargo.add(player, item, count)
+			local added = cargo.add(player, item, count)
+			cargo.announce(player, item, added)
+			return added
 		end)
 	end
 	control_step(session, player, pos, control, dtime)

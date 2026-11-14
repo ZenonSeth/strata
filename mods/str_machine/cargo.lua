@@ -80,6 +80,51 @@ function cargo.add(player, name, count)
 	return fit
 end
 
+local PICKUP_TIME = 2
+local PICKUP_COLOR = 0xA8E6B0
+local popups = {}
+
+-- Shows "+N name" above the bars; repeats of the same item within the window add up
+function cargo.announce(player, name, count)
+	local def = str_materials.items[name]
+	if count <= 0 or not def then
+		return
+	end
+	local pname = player:get_player_name()
+	local popup = popups[pname]
+	if popup and popup.name == name then
+		popup.count = popup.count + count
+		popup.job:cancel()
+		player:hud_change(popup.id, "text", "+" .. popup.count .. " " .. def.description)
+	else
+		if popup then
+			popup.job:cancel()
+			player:hud_remove(popup.id)
+		end
+		popup = {name = name, count = count, id = player:hud_add({
+			type = "text", position = {x = 0.5, y = 1}, offset = {x = 0, y = -145},
+			text = "+" .. count .. " " .. def.description, style = 1, number = PICKUP_COLOR,
+			alignment = {x = 0, y = 0}, size = {x = 1.5, y = 1.5}, z_index = 3,
+		})}
+		popups[pname] = popup
+	end
+	popup.job = core.after(PICKUP_TIME, function()
+		local current = core.get_player_by_name(pname)
+		if current then
+			current:hud_remove(popup.id)
+		end
+		popups[pname] = nil
+	end)
+end
+
+core.register_on_leaveplayer(function(player)
+	local popup = popups[player:get_player_name()]
+	if popup then
+		popup.job:cancel()
+		popups[player:get_player_name()] = nil
+	end
+end)
+
 -- Removes up to count units; returns how many were removed
 function cargo.remove(player, name, count)
 	local held = contents(player)
