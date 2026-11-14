@@ -137,8 +137,8 @@ end
 
 local function update_depth(player, pos)
 	local y = math.floor(pos.y + 0.5) - START_POS.y
-	local label = y > 0 and "Height" or "Depth"
-	str_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm  X: %d", label, y, math.floor(pos.x + 0.5)))
+	local label = y > 0 and "Altitude" or "Depth"
+	str_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm  |  X: %d", label, math.abs(y), math.floor(pos.x + 0.5)))
 	local name = player:get_player_name()
 	local depth, old = -y, last_depth[name]
 	if depth ~= old then
