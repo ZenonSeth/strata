@@ -17,6 +17,7 @@ local DUG_SOUND = {
 	limestone = "rock", shale = "rock", slate = "rock", marble = "rock", schist = "rock",
 	gneiss = "hardrock", basalt = "hardrock", granite = "hardrock", quartzite = "hardrock",
 	eclogite = "hardrock", peridotite = "hardrock", core = "hardrock",
+	formation = "hardrock",
 }
 for _, kind in ipairs({"soil", "gravel", "rock", "hardrock"}) do
 	str_audio.sfx.register("dug_" .. kind, {
@@ -370,6 +371,22 @@ local function end_dig(session, keep_pos)
 	session.obj:set_properties({physical = true})
 end
 
+local DUST_COUNT = 6
+
+local function spawn_dust(pos)
+	for _ = 1, DUST_COUNT do
+		core.add_particle({
+			pos = vector.offset(pos, (math.random() - 0.5) * 0.6, (math.random() - 0.5) * 0.6, (math.random() - 0.5) * 0.6),
+			velocity = vector.new((math.random() - 0.5) * 1.2, math.random() * 0.6, (math.random() - 0.5) * 1.2),
+			acceleration = vector.new(0, 0.2, 0),
+			expirationtime = 0.4 + math.random() * 0.3,
+			size = 2 + math.random() * 1,
+			texture = {name = "str_machine_puff.png^[multiply:#a89888", blend = "alpha",
+				alpha_tween = {1, 0}, scale_tween = {0.6, 1.6}},
+		})
+	end
+end
+
 -- Nodes with str_material and str_yield add that much of the item to the hold; what does not fit stays as a pile
 local function take_node(pos, player)
 	local def = node_def(pos)
@@ -377,6 +394,7 @@ local function take_node(pos, player)
 	local node_name = core.get_node(pos).name
 	core.remove_node(pos)
 	str_nodes.refresh_shapes(pos)
+	spawn_dust(pos)
 	local kind = dug_sound(node_name)
 	if kind then
 		str_audio.sfx.play("dug_" .. kind, {player = player})

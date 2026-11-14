@@ -64,6 +64,7 @@ local function inventory_tab(player, name)
 	}
 	if selected > 0 then
 		fs[#fs + 1] = ("button[%g,%g;3,0.8;discard;Discard 1]"):format(TABLE_X + TABLE_W - 3, TABLE_Y + TABLE_H + 1.05)
+		fs[#fs + 1] = ("button[%g,%g;3,0.8;discard10;Discard 10]"):format(TABLE_X + TABLE_W - 3, TABLE_Y + TABLE_H + 1.95)
 	end
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.9,
 		esc(("%s %s     %s %s credits"):format(
@@ -333,9 +334,9 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		refresh(player)
 		return
 	end
-	if fields.discard then
+	if fields.discard or fields.discard10 then
 		if selected_item[name] then
-			local removed = str_machine.cargo.remove(player, selected_item[name], 1)
+			local removed = str_machine.cargo.remove(player, selected_item[name], fields.discard10 and 10 or 1)
 			str_transmissions.count_relic(name, selected_item[name], "discarded", removed)
 		end
 		return
