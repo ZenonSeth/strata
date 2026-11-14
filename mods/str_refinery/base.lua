@@ -1,15 +1,21 @@
 local FORMNAME = "str_refinery:main"
-local WIDTH, HEIGHT = 15, 9
+local WIDTH, HEIGHT = 15.5, 11
 local MARGIN = 0.4
 local LIST_W = 6.2
 local PANEL_X = MARGIN + LIST_W + 0.4
 local PANEL_W = WIDTH - PANEL_X - MARGIN
 local TOP = str_gui.CONTENT_Y
-local BUTTON_H, BUTTON_W, GAP = 0.9, 1.85, 0.1
+local BUTTON_H, GAP = 0.9, 0.1
+local DROPDOWN_W = 0.7 * (PANEL_W - 2 * (1.85 + GAP))
+local BUTTON_W = (PANEL_W - DROPDOWN_W - 2 * GAP) / 2
 local BATCH = 10
+local BATCH_FUEL = 0.8
+local TEXT_H = 0.8
+local BUTTON_Y = HEIGHT - MARGIN - TEXT_H - BUTTON_H
 local BUFFER_KEY = "str_refinery:buffer"
 local EPS = 1e-6
 local SHORT_COLOR = "#d06a5a"
+local MADE_COLOR = "#b4e8a8"
 
 local esc = core.formspec_escape
 local cargo, storage = str_machine.cargo, str_storage
@@ -70,7 +76,7 @@ local function take(player, name, count)
 end
 
 -- Makes one unit; returns true, or false and the reason. Nothing is used up unless it succeeds.
-local function refine_once(player, recipe, fuel_name)
+local function refine_once(player, recipe, fuel_name, fuel_mult)
 	local hold, store = cargo.get(player), storage.get(player)
 	for input, amount in pairs(recipe.from) do
 		if total(hold, store, input) < amount then
@@ -80,7 +86,8 @@ local function refine_once(player, recipe, fuel_name)
 	local buffer = get_buffer(player)
 	local per = str_materials.fuel[fuel_name]
 	local draws = 0
-	local missing = recipe.fuel_cost - buffer.units
+	local cost = recipe.fuel_cost * fuel_mult
+	local missing = cost - buffer.units
 	if missing > EPS then
 		draws = math.ceil(missing / per - EPS)
 		if total(hold, store, fuel_name) - (recipe.from[fuel_name] or 0) < draws then
@@ -97,17 +104,17 @@ local function refine_once(player, recipe, fuel_name)
 		take(player, fuel_name, draws)
 		buffer.fuel = fuel_name
 	end
-	buffer.units = buffer.units + draws * per - recipe.fuel_cost
+	buffer.units = buffer.units + draws * per - cost
 	set_buffer(player, buffer)
 	return true
 end
 
 -- Makes up to count units; returns the result line
-local function refine(player, recipe, fuel_name, count)
+local function refine(player, recipe, fuel_name, count, fuel_mult)
 	local made, reason = 0, nil
 	while made < count do
 		local ok
-		ok, reason = refine_once(player, recipe, fuel_name)
+		ok, reason = refine_once(player, recipe, fuel_name, fuel_mult)
 		if not ok then
 			break
 		end
@@ -182,7 +189,7 @@ local function fuel_dropdown(player, hold, store)
 		end
 	end
 	return ("dropdown[%g,%g;%g,%g;fuel;%s;%d;true]"):format(
-		PANEL_X, HEIGHT - MARGIN - BUTTON_H, PANEL_W - 2 * (BUTTON_W + GAP), BUTTON_H, table.concat(items, ","), index)
+		PANEL_X, BUTTON_Y, DROPDOWN_W, BUTTON_H, table.concat(items, ","), index)
 end
 
 local function build(player)
@@ -212,13 +219,20 @@ local function build(player)
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y, esc(
 			("Buffered: %s units of %s"):format(str_inventory.num(buffer.units), desc(buffer.fuel))))
 	end
-	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y + 0.6, esc(messages[name] or ""))
-	fs[#fs + 1] = ("label[%g,%g;Fuel:]"):format(PANEL_X, HEIGHT - MARGIN - BUTTON_H - 0.3)
+	local message = esc(messages[name] or "")
+	if message:sub(1, 5) == "Made " then
+		message = core.colorize(MADE_COLOR, message)
+	end
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y + 0.5, message)
+	fs[#fs + 1] = ("label[%g,%g;Fuel:]"):format(PANEL_X, BUTTON_Y - 0.3)
 	fs[#fs + 1] = fuel_dropdown(player, hold, store)
 	local x = PANEL_X + PANEL_W - 2 * BUTTON_W - GAP
-	fs[#fs + 1] = ("button[%g,%g;%g,%g;refine_one;Refine 1]"):format(x, HEIGHT - MARGIN - BUTTON_H, BUTTON_W, BUTTON_H)
+	fs[#fs + 1] = ("button[%g,%g;%g,%g;refine_one;Refine 1]"):format(x, BUTTON_Y, BUTTON_W, BUTTON_H)
 	fs[#fs + 1] = ("button[%g,%g;%g,%g;refine_ten;Refine %d]"):format(
-		x + BUTTON_W + GAP, HEIGHT - MARGIN - BUTTON_H, BUTTON_W, BUTTON_H, BATCH)
+		x + BUTTON_W + GAP, BUTTON_Y, BUTTON_W, BUTTON_H, BATCH)
+	local text_y = BUTTON_Y + BUTTON_H + 0.3
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, text_y, esc(
+		("Refining %d at once burns only %g%% of the fuel."):format(BATCH, math.floor(BATCH_FUEL * 100 + 0.5))))
 	return table.concat(fs)
 end
 
@@ -238,7 +252,8 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	local recipe = str_recipes.get(selected_recipe[name] or "")
 	if fields.refine_one or fields.refine_ten then
 		if recipe and str_recipes.has(player, recipe.name) then
-			messages[name] = refine(player, recipe, selected_fuel[name] or fuels[1].name, fields.refine_ten and BATCH or 1)
+			messages[name] = refine(player, recipe, selected_fuel[name] or fuels[1].name, fields.refine_ten and BATCH or 1,
+				fields.refine_ten and BATCH_FUEL or 1)
 		end
 	elseif fields.recipes then
 		local event = core.explode_table_event(fields.recipes)
