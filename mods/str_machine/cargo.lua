@@ -108,7 +108,7 @@ end
 str_machine.stats.register_equip_check("cargo", function(player, level)
 	local volume, capacity = cargo.volume(player), level.stats.cargo_capacity
 	if volume > capacity + 1e-6 then
-		return false, ("Hold has %g volume; this fits %g."):format(volume, capacity)
+		return false, ("Hold has %g %s; this fits %g."):format(volume, str_utils.constants.volume_unit, capacity)
 	end
 	return true
 end)
@@ -128,7 +128,7 @@ end
 
 function cargo.refresh(player)
 	local volume, capacity = cargo.volume(player), str_machine.stats.get(player).cargo_capacity
-	local label = format_volume(volume) .. "/" .. format_volume(capacity)
+	local label = format_volume(volume) .. "/" .. format_volume(capacity) .. " " .. str_utils.constants.volume_unit
 	local full = capacity > 0 and volume >= capacity - 1e-6
 	str_hud.set_bar(player, BAR, volume, capacity, {
 		label = full and label .. " FULL" or label, text_color = full and FULL_COLOR or nil, bold = full,

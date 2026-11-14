@@ -44,6 +44,9 @@ return {
 		-- Credits per litre at the pump
 		price_per_litre = 1,
 	},
+	-- Display units; the escape is UTF-8 superscript 3
+	volume_unit = "m\194\179",
+	weight_unit = "T",
 	-- Total volume the mechanic shop storage holds; it has no weight limit
 	storage_capacity = 100000,
 	-- Recipe price = this times the sell price of what a smelter recipe makes

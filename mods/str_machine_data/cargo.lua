@@ -3,7 +3,7 @@
 return {
 	id = "cargo",
 	title = "Cargo hold",
-	stat = {key = "cargo_capacity", label = "Capacity", unit = "vol"},
+	stat = {key = "cargo_capacity", label = "Capacity", unit = str_utils.constants.volume_unit},
 	levels = {
 		{name = "stock", description = "Stock hold", stats = {cargo_capacity = 15}},
 		{name = "copper", description = "Copper hold", stats = {cargo_capacity = 25}, from = {copper_plate = 9}},

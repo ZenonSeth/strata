@@ -1,3 +1,4 @@
+local unit = str_utils.constants.volume_unit
 local FORMNAME = "str_crate:main"
 local WIDTH = 13
 local MARGIN = 0.4
@@ -65,9 +66,9 @@ local function build(player)
 		}),
 		("label[%g,%g;%s]"):format(MARGIN, Y_STORAGE_LABEL + LABEL_H / 2, "Storage"),
 		stock_fs,
-		("label[%g,%g;%s]"):format(MARGIN, HEIGHT - 0.45, esc(("Hold: %s / %s     Storage: %s / %s"):format(
-			num(cargo.volume(player)), num(str_machine.stats.get(player).cargo_capacity),
-			num(storage.volume(player)), num(capacity)))),
+		("label[%g,%g;%s]"):format(MARGIN, HEIGHT - 0.45, esc(("Hold: %s / %s %s     Storage: %s / %s %s"):format(
+			num(cargo.volume(player)), num(str_machine.stats.get(player).cargo_capacity), unit,
+			num(storage.volume(player)), num(capacity), unit))),
 	})
 end
 

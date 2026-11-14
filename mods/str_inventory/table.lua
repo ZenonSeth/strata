@@ -5,7 +5,7 @@ local format_credits = str_player_resources.format_credits
 local COLUMNS = {
 	{title = "Item", spec = "text,width=14,padding=0.3"},
 	{title = "Units", spec = "text,width=5,padding=0.3,tooltip=Units held"},
-	{title = "Weight", spec = "text,width=6,padding=0.3,tooltip=Total weight (units x weight per unit)"},
+	{title = "Weight (T)", spec = "text,width=6,padding=0.3,tooltip=Total weight in tons (units x weight per unit)"},
 	{title = "Price", spec = "text,width=8,padding=0.3,tooltip=Total price in credits"},
 }
 local ICON_COLUMN = "image,align=center,padding=0.3,width=2"

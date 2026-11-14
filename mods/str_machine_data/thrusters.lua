@@ -51,7 +51,7 @@ return {
 	title = "Thrusters",
 	stat = {key = "thrust", label = "Climb speed", unit = "m/s"},
 	extra = {
-		{key = "thrust_rating", label = "Rated load", format = "%g"},
+		{key = "thrust_rating", label = "Rated load", unit = str_utils.constants.weight_unit},
 		{key = "can_dig_up", label = "Dig up", names = {[true] = "Yes", [false] = "No"}, width = 5},
 	},
 	levels = levels,

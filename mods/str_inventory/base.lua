@@ -1,3 +1,5 @@
+local volume_unit = str_utils.constants.volume_unit
+local weight_unit = str_utils.constants.weight_unit
 local WIDTH, HEIGHT = 13, 10
 local TAB_SIZE = 1
 -- Tabs sit on the window's top edge, outside it
@@ -45,8 +47,8 @@ local function inventory_tab(player, name)
 		if i == selected then
 			local def = row.def
 			detail = ("%s%s %s%s %s%s %s%s"):format(
-				def.description, core.colorize(muted, ": weight"), num(def.weight),
-				core.colorize(muted, ", volume"), num(def.volume),
+				def.description, core.colorize(muted, ": weight"), num(def.weight) .. " " .. weight_unit,
+				core.colorize(muted, ", volume"), num(def.volume) .. " " .. volume_unit,
 				core.colorize(muted, ", price"), format_credits(def.price), core.colorize(muted, " each"))
 		end
 	end
@@ -56,7 +58,7 @@ local function inventory_tab(player, name)
 		table_fs,
 		"style_type[label;font_size=*1.25;halign=center;valign=center]",
 		("label[%g,%g;%g,0.9;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.1, TABLE_W,
-			esc(("Hold: %s / %s volume"):format(num(volume), num(stats.cargo_capacity)))),
+			esc(("Hold: %s / %s %s"):format(num(volume), num(stats.cargo_capacity), volume_unit))),
 		"style_type[label;font_size=*1;halign=left;valign=top]",
 		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 1.4, esc(detail)),
 	}
@@ -65,7 +67,7 @@ local function inventory_tab(player, name)
 	end
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.9,
 		esc(("%s %s     %s %s credits"):format(
-			core.colorize(muted, "Total Weight:"), num(total_weight),
+			core.colorize(muted, "Total Weight:"), num(total_weight) .. " " .. weight_unit,
 			core.colorize(muted, "Total Value:"), format_credits(total_price))))
 	return table.concat(fs)
 end
