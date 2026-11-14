@@ -178,6 +178,8 @@ local BOX_BOTTOM = -0.5
 local BOX_TOP = 0
 -- How far past the box a solid node still counts as touching
 local TOUCH_DISTANCE = 0.08
+-- Nudge into a platform slab (1/16 thick) so the engine lets the box pass through it
+local PASS_NUDGE = 0.1
 
 -- Opposite key pairs: horizontal first, then vertical
 local KEYS = {
@@ -317,10 +319,20 @@ local function grounded(pos)
 	return def ~= nil and def.walkable == true
 end
 
--- "free": nothing solid in that direction, "dig": diggable node touching,
+-- "free": nothing solid in that direction, "dig": diggable node touching, "pass": platform to drop through or rise through,
 -- "blocked": anything else (undiggable, above the drill tier, unloaded, or sideways without floor)
 local function classify(pos, entry, on_ground, can_dig_up, drill_tier)
 	local dir = entry.dir
+	if dir.y > 0 then
+		local cell = vector.round(pos)
+		local cell_def = node_def(cell)
+		if cell_def and cell_def.str_platform
+				and cell.y + 0.4375 - (pos.y + BOX_TOP) <= TOUCH_DISTANCE then
+			local above = node_def(vector.offset(cell, 0, 1, 0))
+			-- The box ends up standing in the cell above, so that must be free
+			return (above and (not above.walkable or above.str_platform)) and "pass" or "blocked"
+		end
+	end
 	local reach = dir.y < 0 and -BOX_BOTTOM or (dir.y > 0 and BOX_TOP or HALF_WIDTH)
 	local target = vector.round(vector.offset(pos,
 		dir.x * (reach + TOUCH_DISTANCE), dir.y * (reach + TOUCH_DISTANCE), 0))
@@ -329,8 +341,8 @@ local function classify(pos, entry, on_ground, can_dig_up, drill_tier)
 		return "blocked"
 	elseif not def.walkable then
 		return "free"
-	elseif def.str_platform and dir.y >= 0 then
-		return "blocked"
+	elseif def.str_platform then
+		return dir.y < 0 and "pass" or "blocked"
 	elseif def.diggable == false or (dir.y == 0 and not on_ground)
 			or (dir.y > 0 and not can_dig_up) or (def.str_tier or 0) > drill_tier then
 		return "blocked"
@@ -403,11 +415,13 @@ local function control_step(session, player, pos, control, dtime)
 	local my_stats = stats.get(player)
 	local class_pos = dig and dig.anchor or pos
 	local on_ground = grounded(class_pos)
-	local free, digs = false, {}
+	local free, digs, pass = false, {}, nil
 	for _, entry in ipairs(held_entries(control)) do
 		local kind, target = classify(class_pos, entry, on_ground, my_stats.can_dig_up, my_stats.drill_tier)
 		if kind == "free" then
 			free = true
+		elseif kind == "pass" then
+			pass = entry.dir.y
 		elseif kind == "dig" and not fuel.is_empty(player) then
 			digs[#digs + 1] = {entry = entry, target = target}
 		end
@@ -437,6 +451,13 @@ local function control_step(session, player, pos, control, dtime)
 	if pick and (not align_x or math.abs(pos.x - align_x) <= ALIGN_TOLERANCE) then
 		start_dig(session, pick, pos, align_x)
 		return
+	end
+	if pass and not free and not pick then
+		align_x = math.floor(pos.x + 0.5)
+		if math.abs(pos.x - align_x) <= ALIGN_TOLERANCE then
+			session.obj:set_pos(vector.new(align_x, pos.y + pass * PASS_NUDGE, pos.z))
+			return
+		end
 	end
 
 	local vel = session.obj:get_velocity()

@@ -1,9 +1,6 @@
 local NODE = "str_platforms:platform"
 local SLICE_Z = str_utils.constants.slice_z
 
--- Seconds to dig a platform; long so it is never dug by accident
-local DIG_TIME = 30
-
 local ground = {}
 for _, stratum in ipairs(str_nodes.data.strata) do
 	ground["str_nodes:" .. stratum.name] = true
@@ -26,20 +23,6 @@ core.register_node(NODE, {
 	groups = {not_in_creative_inventory = 1},
 	is_ground_content = false,
 	str_platform = true,
-	str_hardness = DIG_TIME,
-	-- Dug platforms go to a free hotbar slot, or are lost
-	str_on_dug = function(player)
-		local inv = player:get_inventory()
-		local stack = ItemStack(NODE)
-		for slot = 1, player:hud_get_hotbar_itemcount() do
-			local current = inv:get_stack("main", slot)
-			if current:item_fits(stack) then
-				current:add_item(stack)
-				inv:set_stack("main", slot, current)
-				return
-			end
-		end
-	end,
 })
 
 local function is_ground(pos)
@@ -47,7 +30,7 @@ local function is_ground(pos)
 end
 
 core.register_craftitem(NODE, {
-	description = "Platform\nPlaced below the machine to stand on; dig it from above",
+	description = "Platform\nPlaced below the machine to stand on\nCan be passed through if holding down/up while standing on/below it",
 	short_description = "Platform",
 	inventory_image = TEXTURE,
 	on_use = function(itemstack, user)
