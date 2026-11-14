@@ -246,7 +246,7 @@ local CRAFTABLES = {
 		from = {steel = 4, lens_glass = 2, copper_wire = 1},
 		info = "Placed below the surface, 250 m from other stops; needs a surface station in the column"},
 	{name = "elevator_surface", item = "str_elevators:surface_station", description = "Elevator Surface", count = 1,
-		from = {steel = 8, lens_glass = 4, gold_wire = 1, amazonite = 1},
+		from = {steel = 8, lens_glass = 4, silver_wire = 1, amazonite = 1},
 		info = "Placed at the surface; the stops below it connect to it"},
 	{name = "explosive_weak", item = "str_explosives:weak", description = "Weak explosive", count = 1,
 		from = {coal = 1, bronze = 1},
