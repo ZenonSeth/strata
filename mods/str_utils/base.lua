@@ -57,7 +57,8 @@ local function clear_popup(player_name)
 end
 
 -- One short line of text mid-screen (or near the bottom); replaces any popup already showing
-function str_utils.show_popup(player_name, text, time, at_bottom)
+-- opts: optional {color = 0xRRGGBB, size = font multiplier}
+function str_utils.show_popup(player_name, text, time, at_bottom, opts)
 	local player = core.get_player_by_name(player_name)
 	if not player then
 		return
@@ -70,7 +71,8 @@ function str_utils.show_popup(player_name, text, time, at_bottom)
 		text = text,
 		style = 1,
 		alignment = {x = 0, y = 0},
-		number = 0xDFDFDF,
+		number = opts and opts.color or 0xDFDFDF,
+		size = opts and opts.size and {x = opts.size, y = opts.size} or nil,
 	})
 	popups[player_name] = {id = id, job = core.after(time or 3, clear_popup, player_name)}
 end
