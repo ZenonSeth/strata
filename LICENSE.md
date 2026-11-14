@@ -53,6 +53,7 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
 - Sound effects (all generated with Python scripts, no third-party recordings or samples):
   - `mods/str_ambience/sounds/`
   - `mods/str_elevators/sounds/`
+  - `mods/str_explosives/sounds/`
   - `mods/str_interior/sounds/`
   - `mods/str_machine/sounds/`
   - `mods/str_refuel/sounds/`

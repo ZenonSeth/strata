@@ -387,20 +387,21 @@ local function spawn_dust(pos)
 	end
 end
 
--- Nodes with str_material and str_yield add that much of the item to the hold; what does not fit stays as a pile
-local function take_node(pos, player)
+-- Nodes with str_material and str_yield add that much of the item to the hold; what does not fit stays as a pile.
+-- A blasted node is destroyed: no yield and no dig sound
+local function take_node(pos, player, blasted)
 	local def = node_def(pos)
 	local item = def and def.str_material
 	local node_name = core.get_node(pos).name
 	core.remove_node(pos)
 	str_nodes.refresh_shapes(pos)
 	spawn_dust(pos)
-	local kind = dug_sound(node_name)
+	local kind = not blasted and dug_sound(node_name)
 	if kind then
 		str_audio.sfx.play("dug_" .. kind, {player = player})
 	end
-	str_machine.notify_dig(player, pos, node_name, "drill")
-	if item then
+	str_machine.notify_dig(player, pos, node_name, blasted and "blast" or "drill")
+	if item and not blasted then
 		local yield = def.str_yield or 1
 		local added = cargo.add(player, item, yield)
 		str_piles.drop(pos, item, yield - added)
@@ -409,10 +410,19 @@ local function take_node(pos, player)
 				{color = 0xFF4500, size = 1.25})
 		end
 	end
-	if def and def.str_on_dug then
+	if def and def.str_on_dug and not blasted then
 		def.str_on_dug(player)
 	end
 	return true
+end
+
+-- Destroys a solid, diggable node up to max_tier regardless of the drill; returns whether it did
+function str_machine.destroy_node(player, pos, max_tier)
+	local def = node_def(pos)
+	if not def or not def.walkable or def.diggable == false or (def.str_tier or 0) > max_tier then
+		return false
+	end
+	return take_node(pos, player, true)
 end
 
 -- Downward speed given right after digging the node below

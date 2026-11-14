@@ -248,6 +248,15 @@ local CRAFTABLES = {
 	{name = "elevator_surface", item = "str_elevators:surface_station", description = "Elevator Surface", count = 1,
 		from = {steel = 8, lens_glass = 4, gold_wire = 1, amazonite = 1},
 		info = "Placed at the surface; the stops below it connect to it"},
+	{name = "explosive_weak", item = "str_explosives:weak", description = "Weak explosive", count = 1,
+		from = {coal = 1, bronze = 1},
+		info = "Destroys nodes up to tier 4 in a circle of radius 2 around the machine\nOres and strange objects hit are lost\nCarry at most 50 in the hotbar"},
+	{name = "explosive_line", item = "str_explosives:line", description = "Line charge", count = 1,
+		from = {steel = 1, coal = 1},
+		info = "Horizontal: destroys nodes up to tier 6 in a row, 3 to each side of the machine\nOres and strange objects hit are lost\nCarry at most 50 in the hotbar"},
+	{name = "explosive_tnt", item = "str_explosives:tnt", description = "TNT", count = 1,
+		from = {coal = 1, bronze = 1, sulphur = 1},
+		info = "Destroys nodes up to tier 8 in a circle of radius 4 around the machine\nOres and strange objects hit are lost\nCarry at most 50 in the hotbar"},
 }
 local ITEM_COLUMNS = {
 	{title = "Item", spec = "text,width=11,padding=0.3"},
