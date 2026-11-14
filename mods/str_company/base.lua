@@ -27,22 +27,46 @@ local selected_tab = {}
 local selected_item = {}
 local debt_message = {}
 
+local SUB_W, SUB_H = 2.6, 0.8
+local LIST_Y = TABLE_Y + 0.9
+local SOURCES = {
+	{id = "cargo", title = "Cargo", store = function(player) return str_machine.cargo end, empty = "The hold is empty.", label = "Hold"},
+	{id = "storage", title = "Storage", store = function(player) return str_storage end, empty = "The storage is empty.", label = "Storage"},
+}
+local source_by_id = {}
+for _, src in ipairs(SOURCES) do
+	source_by_id[src.id] = src
+end
+local sell_source = {}
+
+local function current_source(name)
+	return source_by_id[sell_source[name]] or SOURCES[1]
+end
+
 local function sell_tab(player, name)
-	local table_fs, list, selected = str_inventory.cargo_table(player, {
-		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = TABLE_H, selected = selected_item[name],
+	local src = current_source(name)
+	local store = src.store()
+	local table_fs, list, selected = str_inventory.item_table(store.get(player), {
+		x = TABLE_X, y = LIST_Y, w = TABLE_W, h = TABLE_H - (LIST_Y - TABLE_Y),
+		selected = selected_item[name], empty = src.empty,
 	})
 	local detail = "Select an item to sell it."
-	local hold_value = 0
+	local total_value = 0
 	for i, row in ipairs(list) do
-		hold_value = hold_value + row.count * row.def.price
+		total_value = total_value + row.count * row.def.price
 		if i == selected then
 			detail = ("%s: %s credits each, %d held"):format(row.def.description, format_credits(row.def.price), row.count)
 		end
 	end
-	local fs = {
-		table_fs,
-		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.4, esc(detail)),
-	}
+	local fs = {}
+	for i, other in ipairs(SOURCES) do
+		local btn = "sell_src_" .. other.id
+		fs[#fs + 1] = ("style[%s;bgimg=%s;bgimg_pressed=%s]"):format(btn,
+			other == src and "str_upgrades_tab_bg_sel.png" or "str_upgrades_tab_bg.png", "str_upgrades_tab_bg_sel.png")
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;%s]"):format(TABLE_X + (i - 1) * (SUB_W + 0.2), TABLE_Y + 0.7 - SUB_H, SUB_W, SUB_H, btn, other.title)
+	end
+	fs[#fs + 1] = table_fs
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.4, esc(detail))
 	local x = TABLE_X
 	if selected > 0 then
 		fs[#fs + 1] = ("button[%g,%g;3,%g;sell_one;Sell 1]"):format(x, BUTTON_Y, BUTTON_H)
@@ -52,7 +76,7 @@ local function sell_tab(player, name)
 		fs[#fs + 1] = ("button[%g,%g;4,%g;sell_all;Sell Everything]"):format(x + 6.4, BUTTON_Y, BUTTON_H)
 	end
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.45,
-		esc(("Hold value: %s credits"):format(format_credits(hold_value))))
+		esc(("%s value: %s credits"):format(src.label, format_credits(total_value))))
 	return table.concat(fs)
 end
 
@@ -371,9 +395,9 @@ function str_company.show(player)
 end
 
 -- Sells up to count units of an item at its list price
-local function sell(player, item, count)
+local function sell(player, item, count, store)
 	local def = str_materials.get(item)
-	local removed = def and str_machine.cargo.remove(player, item, count) or 0
+	local removed = def and store.remove(player, item, count) or 0
 	if removed > 0 then
 		resources.add_credits(player, removed * def.price)
 		str_transmissions.count_relic(player:get_player_name(), item, "sold", removed)
@@ -415,13 +439,18 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		return
 	elseif fields.pay or fields.key_enter_field == "amount" then
 		debt_message[name] = pay_debt(player, fields.amount)
+	elseif fields.sell_src_cargo or fields.sell_src_storage then
+		sell_source[name] = fields.sell_src_cargo and "cargo" or "storage"
+		selected_item[name] = nil
 	elseif fields.sell_one and selected_item[name] then
-		sell(player, selected_item[name], 1)
+		sell(player, selected_item[name], 1, current_source(name).store())
 	elseif fields.sell_stack and selected_item[name] then
-		sell(player, selected_item[name], str_machine.cargo.get(player)[selected_item[name]] or 0)
+		local store = current_source(name).store()
+		sell(player, selected_item[name], store.get(player)[selected_item[name]] or 0, store)
 	elseif fields.sell_all then
-		for item, count in pairs(str_machine.cargo.get(player)) do
-			sell(player, item, count)
+		local store = current_source(name).store()
+		for item, count in pairs(store.get(player)) do
+			sell(player, item, count, store)
 		end
 	elseif fields.buy_recipe and selected_item[name] then
 		local recipe = str_recipes.get(selected_item[name])
@@ -466,7 +495,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		if event.type ~= "CHG" and event.type ~= "DCL" then
 			return
 		end
-		local row = str_inventory.cargo_rows(player)[event.row]
+		local row = str_inventory.rows(current_source(name).store().get(player))[event.row]
 		selected_item[name] = row and row.def.name
 	end
 	str_company.show(player)
@@ -491,6 +520,7 @@ end)
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	selected_tab[name], selected_item[name], debt_message[name], cons_message[name] = nil, nil, nil, nil
+	sell_source[name] = nil
 end)
 
 str_consumables.register_on_sell_change(function(player)
