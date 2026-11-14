@@ -1,4 +1,4 @@
--- Data only. Story mails by id: {from, subject, text}. Sent with str_mail.send_story, keyed by the id.
+-- Data only. Story mails by id: {from, subject, text, credits (optional attachment)}. Sent with str_mail.send_story, keyed by the id.
 -- Text is shown in a monospace box; ASCII only. Placeholder wording, to be refined (see story.md).
 return function(constants)
 local TOTAL = constants.story.starting_debt
@@ -64,6 +64,24 @@ return {
 			"- Your first good upgrade should be a bigger cargo hold. The copper one carries a lot more than your stock hold does, and that's fewer trips back up to sell.",
 			"",
 			"Keep your head down and keep digging. Maybe we'll cross paths down there.",
+			"",
+			"Jim",
+		}, "\n"),
+	},
+	jim_death = {
+		from = "Jim Harlow",
+		subject = "Rough landing",
+		credits = 2000,
+		text = table.concat({
+			"Hey friend,",
+			"",
+			"Heard you lost your digger. It happens to all of us, so don't take it too hard.",
+			"",
+			"Next time, watch your speed down there. Most crashes I've seen are a miner going faster than the machine can brake.",
+			"",
+			"And don't forget to upgrade your thrusters along with your cargo hold. A heavy hold on stock thrusters is how you end up in a hole.",
+			"",
+			"I'm attaching 2000 credits to help you get back on your feet.",
 			"",
 			"Jim",
 		}, "\n"),

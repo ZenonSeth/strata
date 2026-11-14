@@ -651,6 +651,7 @@ local function start(player, pos)
 end
 
 local SAVED_POS_KEY = "str_machine:pos"
+local DEATH_MAIL_KEY = "str_machine:death_mail_sent"
 local SAVE_INTERVAL = 1
 
 local function saved_pos(player)
@@ -860,6 +861,10 @@ function str_machine.destroy(player)
 	local session = sessions[name]
 	if (session and session.destroyed) or str_mode.get(player) ~= "vehicle" then
 		return
+	end
+	if player:get_meta():get_string(DEATH_MAIL_KEY) == "" then
+		player:get_meta():set_string(DEATH_MAIL_KEY, "1")
+		str_mail.send_story(name, "jim_death")
 	end
 	-- The penalty is applied at once so it survives leaving during the death screen
 	cargo.clear(player)

@@ -56,7 +56,8 @@ function mail.register_on_read(fn)
 	read_listeners[#read_listeners + 1] = fn
 end
 
--- Adds a mail for a player (online or not); def = {from, subject, text, key}. from, subject and text are strings.
+-- Adds a mail for a player (online or not); def = {from, subject, text, key, credits}. from, subject and text are strings.
+-- credits (optional number) is an attachment: it is kept on the mail and listeners of register_on_read pay it out.
 -- key (optional string) names the mail for lookups and is unique per player: sending an existing key does
 -- nothing and returns that mail's id. Returns the mail's id
 function mail.send(name, def)
@@ -71,7 +72,7 @@ function mail.send(name, def)
 	local id = d.next_id
 	d.next_id = id + 1
 	d.items[#d.items + 1] = {id = id, key = def.key, from = def.from, subject = def.subject, text = def.text,
-		time = os.time(), read = false}
+		credits = def.credits, time = os.time(), read = false}
 	save(name)
 	if not core.get_player_by_name(name) then
 		cache[name] = nil
@@ -82,7 +83,8 @@ end
 -- Sends the story mail from story.lua with this id (keyed by it, so it goes out once). Returns the mail id
 function mail.send_story(name, id)
 	local story = assert(mail.story[id], "str_mail.send_story: unknown story mail " .. tostring(id))
-	return mail.send(name, {from = story.from, subject = story.subject, text = story.text, key = id})
+	return mail.send(name, {from = story.from, subject = story.subject, text = story.text, key = id,
+		credits = story.credits})
 end
 
 -- Oldest first; each is {id, key, from, subject, time = os.time(), read}, without the text (key may be nil)

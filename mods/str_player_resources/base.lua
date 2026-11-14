@@ -70,3 +70,38 @@ end
 
 res.register_on_change(show_credits)
 core.register_on_joinplayer(show_credits)
+
+local GAIN_HUD = "str_player_resources:gain"
+local GAIN_SECONDS = 5
+str_hud.register_text(GAIN_HUD, {
+	position = {x = 1, y = 0}, offset = {x = -10, y = 54}, size = 1.3, color = 0x55DD55,
+	align = "right", mono = true,
+})
+
+local gain_token = {}
+
+-- Shows a green "+amount" under the credits for a few seconds; a newer one replaces it
+function res.show_gain(player, amount)
+	local name = player:get_player_name()
+	local token = (gain_token[name] or 0) + 1
+	gain_token[name] = token
+	str_hud.set_text(player, GAIN_HUD, "+" .. res.format_credits(amount))
+	core.after(GAIN_SECONDS, function()
+		local p = core.get_player_by_name(name)
+		if p and gain_token[name] == token then
+			str_hud.set_text(p, GAIN_HUD, " ")
+		end
+	end)
+end
+
+core.register_on_leaveplayer(function(player)
+	gain_token[player:get_player_name()] = nil
+end)
+
+str_mail.register_on_read(function(name, mail)
+	local player = core.get_player_by_name(name)
+	if player and mail.credits then
+		res.add_credits(player, mail.credits)
+		res.show_gain(player, mail.credits)
+	end
+end)
