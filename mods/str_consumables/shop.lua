@@ -16,14 +16,15 @@ function str_consumables.available(player)
 	local list = {}
 	for _, name in ipairs(str_consumables.order) do
 		local def = str_consumables.items[name]
-		if not def.recipe or str_recipes.has(player, def.recipe) then
+		if (not def.recipe or str_recipes.has(player, def.recipe))
+				and (not def.requires_found or str_recipes.has_found(player, def.requires_found)) then
 			list[#list + 1] = def
 		end
 	end
 	return list
 end
 
-local KIND_NAMES = {fuel = "fuel canisters", repair = "repair kits"}
+local KIND_NAMES = {fuel = "fuel canisters", repair = "repair kits", teleport = "teleporters"}
 
 -- How many of a kind the player holds, hotbar and sell area together
 local function held(player, kind)

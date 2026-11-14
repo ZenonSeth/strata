@@ -64,3 +64,17 @@ for tier, index in ipairs(LEVELS) do
 		image = icon("repair", tier),
 	})
 end
+
+local TELEPORT_RADIUS = 20
+str_consumables.teleport_radius = TELEPORT_RADIUS
+
+add({
+	name = "str_consumables:teleporter_unstable", kind = "teleport", stable = false,
+	description = "Unstable teleporter", price = 1000, image = "str_consumables_teleporter_unstable.png",
+	info = ("Jumps you to a random open spot within %d nodes of the mechanic shop"):format(TELEPORT_RADIUS),
+})
+add({
+	name = "str_consumables:teleporter", kind = "teleport", stable = true, requires_found = "gold",
+	description = "Teleporter", price = 5000, image = "str_consumables_teleporter.png",
+	info = "Takes you to the mechanic shop entrance",
+})
