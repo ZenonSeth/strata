@@ -2,7 +2,9 @@ local FORMNAME = "str_crate:main"
 local WIDTH = 13
 local MARGIN = 0.4
 local LABEL_H = 0.5
-local TABLE_H = 2.8
+local BASE_TABLE_H = 2.8
+local BASE_HEIGHT = str_gui.CONTENT_Y - 0.2 + LABEL_H + 2 * BASE_TABLE_H + 3 * 0.1 + 2 * 0.7 + LABEL_H + 0.9
+local TABLE_H = BASE_TABLE_H + BASE_HEIGHT * 0.25
 local BUTTON_H = 0.7
 local GAP = 0.1
 

@@ -87,8 +87,8 @@ local function refine_once(player, recipe, fuel_name)
 			return false, "Not enough " .. desc(fuel_name) .. " for fuel."
 		end
 	end
-	if cargo.add(player, recipe.name, 1) < 1 and storage.add(player, recipe.name, 1) < 1 then
-		return false, "No room for the result."
+	if storage.add(player, recipe.name, 1) < 1 then
+		return false, "No room in storage for the result."
 	end
 	for input, amount in pairs(recipe.from) do
 		take(player, input, amount)
@@ -205,7 +205,9 @@ local function build(player)
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, TOP + 0.3, esc(recipe.description))
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, TOP + 0.8, esc(("Fuel cost: %g units"):format(recipe.fuel_cost)))
 	fs[#fs + 1] = ingredient_table(recipe, hold, store)
-	local y = TOP + 4.7
+	local y = TOP + 4.6
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y, esc("Refined items go straight to your mechanic shop storage."))
+	y = y + 0.5
 	if buffer.fuel then
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y, esc(
 			("Buffered: %s units of %s"):format(str_inventory.num(buffer.units), desc(buffer.fuel))))
