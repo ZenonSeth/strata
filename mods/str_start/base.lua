@@ -12,6 +12,7 @@ local grid = str_utils.constants.interior
 local SCHEMATIC = core.get_modpath("str_start") .. "/schems/shop_home.mts"
 local SLOT_KEY = "str_start:slot"
 local DONE_KEY = "str_start:started"
+local VERSION_KEY = "str_start:interior_version"
 local BED_FOOT = "str_interior:home_bed_foot"
 local DIGGER = "str_interior:digger_display"
 local SPAWN_MARKER = "str_interior:shop_floor_spawn"
@@ -168,6 +169,7 @@ local function first_spawn(player)
 			return -- still not started: the next join tries again, in the same slot
 		end
 		core.place_schematic(origin, SCHEMATIC, "0", nil, true)
+		joined:get_meta():set_int(VERSION_KEY, grid.version)
 		ensure_diggers(origin, last, DIGGER_SPAWN_DELAY)
 		place_player(joined, origin, last)
 		joined:get_meta():set_string(DONE_KEY, "1")
@@ -253,7 +255,12 @@ function str_start.enter_workshop(player)
 	local trip = {t = 0, alpha = 0, ready = false, origin = origin, last = last, hud = new_fade_hud(player)}
 	entering[name] = trip
 	str_machine.set_frozen(player, true)
-	emerge_interior(name, origin, last, function()
+	emerge_interior(name, origin, last, function(joined)
+		local meta = joined and joined:get_meta()
+		if meta and meta:get_int(VERSION_KEY) < grid.version then
+			core.place_schematic(origin, SCHEMATIC, "0", nil, true)
+			meta:set_int(VERSION_KEY, grid.version)
+		end
 		trip.ready = true
 	end)
 end

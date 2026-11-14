@@ -58,6 +58,8 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
   - `mods/str_refuel/sounds/`
   - `mods/str_transmissions/sounds/`
   - `mods/str_upgrades/sounds/`
+- Textures:
+  - `mods/str_manual/textures/` (the manual book and window, generated with a Python script, no third-party images)
 - Models and schematics:
   - `mods/str_foot/models/str_foot_player.glb`
   - `mods/str_machine/models/digger1.glb`

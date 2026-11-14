@@ -397,13 +397,20 @@ local function take_node(pos, player)
 	return true
 end
 
+-- Downward speed given right after digging the node below
+local DIG_DOWN_SPEED = 1.5
+
 local function dig_step(session, player, pick, dtime)
 	local dig = session.dig
 	dig.time = dig.time + dtime
 	local hardness = (node_def(pick.target).str_hardness or DEFAULT_HARDNESS)
 		/ stats.get(player).dig_speed
 	if dig.time >= hardness then
+		local entry = dig.entry
 		end_dig(session, take_node(pick.target, player))
+		if entry.dir.y < 0 then
+			session.obj:set_velocity(vector.new(0, -DIG_DOWN_SPEED, 0))
+		end
 	else
 		local push = PUSH_DEPTH * dig.time / hardness
 		session.obj:move_to(vector.add(dig.anchor, vector.multiply(dig.entry.dir, push)), true)

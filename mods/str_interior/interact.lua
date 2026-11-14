@@ -43,6 +43,7 @@ local PROMPTS = {
 	terminal = "Messages",
 	sleep = "Sleep",
 	drive = "Enter Vehicle",
+	manual = "Read Manual",
 }
 local PROMPT_HUD = "str_interior:use_prompt"
 local PROMPT_INTERVAL = 0.1

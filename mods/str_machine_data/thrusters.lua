@@ -1,10 +1,10 @@
 -- Data only. Same shape as tanks.lua; stats.thrust = top climb speed, stats.thrust_rating = cargo weight the thrusters are built to carry.
--- Levels match the cargo levels one to one. Climb speed rises 0.5 per level; the rating is the weight of a full hold of gold
+-- Levels match the cargo levels one to one. Climb speed rises 0.8 per level; the rating is the weight of a full hold of gold
 -- of the matched cargo level (stock keeps a hand-set rating), at which the climb acceleration is 10% of the empty-hold one.
 -- kind (propeller, jet, rocket) picks the exhaust particles in str_machine/base.lua; only jets and rockets can dig upwards.
 -- Costs: 10 of the matched cargo level's material for the propellers, more of it plus graphite, oil, sulphur or uranium for jets and rockets. Placeholder values, not final.
 local STOCK_SPEED = 2.25
-local SPEED_STEP = 0.5
+local SPEED_STEP = 0.8
 local STOCK_RATING = 45
 
 local cargo = str_machine_data.get_upgrade("cargo")

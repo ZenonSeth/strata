@@ -230,6 +230,12 @@ local function build(player)
 			tabs = right_tabs, selected = tab, prefix = "invr_",
 			bg = "str_upgrades_tab_bg.png", bg_selected = "str_upgrades_tab_bg_sel.png",
 		}),
+		-- Shortcut, not a tab: nothing is ever selected
+		str_gui.tab_bar({
+			x = WIDTH - TAB_X - 2 * TAB_SIZE - 0.1, y = TAB_Y, w = TAB_SIZE, h = TAB_SIZE, selected_scale = 1,
+			tabs = {{id = "manual", image = "str_manual_tab.png", tooltip = "Manual"}}, prefix = "invm_",
+			bg = "str_upgrades_tab_bg.png", bg_selected = "str_upgrades_tab_bg_sel.png",
+		}),
 		credits_label(player),
 	}
 	if tab == "cargo" then
@@ -265,6 +271,10 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		return
 	end
 	local name = player:get_player_name()
+	if str_gui.tab_clicked(fields, "invm_") then
+		str_manual.show(name)
+		return
+	end
 	local tab = str_gui.tab_clicked(fields, "inv_") or str_gui.tab_clicked(fields, "invr_")
 	if tab then
 		selected_tab[name] = tab
