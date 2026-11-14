@@ -61,6 +61,7 @@ end
 
 -- Items as a scrollable table with a fixed header row (the header only shows when there are rows).
 -- spec: x, y, w, h, name (table field name), selected (item name or nil), empty (text when empty).
+-- Optional unit_price(def) replaces the material's price in the Price column.
 -- Returns the formspec elements, the rows (str_inventory.rows) and the selected row index (0 = none).
 function str_inventory.item_table(contents, spec)
 	local list = str_inventory.rows(contents)
@@ -73,7 +74,7 @@ function str_inventory.item_table(contents, spec)
 		cells[#cells + 1] = esc(def.description)
 		cells[#cells + 1] = tostring(row.count)
 		cells[#cells + 1] = str_inventory.num(row.count * def.weight)
-		cells[#cells + 1] = esc(format_credits(row.count * def.price))
+		cells[#cells + 1] = esc(format_credits(row.count * (spec.unit_price and spec.unit_price(def) or def.price)))
 		if def.name == spec.selected then
 			selected = i
 		end

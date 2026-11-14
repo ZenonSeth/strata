@@ -8,6 +8,7 @@ local TABS = {
 	{id = "sell", title = "Sell"},
 	{id = "recipes", title = "Blueprints"},
 	{id = "consumables", title = "Consumables"},
+	{id = "buyback", title = "Buy Back"},
 	{id = "debt", title = "Debt"},
 }
 local DEFAULT_TAB = "sell"
@@ -358,6 +359,115 @@ local function debt_tab(player, name)
 	return table.concat(fs)
 end
 
+local mod_storage = core.get_mod_storage()
+local BUYBACK_MAX = 20
+local BUYBACK_MARKUP = 1.02
+local buyback_cache = {}
+local buyback_message = {}
+
+-- Most recent sale first: {item = name, count = units}
+local function buyback_list(player)
+	local name = player:get_player_name()
+	if not buyback_cache[name] then
+		local raw = mod_storage:get_string("buyback:" .. name)
+		local data = raw ~= "" and core.parse_json(raw)
+		buyback_cache[name] = type(data) == "table" and data or {}
+	end
+	return buyback_cache[name]
+end
+
+local function save_buyback(player)
+	mod_storage:set_string("buyback:" .. player:get_player_name(), core.write_json(buyback_list(player)))
+end
+
+local function buyback_price(def)
+	return math.floor(def.price * BUYBACK_MARKUP * 100 + 0.5) / 100
+end
+
+local function buyback_counts(player)
+	local counts = {}
+	for _, entry in ipairs(buyback_list(player)) do
+		counts[entry.item] = entry.count
+	end
+	return counts
+end
+
+local function record_sale(player, item, count)
+	local list = buyback_list(player)
+	for i, entry in ipairs(list) do
+		if entry.item == item then
+			count = count + entry.count
+			table.remove(list, i)
+			break
+		end
+	end
+	table.insert(list, 1, {item = item, count = count})
+	while #list > BUYBACK_MAX do
+		table.remove(list)
+	end
+	save_buyback(player)
+end
+
+-- Buys up to count units into storage; returns a result message
+local function buy_back(player, item, count)
+	local def = str_materials.get(item)
+	local list = buyback_list(player)
+	local entry_index
+	for i, entry in ipairs(list) do
+		if entry.item == item then
+			entry_index = i
+		end
+	end
+	if not def or not entry_index then
+		return "Nothing to buy back."
+	end
+	local unit = buyback_price(def)
+	local affordable = math.floor(resources.get_credits(player) / unit + 1e-6)
+	local wanted = math.min(count, list[entry_index].count, affordable)
+	if wanted <= 0 then
+		return "Not enough credits."
+	end
+	local added = str_storage.add(player, item, wanted)
+	if added <= 0 then
+		return "Your storage is full."
+	end
+	resources.spend_credits(player, added * unit)
+	list[entry_index].count = list[entry_index].count - added
+	if list[entry_index].count <= 0 then
+		table.remove(list, entry_index)
+	end
+	save_buyback(player)
+	return ("Bought %d %s for %s credits."):format(added, def.description, format_credits(added * unit))
+end
+
+local function buyback_tab(player, name)
+	local table_fs, list, selected = str_inventory.item_table(buyback_counts(player), {
+		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = TABLE_H, selected = selected_item[name],
+		empty = "Nothing sold recently.", unit_price = buyback_price,
+	})
+	local detail = buyback_message[name] or "Select an item to buy it back."
+	if not buyback_message[name] then
+		for i, row in ipairs(list) do
+			if i == selected then
+				detail = ("%s: %s credits each, %d available"):format(
+					row.def.description, format_credits(buyback_price(row.def)), row.count)
+			end
+		end
+	end
+	local fs = {
+		table_fs,
+		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.4, esc(detail)),
+	}
+	if selected > 0 then
+		fs[#fs + 1] = ("button[%g,%g;3,%g;buy_back_1;Buy 1]"):format(TABLE_X, BUTTON_Y, BUTTON_H)
+		fs[#fs + 1] = ("button[%g,%g;3,%g;buy_back_10;Buy 10]"):format(TABLE_X + 3.2, BUTTON_Y, BUTTON_H)
+		fs[#fs + 1] = ("button[%g,%g;3,%g;buy_back_100;Buy 100]"):format(TABLE_X + 6.4, BUTTON_Y, BUTTON_H)
+	end
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.45,
+		esc(("Price is the sale price + %d%%. Purchases are delivered to your storage."):format(math.floor((BUYBACK_MARKUP - 1) * 100 + 0.5))))
+	return table.concat(fs)
+end
+
 local function build(player)
 	local name = player:get_player_name()
 	local tab = selected_tab[name] or DEFAULT_TAB
@@ -380,6 +490,8 @@ local function build(player)
 	}
 	if tab == "sell" then
 		fs[#fs + 1] = sell_tab(player, name)
+	elseif tab == "buyback" then
+		fs[#fs + 1] = buyback_tab(player, name)
 	elseif tab == "consumables" then
 		fs[#fs + 1] = consumables_tab(player, name)
 	elseif tab == "debt" then
@@ -401,6 +513,7 @@ local function sell(player, item, count, store)
 	if removed > 0 then
 		resources.add_credits(player, removed * def.price)
 		str_transmissions.count_relic(player:get_player_name(), item, "sold", removed)
+		record_sale(player, item, removed)
 	end
 end
 
@@ -433,12 +546,15 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	if tab then
 		str_consumables.return_items(player)
 		cons_message[name] = nil
-		selected_tab[name], selected_item[name], debt_message[name] = tab, nil, nil
+		selected_tab[name], selected_item[name], debt_message[name], buyback_message[name] = tab, nil, nil, nil
 	elseif fields.leave_strata and str_story.get_debt(player) <= 0 then
 		show_ending(player)
 		return
 	elseif fields.pay or fields.key_enter_field == "amount" then
 		debt_message[name] = pay_debt(player, fields.amount)
+	elseif (fields.buy_back_1 or fields.buy_back_10 or fields.buy_back_100) and selected_item[name] then
+		buyback_message[name] = buy_back(player, selected_item[name],
+			fields.buy_back_100 and 100 or fields.buy_back_10 and 10 or 1)
 	elseif fields.sell_src_cargo or fields.sell_src_storage then
 		sell_source[name] = fields.sell_src_cargo and "cargo" or "storage"
 		selected_item[name] = nil
@@ -495,7 +611,10 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		if event.type ~= "CHG" and event.type ~= "DCL" then
 			return
 		end
-		local row = str_inventory.rows(current_source(name).store().get(player))[event.row]
+		local contents = selected_tab[name] == "buyback" and buyback_counts(player)
+			or current_source(name).store().get(player)
+		local row = str_inventory.rows(contents)[event.row]
+		buyback_message[name] = nil
 		selected_item[name] = row and row.def.name
 	end
 	str_company.show(player)
@@ -520,7 +639,7 @@ end)
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	selected_tab[name], selected_item[name], debt_message[name], cons_message[name] = nil, nil, nil, nil
-	sell_source[name] = nil
+	sell_source[name], buyback_cache[name], buyback_message[name] = nil, nil, nil
 end)
 
 str_consumables.register_on_sell_change(function(player)
