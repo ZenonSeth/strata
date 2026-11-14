@@ -370,7 +370,7 @@ local function end_dig(session, keep_pos)
 	session.obj:set_properties({physical = true})
 end
 
--- Nodes with str_material and str_yield add that much of the item to the hold; what does not fit is lost
+-- Nodes with str_material and str_yield add that much of the item to the hold; what does not fit stays as a pile
 local function take_node(pos, player)
 	local def = node_def(pos)
 	local item = def and def.str_material
@@ -385,6 +385,7 @@ local function take_node(pos, player)
 	if item then
 		local yield = def.str_yield or 1
 		local added = cargo.add(player, item, yield)
+		str_piles.drop(pos, item, yield - added)
 		if added < yield or cargo.volume(player) >= stats.get(player).cargo_capacity - 1e-6 then
 			str_utils.show_popup(player:get_player_name(), "CARGO FULL!", 2, false,
 				{color = 0xFF4500, size = 1.25})
@@ -794,6 +795,13 @@ local function vehicle_step(player, dtime)
 		if session.destroyed then
 			return
 		end
+	end
+	local cell = vector.round(pos)
+	if not session.pile_cell or not vector.equals(cell, session.pile_cell) then
+		session.pile_cell = cell
+		str_piles.collect(cell, function(item, count)
+			return cargo.add(player, item, count)
+		end)
 	end
 	control_step(session, player, pos, control, dtime)
 	animate(session, player, control, dtime)
