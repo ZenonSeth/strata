@@ -238,7 +238,7 @@ local HOTBAR_LABEL_Y, HOTBAR_Y = 7.35, 7.6
 
 -- From is taken from storage, then the cargo hold
 local CRAFTABLES = {
-	{name = "sign", item = "str_signs:sign", description = "Sign", count = 10, from = {lead = 1, coal = 1},
+	{name = "sign", item = "str_signs:sign", description = "Sign", count = 10, from = {graphite = 1, copper_plate = 1},
 		info = "Placed behind the machine to mark the way"},
 	{name = "platform", item = "str_platforms:platform", description = "Platform", count = 5, from = {steel = 1},
 		info = "Placed below the machine to stand on; dig it from above"},

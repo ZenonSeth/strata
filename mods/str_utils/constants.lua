@@ -47,9 +47,9 @@ return {
 	-- Total volume the mechanic shop storage holds; it has no weight limit
 	storage_capacity = 100000,
 	-- Recipe price = this times the sell price of what a smelter recipe makes
-	recipe_price_mult = 10,
+	recipe_price_mult = 8,
 	-- Upgrade recipe price = this times the market price of the materials the part is built from
-	upgrade_recipe_mult = 5,
+	upgrade_recipe_mult = 4,
 	-- Credits per hit point the repair station charges for the stock hull (other hulls cost materials)
 	repair_price_per_hp = 2,
 	-- Story: what the player owes the company at the start, in credits

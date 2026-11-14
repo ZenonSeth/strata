@@ -84,6 +84,8 @@ local function ingredients_text(player, recipe)
 	return table.concat(parts, " + ")
 end
 
+local SPACER = {spacer = true}
+
 -- Recipes with at least one found ingredient: buyable first, then locked, then owned (as in the table)
 local function visible_recipes(player)
 	local buyable, locked, owned = {}, {}, {}
@@ -108,10 +110,14 @@ local function visible_recipes(player)
 			return order[a.name] < order[b.name]
 		end)
 	end
-	for _, list in ipairs({locked, owned}) do
-		for _, recipe in ipairs(list) do
-			buyable[#buyable + 1] = recipe
-		end
+	for _, recipe in ipairs(locked) do
+		buyable[#buyable + 1] = recipe
+	end
+	if #owned > 0 and #buyable > 0 then
+		buyable[#buyable + 1] = SPACER
+	end
+	for _, recipe in ipairs(owned) do
+		buyable[#buyable + 1] = recipe
 	end
 	return buyable
 end
@@ -121,7 +127,7 @@ local function recipe_table(player, selected_name)
 	for i, recipe in ipairs(visible_recipes(player)) do
 		local owned = str_recipes.has(player, recipe.name)
 		local available = str_recipes.is_available(player, recipe.name)
-		rows[i] = {
+		rows[i] = recipe.spacer and {cells = {"", "", ""}} or {
 			color = (available and not owned) and str_gui.theme.text or str_gui.theme.muted,
 			cells = {
 				recipe.kind == "material" and "1" or "2",
@@ -129,7 +135,7 @@ local function recipe_table(player, selected_name)
 				owned and "Owned" or (available and format_credits(recipe.price) or "Locked"),
 			},
 		}
-		if recipe.name == selected_name then
+		if not recipe.spacer and recipe.name == selected_name then
 			selected = i
 		end
 	end
@@ -137,6 +143,40 @@ local function recipe_table(player, selected_name)
 		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = BUY_TABLE_H, name = "recipes",
 		columns = RECIPE_COLUMNS, rows = rows, selected = selected,
 	})
+end
+
+local STATS_X_OFFSET, STATS_LINE_H = 7.2, 0.45
+
+local function find_level(recipe)
+	for _, level in ipairs(str_machine_data.get_upgrade(recipe.kind).levels) do
+		if str_recipes.level_recipe(recipe.kind, level.name) == recipe.name then
+			return level
+		end
+	end
+end
+
+-- Same stat lines as the inventory's Equipment tab
+local function stats_box(recipe, y)
+	local level, category = find_level(recipe), str_machine_data.get_upgrade(recipe.kind)
+	if not level then
+		return ""
+	end
+	local lines = {{category.stat, category.stat.label}}
+	for _, extra in ipairs(category.extra or {}) do
+		lines[#lines + 1] = {extra, extra.label}
+	end
+	local x, w = TABLE_X + STATS_X_OFFSET, TABLE_W - STATS_X_OFFSET
+	local fs = {
+		("box[%g,%g;%g,%g;#1b1c1e]"):format(x, y, w, 0.4 + (#lines + 1) * STATS_LINE_H),
+		("style_type[label;font_size=*1.15]label[%g,%g;%s]style_type[label;font_size=*1]"):format(
+			x + 0.3, y + 0.4, esc(level.description)),
+	}
+	for j, line in ipairs(lines) do
+		local text = str_machine_data.format_stat(line[1], level.stats[line[1].key])
+		fs[#fs + 1] = ("label[%g,%g;%s]"):format(x + 0.3, y + 0.4 + j * STATS_LINE_H,
+			esc(core.colorize(str_gui.theme.muted, line[2] .. ":") .. " " .. text))
+	end
+	return table.concat(fs)
 end
 
 local function recipes_tab(player, name)
@@ -150,6 +190,10 @@ local function recipes_tab(player, name)
 			key == "recipe" and "= Recipe" or "= Upgrade")
 	end
 	local lines = {"Select a recipe to see its details."}
+	if recipe and recipe.kind ~= "material"
+			and (str_recipes.has(player, recipe.name) or str_recipes.is_available(player, recipe.name)) then
+		fs[#fs + 1] = stats_box(recipe, legend_y)
+	end
 	if recipe then
 		local cost
 		if str_recipes.has(player, recipe.name) then
@@ -171,7 +215,7 @@ local function recipes_tab(player, name)
 		local y = INFO_Y + (i - 1) * INFO_STEP
 		if type(line) == "table" then
 			fs[#fs + 1] = ("hypertext[%g,%g;%g,0.5;;<global color=%s><style color=%s>%s</style>%s]"):format(
-				TABLE_X, y - 0.2, TABLE_W, str_gui.theme.text, DIM_TEXT, esc(line[1]), esc(line[2]))
+				TABLE_X, y - 0.2, STATS_X_OFFSET - 0.2, str_gui.theme.text, DIM_TEXT, esc(line[1]), esc(line[2]))
 		else
 			fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, y, esc(line))
 		end
@@ -392,6 +436,9 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 			-- The bought recipe moves to the owned end; keep the row, so the view does not jump
 			local list = visible_recipes(player)
 			local next_recipe = list[math.min(index, #list)]
+			if next_recipe and next_recipe.spacer then
+				next_recipe = list[index + 1]
+			end
 			selected_item[name] = next_recipe and next_recipe.name
 		end
 	elseif (fields.buy_cons_1 or fields.buy_cons_10) and selected_item[name] then
