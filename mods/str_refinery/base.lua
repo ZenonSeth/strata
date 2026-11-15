@@ -109,6 +109,22 @@ local function refine_once(player, recipe, fuel_name, fuel_mult)
 	return true
 end
 
+-- Whether a full batch can be made, so the batch fuel discount is earned
+local function can_batch(player, recipe, fuel_name)
+	local hold, store = cargo.get(player), storage.get(player)
+	for input, amount in pairs(recipe.from) do
+		if total(hold, store, input) < amount * BATCH then
+			return false
+		end
+	end
+	local missing = recipe.fuel_cost * BATCH_FUEL * BATCH - get_buffer(player).units
+	local draws = missing > EPS and math.ceil(missing / str_materials.fuel[fuel_name] - EPS) or 0
+	if total(hold, store, fuel_name) - (recipe.from[fuel_name] or 0) * BATCH < draws then
+		return false
+	end
+	return storage.free_volume(player) + EPS >= BATCH * str_materials.get(recipe.name).volume
+end
+
 -- Makes up to count units; returns the result line
 local function refine(player, recipe, fuel_name, count, fuel_mult)
 	local made, reason = 0, nil
@@ -252,8 +268,9 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	local recipe = str_recipes.get(selected_recipe[name] or "")
 	if fields.refine_one or fields.refine_ten then
 		if recipe and str_recipes.has(player, recipe.name) then
-			messages[name] = refine(player, recipe, selected_fuel[name] or fuels[1].name, fields.refine_ten and BATCH or 1,
-				fields.refine_ten and BATCH_FUEL or 1)
+			local fuel_name = selected_fuel[name] or fuels[1].name
+			local batch = fields.refine_ten and can_batch(player, recipe, fuel_name)
+			messages[name] = refine(player, recipe, fuel_name, fields.refine_ten and BATCH or 1, batch and BATCH_FUEL or 1)
 		end
 	elseif fields.recipes then
 		local event = core.explode_table_event(fields.recipes)
