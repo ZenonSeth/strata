@@ -373,15 +373,16 @@ end
 
 local DUST_COUNT = 6
 
-local function spawn_dust(pos)
+local function spawn_dust(pos, node_name)
+	local palette = str_nodes.dust_colors(node_name)
 	for _ = 1, DUST_COUNT do
 		core.add_particle({
 			pos = vector.offset(pos, (math.random() - 0.5) * 0.6, (math.random() - 0.5) * 0.6, (math.random() - 0.5) * 0.6),
 			velocity = vector.new((math.random() - 0.5) * 1.2, math.random() * 0.6, (math.random() - 0.5) * 1.2),
 			acceleration = vector.new(0, 0.2, 0),
 			expirationtime = 0.4 + math.random() * 0.3,
-			size = 2 + math.random() * 1,
-			texture = {name = "str_machine_puff.png^[multiply:#a89888", blend = "alpha",
+			size = 4 + math.random() * 2,
+			texture = {name = "str_machine_puff.png^[multiply:" .. palette[math.random(#palette)], blend = "alpha",
 				alpha_tween = {1, 0}, scale_tween = {0.6, 1.6}},
 		})
 	end
@@ -395,7 +396,7 @@ local function take_node(pos, player, blasted)
 	local node_name = core.get_node(pos).name
 	core.remove_node(pos)
 	str_nodes.refresh_shapes(pos)
-	spawn_dust(pos)
+	spawn_dust(pos, node_name)
 	local kind = not blasted and dug_sound(node_name)
 	if kind then
 		str_audio.sfx.play("dug_" .. kind, {player = player})
