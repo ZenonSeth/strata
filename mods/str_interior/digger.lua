@@ -6,14 +6,30 @@ local DIGGER_HALF_Z = 0.391 * DIGGER_SCALE
 local DIGGER_CENTER_X = 0.0625 * DIGGER_SCALE
 local DIGGER_ORIGIN_Y = 0.5 * DIGGER_SCALE - 0.5
 local DIGGER_ENTITY = "str_interior:digger_display"
+-- Node meta: the owning player's name, and their last colors for when they are offline
+local OWNER_KEY = "owner"
+local COLORS_KEY = "colors"
 -- Live display entities, so a color change reaches them
 local display_entities = {}
 
-local function apply_player_colors(self)
-	local player = core.get_connected_players()[1]
-	if player then
-		self.object:set_properties({textures = str_machine.model_textures(player)})
+local function cache_colors(pos, player)
+	core.get_meta(pos):set_string(COLORS_KEY, core.write_json(str_machine.get_colors(player)))
+end
+
+-- Textures for the digger at pos: its owner's colors; unowned ones (older saves) follow the first player
+local function digger_textures(pos)
+	local owner = core.get_meta(pos):get_string(OWNER_KEY)
+	if owner == "" then
+		return str_machine.model_textures(core.get_connected_players()[1])
 	end
+	local player = core.get_player_by_name(owner)
+	if player then
+		cache_colors(pos, player)
+		return str_machine.model_textures(player)
+	end
+	local raw = core.get_meta(pos):get_string(COLORS_KEY)
+	local cached = raw ~= "" and core.parse_json(raw) or nil
+	return str_machine.colors.textures(type(cached) == "table" and cached or nil)
 end
 
 core.register_entity(DIGGER_ENTITY, {
@@ -27,18 +43,24 @@ core.register_entity(DIGGER_ENTITY, {
 		static_save = false,
 	},
 	keep_on_clear = true,
-	on_activate = function(self)
+	on_activate = function(self, staticdata)
 		display_entities[self] = true
-		apply_player_colors(self)
+		self.owner = staticdata ~= "" and staticdata or nil
 	end,
 	on_deactivate = function(self)
 		display_entities[self] = nil
 	end,
 })
 
-str_machine.register_on_colors_changed(function(_, textures)
+str_machine.register_on_colors_changed(function(player, textures)
+	local name = player:get_player_name()
 	for self in pairs(display_entities) do
-		self.object:set_properties({textures = textures})
+		if self.owner == name or not self.owner then
+			self.object:set_properties({textures = textures})
+			if self.owner and self.node_pos then
+				cache_colors(self.node_pos, player)
+			end
+		end
 	end
 end)
 
@@ -72,9 +94,11 @@ local function spawn_digger_entity(pos, attempts)
 	if #find_digger_entities(entity_pos) > 0 then
 		return
 	end
-	local obj = core.add_entity(entity_pos, DIGGER_ENTITY)
+	local obj = core.add_entity(entity_pos, DIGGER_ENTITY, core.get_meta(pos):get_string(OWNER_KEY))
 	if obj then
 		obj:set_yaw(yaw)
+		obj:get_luaentity().node_pos = pos
+		obj:set_properties({textures = digger_textures(pos)})
 	elseif attempts > 1 then
 		core.after(1, spawn_digger_entity, pos, attempts - 1)
 	end
@@ -92,6 +116,25 @@ end
 
 str_interior.ensure_digger_entity = ensure_digger_entity
 
+-- Gives an unowned digger to player_name and returns its owner (player_name unless someone already owns it)
+function str_interior.claim_digger(pos, player_name)
+	local meta = core.get_meta(pos)
+	local owner = meta:get_string(OWNER_KEY)
+	if owner ~= "" then
+		return owner
+	end
+	meta:set_string(OWNER_KEY, player_name)
+	local textures = digger_textures(pos)
+	for _, obj in ipairs(find_digger_entities((digger_placement(pos)))) do
+		local entity = obj:get_luaentity()
+		entity.owner, entity.node_pos = player_name, pos
+		obj:set_properties({textures = textures})
+	end
+	return player_name
+end
+
+local use_digger = str_interior.make_on_rightclick(str_utils.constants.interact.drive)
+
 core.register_node("str_interior:digger_display", {
 	description = "Digger (display model)",
 	drawtype = "airlike",
@@ -107,7 +150,17 @@ core.register_node("str_interior:digger_display", {
 		DIGGER_HALF_X, -0.5 + 0.44 * DIGGER_SCALE, DIGGER_HALF_Z,
 	}},
 	use_kind = str_utils.constants.interact.drive,
-	on_rightclick = str_interior.make_on_rightclick(str_utils.constants.interact.drive),
+	on_rightclick = function(pos, node, clicker)
+		if not (clicker and clicker:is_player()) then
+			return
+		end
+		local name = clicker:get_player_name()
+		if str_interior.claim_digger(pos, name) ~= name then
+			str_utils.show_popup(name, "This vehicle belongs to someone else.")
+			return
+		end
+		use_digger(pos, node, clicker)
+	end,
 	on_construct = function(pos)
 		ensure_digger_entity(pos, 5)
 	end,

@@ -105,9 +105,10 @@ local function emerge_interior(name, origin, last, on_done)
 	end)
 end
 
--- The display entities are not saved; delay (seconds) is optional
-local function ensure_diggers(origin, last, delay)
+-- The display entities are not saved; delay (seconds) is optional. Unowned diggers go to the slot's player
+local function ensure_diggers(player_name, origin, last, delay)
 	for _, pos in ipairs(core.find_nodes_in_area(origin, last, DIGGER)) do
+		str_interior.claim_digger(pos, player_name)
 		str_interior.ensure_digger_entity(pos, 5, delay)
 	end
 end
@@ -178,7 +179,7 @@ local function first_spawn(player)
 		end
 		core.place_schematic(origin, SCHEMATIC, "0", nil, true)
 		joined:get_meta():set_int(VERSION_KEY, grid.version)
-		ensure_diggers(origin, last, DIGGER_SPAWN_DELAY)
+		ensure_diggers(name, origin, last, DIGGER_SPAWN_DELAY)
 		place_player(joined, origin, last)
 		joined:get_meta():set_string(DONE_KEY, "1")
 			show_letter(name)
@@ -222,7 +223,7 @@ local function finish_entry(player, name, trip)
 		str_machine.set_frozen(player, false)
 		return
 	end
-	ensure_diggers(trip.origin, trip.last)
+	ensure_diggers(name, trip.origin, trip.last)
 	str_machine.set_frozen(player, false)
 	str_mode.set(player, "foot")
 	stand_on(player, marker, FEET_ABOVE_BED, true)
