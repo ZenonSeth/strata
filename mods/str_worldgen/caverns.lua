@@ -76,14 +76,14 @@ return function(world)
 	end
 
 	-- Carves into data inside x0..x1, y0..y1, z0..z1 (must lie inside the emerged area)
-	return function(data, area, x0, x1, y0, y1, z0, z1)
+	return function(data, area, x0, x1, y0, y1, z0, z1, salt)
 		if z1 < slice_z then
 			return
 		end
 		local expected = CELL * CELL * cfg.rarity / AVG_AREA
 		for cy = floor((y0 - MARGIN) / CELL), floor((y1 + MARGIN) / CELL) do
 			for cx = floor((x0 - MARGIN) / CELL), floor((x1 + MARGIN) / CELL) do
-				local rng = PcgRandom((cx * 73856093 + cy * 19349663 + 4256233 + seed) % 2147483647)
+				local rng = PcgRandom((cx * 73856093 + cy * 19349663 + 4256233 + seed + salt) % 2147483647)
 				local count = floor(expected)
 				if rng:next(0, 9999) / 10000 < expected - count then
 					count = count + 1

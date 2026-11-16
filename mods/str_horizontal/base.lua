@@ -33,14 +33,12 @@ local function still_there(st)
 	return core.get_node(node_pos(st.x, st.y)).name == NODE and str_horizontal.get(st.x) ~= nil
 end
 
--- Other waypoints, nearest first
+-- Every waypoint, nearest first, so the current one (marked) leads the list
 local function destinations(st)
-	local list = {}
-	for _, wp in ipairs(str_horizontal.all()) do
-		if wp.x ~= st.x then
-			wp.distance = math.abs(wp.x - st.x)
-			list[#list + 1] = wp
-		end
+	local list = str_horizontal.all()
+	for _, wp in ipairs(list) do
+		wp.distance = math.abs(wp.x - st.x)
+		wp.current = wp.x == st.x
 	end
 	table.sort(list, function(a, b) return a.distance < b.distance end)
 	return list
@@ -67,11 +65,12 @@ local function build(player_name)
 	fs[#fs + 1] = str_gui.input_bg(PAD, y, FIELD_W, ROW_H)
 	fs[#fs + 1] = ("field[%g,%g;%g,%g;name;;%s]"):format(PAD, y, FIELD_W, ROW_H, esc(wp.name))
 	fs[#fs + 1] = ("button[%g,%g;%g,%g;rename;Rename]"):format(PAD + FIELD_W + BUTTON_GAP, y, BUTTON_W, ROW_H)
-	local rows, selected = {}, 0
+	local rows, selected, can_go = {}, 0, false
 	for i, dest in ipairs(destinations(st)) do
-		rows[i] = {cells = {dest.name, ("%d m %s"):format(dest.distance, dest.x < st.x and "west" or "east")}}
+		rows[i] = {cells = dest.current and {dest.name .. " (Current)", ""}
+			or {dest.name, ("%d m %s"):format(dest.distance, dest.x < st.x and "west" or "east")}}
 		if dest.x == st.selected then
-			selected = i
+			selected, can_go = i, not dest.current
 		end
 	end
 	fs[#fs + 1] = str_gui.list_table({
@@ -79,7 +78,7 @@ local function build(player_name)
 		columns = TABLE_COLUMNS, rows = rows, selected = selected,
 	})
 	local button_x = PAD
-	if selected > 0 then
+	if can_go then
 		fs[#fs + 1] = ("button[%g,%g;%g,%g;go;Go]"):format(button_x, buttons_y, BUTTON_W, ROW_H)
 	end
 	button_x = button_x + BUTTON_W + BUTTON_GAP
@@ -138,7 +137,7 @@ local function go(player, st)
 		return
 	end
 	for _, dest in ipairs(destinations(st)) do
-		if dest.x == st.selected then
+		if dest.x == st.selected and not dest.current then
 			local name = player:get_player_name()
 			open_at[name] = nil
 			core.close_formspec(name, FORMNAME)

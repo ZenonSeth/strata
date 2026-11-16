@@ -220,7 +220,7 @@ return function(world)
 	end
 
 	-- Called with the chunk's buffer after the strata are written
-	return function(data, area, minp, maxp, y_max, z_min, z_max)
+	return function(data, area, minp, maxp, y_max, z_min, z_max, salt)
 		local kind, jitter
 		local function put(x, y, z)
 			if x < minp.x or x > maxp.x or y < minp.y or y > y_max or z < z_min or z > z_max then
@@ -266,7 +266,7 @@ return function(world)
 			if row then
 				for cz = cz0, cz1 do
 					for cx = cx0, cx1 do
-						local rng = PcgRandom((cx * 73856093 + cy * 19349663 + cz * 83492791 + seed) % 2147483647)
+						local rng = PcgRandom((cx * 73856093 + cy * 19349663 + cz * 83492791 + seed + salt) % 2147483647)
 						for k, kd in ipairs(kinds) do
 							local w = row[k]
 							if w > 0 then

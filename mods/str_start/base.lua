@@ -84,6 +84,14 @@ local function get_interior_size()
 	return interior_size
 end
 
+-- Puts the player on their bed (the shop spawn marker if the interior has none)
+function str_start.place_on_bed(player)
+	local origin, size = str_start.get_origin(player), get_interior_size()
+	if origin and size then
+		place_player(player, origin, vector.offset(vector.add(origin, size), -1, -1, -1))
+	end
+end
+
 -- Loads the interior's blocks, then calls on_done(player), with nil if the player left meanwhile
 local function emerge_interior(name, origin, last, on_done)
 	core.emerge_area(origin, last, function(_, action, calls_remaining)

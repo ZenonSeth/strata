@@ -721,6 +721,9 @@ local function saved_pos(player)
 	return core.string_to_pos(player:get_meta():get_string(SAVED_POS_KEY)) or START_POS
 end
 
+-- Where the machine starts when the player next boards (its last saved position)
+str_machine.get_saved_pos = saved_pos
+
 -- player name -> token of the spawn waiting for the map; a newer spawn or leaving
 -- the mode cancels it
 local pending = {}

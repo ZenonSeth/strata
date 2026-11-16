@@ -35,6 +35,19 @@ function str_elevators.network_within(x, distance)
 	return false
 end
 
+-- Every network: {x =, net =}
+function str_elevators.all()
+	local list = {}
+	for field in pairs(storage:to_table().fields) do
+		local x = tonumber(field:match("^net:(.+)$"))
+		local net = x and str_elevators.get_network(x)
+		if net then
+			list[#list + 1] = {x = x, net = net}
+		end
+	end
+	return list
+end
+
 function str_elevators.stop_index(net, y)
 	for i, stop in ipairs(net.stops) do
 		if stop.y == y then

@@ -130,13 +130,11 @@ local function still_there(st)
 	return true
 end
 
--- Places other than the station itself, for the window's list
+-- Every place on the network for the window's list; the station itself is marked current
 local function destinations(st, net)
-	local list = {}
-	for _, dest in ipairs(str_elevators.destinations(net)) do
-		if dest.y ~= st.y then
-			list[#list + 1] = dest
-		end
+	local list = str_elevators.destinations(net)
+	for _, dest in ipairs(list) do
+		dest.current = dest.y == st.y
 	end
 	return list
 end
@@ -182,18 +180,19 @@ local function build(player_name)
 			fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, y + ROW_H / 2,
 				esc(("%d connected stop%s"):format(#net.stops, #net.stops == 1 and "" or "s")))
 		end
-		local rows, selected = {}, 0
+		local rows, selected, can_go = {}, 0, false
 		for i, dest in ipairs(destinations(st, net)) do
-			rows[i] = {cells = {dest.name, ("%d m"):format(math.max(0, SURFACE_Y - dest.y))}}
+			rows[i] = {cells = {dest.current and dest.name .. " (Current)" or dest.name,
+				("%d m"):format(math.max(0, SURFACE_Y - dest.y))}}
 			if dest.y == st.selected then
-				selected = i
+				selected, can_go = i, not dest.current
 			end
 		end
 		fs[#fs + 1] = str_gui.list_table({
 			x = PAD, y = y + ROW_H + 0.3, w = WIDTH - 2 * PAD, h = TABLE_H, name = "dests",
 			columns = TABLE_COLUMNS, rows = rows, selected = selected,
 		})
-		if selected > 0 then
+		if can_go then
 			fs[#fs + 1] = ("button[%g,%g;%g,%g;go;Go]"):format(button_x, buttons_y, BUTTON_W, ROW_H)
 		end
 		button_x = button_x + BUTTON_W + BUTTON_GAP
@@ -273,7 +272,7 @@ local function go(player, st)
 		return
 	end
 	for _, dest in ipairs(destinations(st, net)) do
-		if dest.y == st.selected then
+		if dest.y == st.selected and not dest.current then
 			local name = player:get_player_name()
 			open_at[name] = nil
 			core.close_formspec(name, FORMNAME)

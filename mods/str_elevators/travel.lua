@@ -10,7 +10,7 @@ local EMERGE_RADIUS = vector.new(16, 16, 16)
 str_audio.sfx.register("elevator_loop", {sound = "str_elevators_loop"})
 str_audio.sfx.register("elevator_ding", {sound = "str_elevators_ding"})
 
--- player name -> {phase = "in" | "wait", t, duration, dest, ready, hud, alpha}
+-- player name -> {phase = "in" | "wait", t, duration, dest, ready, arrived, hud, alpha}
 local trips = {}
 
 function str_elevators.is_traveling(player_name)
@@ -25,7 +25,7 @@ local function set_alpha(player, trip, alpha)
 	end
 end
 
--- Fades to black, waits the ride time (and for the map), moves the machine and cuts the black away
+-- Fades to black, moves the machine once the map is there, waits the ride time and cuts the black away
 function str_elevators.travel(player, x, from_y, to_y)
 	str_elevators.travel_to(player, vector.new(x, to_y, SLICE_Z), math.abs(to_y - from_y))
 end
@@ -56,6 +56,13 @@ function str_elevators.travel_to(player, dest, distance)
 	trips[name] = trip
 end
 
+-- The machine arrives in an empty cell whatever was there
+local function clear(pos)
+	if core.get_node(pos).name ~= "air" then
+		core.set_node(pos, {name = "air"})
+	end
+end
+
 local function finish(player, name, trip)
 	player:hud_remove(trip.hud)
 	str_machine.set_frozen(player, false)
@@ -76,16 +83,20 @@ core.register_globalstep(function(dtime)
 					trip.phase, trip.t = "wait", 0
 				end
 			elseif trip.phase == "wait" then
-				if trip.t >= trip.duration and trip.ready then
-					-- The machine arrives in an empty cell whatever was there
-					if core.get_node(trip.dest).name ~= "air" then
-						core.set_node(trip.dest, {name = "air"})
-					end
+				if not trip.arrived and trip.ready then
+					-- Moved while black, so the ground there loads (and regenerates) during the ride
+					clear(trip.dest)
 					str_machine.teleport(player, trip.dest)
+					trip.arrived = true
+				end
+				local timed_out = trip.t >= trip.duration + MAP_TIMEOUT
+				if trip.arrived and (timed_out or trip.t >= trip.duration
+						and core.compare_block_status(trip.dest, "active")) then
+					clear(trip.dest)
 					str_audio.sfx.stop_loop(player, "elevator")
 					str_audio.sfx.play("elevator_ding", {player = player})
 					finish(player, name, trip)
-				elseif trip.t >= trip.duration + MAP_TIMEOUT then
+				elseif timed_out then
 					finish(player, name, trip)
 				end
 			end
