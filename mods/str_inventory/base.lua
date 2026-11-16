@@ -79,6 +79,23 @@ local CELL_GAP, LINE_H = 0.3, 0.45
 -- Row heights fit each row's longest stat list
 local ROW_H = {1.75, 2.2, 1.3}
 local CELL_W = (WIDTH - 0.8 - CELL_GAP) / 2
+local SLOT_ICON, SLOT_GAP, SLOT_BOTTOM = 0.7, 0.1, 0.25
+
+-- Fitted hull upgrades, right-aligned so they end at right_x; view only
+local function hull_slot_icons(player, right_x, y)
+	local list = player:get_inventory():get_list(str_machine.hull_slots.LIST) or {}
+	local fs = {}
+	for i, stack in ipairs(list) do
+		local x = right_x - (#list - i + 1) * SLOT_ICON - (#list - i) * SLOT_GAP
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;str_gui_slot.png]"):format(x, y, SLOT_ICON, SLOT_ICON)
+		if not stack:is_empty() then
+			fs[#fs + 1] = ("item_image[%g,%g;%g,%g;%s]"):format(x, y, SLOT_ICON, SLOT_ICON, stack:get_name())
+			fs[#fs + 1] = ("tooltip[%g,%g;%g,%g;%s]"):format(x, y, SLOT_ICON, SLOT_ICON,
+				esc(stack:get_description()))
+		end
+	end
+	return table.concat(fs)
+end
 
 local function equipment_tab(player)
 	local stats = str_machine.stats
@@ -108,6 +125,9 @@ local function equipment_tab(player)
 			end
 			fs[#fs + 1] = ("label[%g,%g;%s]"):format(x + 0.3, y + 0.4 + j * LINE_H,
 				esc(core.colorize(muted, line[2] .. ":") .. " " .. text))
+		end
+		if id == "hull" then
+			fs[#fs + 1] = hull_slot_icons(player, x + CELL_W - 0.3, y + ROW_H[row] - SLOT_ICON - SLOT_BOTTOM)
 		end
 	end
 	local hotbar_y = HEIGHT - 1.4

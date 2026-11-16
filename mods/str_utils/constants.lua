@@ -30,8 +30,8 @@ return {
 	max_fall_speed = 30,
 	-- Hull damage of a landing at terminal fall speed; scales linearly from 0 at min_impact_speed
 	max_fall_damage = 150,
-	-- Machine in any liquid: sideways speed multiplier and terminal fall speed (nodes/s); no thrust
-	liquid = {speed_mult = 0.5, max_fall_speed = 4},
+	-- Machine in any liquid: sideways speed multiplier, climb top speed as a fraction of thrust, terminal fall speed (nodes/s)
+	liquid = {speed_mult = 0.5, climb_speed_mult = 0.1, max_fall_speed = 4},
 	-- Share of a falling rock's downward speed handed to the machine it hits
 	rock_momentum_transfer = 0.5,
 	fuel = {
@@ -59,7 +59,7 @@ return {
 	-- Story: what the player owes the company at the start, in credits
 	story = {starting_debt = 10000000},
 	-- Gauge bar colors, shared by the HUD and the station windows
-	colors = {hull = "#b85450", fuel = "#4f9a60", cargo = "#b8923a"},
+	colors = {hull = "#b85450", fuel = "#4f9a60", cargo = "#b8923a", heat = "#e07a20"},
 	-- kinds of interior node use; nodes are tagged with one, game logic listens for it
 	interact = {
 		upgrade = "upgrade",

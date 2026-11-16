@@ -12,6 +12,8 @@ local format_credits = resources.format_credits
 local price_per_hp = str_utils.constants.repair_price_per_hp
 -- A stage of the stock hull (no materials) is this fraction of its hit points
 local STOCK_STAGE = 0.1
+-- A full repair of a built hull takes this fraction of its build materials
+local MATERIAL_FACTOR = 0.5
 
 -- Last result line shown under the costs, per player
 local messages = {}
@@ -38,7 +40,7 @@ end
 local function repair_cost(level, fraction)
 	local cost = {}
 	for material, amount in pairs(level.from or {}) do
-		cost[material] = math.ceil(amount * fraction - 1e-6)
+		cost[material] = math.ceil(amount * MATERIAL_FACTOR * fraction - 1e-6)
 	end
 	return cost
 end
@@ -80,7 +82,7 @@ local function step_text(step, stored, credits)
 end
 
 -- The equipped hull and what a full or a one-stage repair would be. A built hull is paid in materials
--- and a stage is 1/N of the hull, N being the largest build amount (one unit of that material); the
+-- and a stage costs one unit of the material with the largest repair amount; the
 -- stock hull is paid in credits and a stage is STOCK_STAGE of it
 local function plan(player)
 	local level = stats.get_level(player, "hull")
@@ -101,7 +103,7 @@ local function plan(player)
 		for _, amount in pairs(level.from) do
 			biggest = math.max(biggest, amount)
 		end
-		local fraction = math.min(1 / biggest, p.full.fraction)
+		local fraction = math.min(1 / (biggest * MATERIAL_FACTOR), p.full.fraction)
 		p.stage = {fraction = fraction, hp = fraction * max, cost = repair_cost(level, fraction), credits = 0}
 	end
 	return p

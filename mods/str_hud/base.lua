@@ -115,6 +115,18 @@ local function bar_label(value, max, decimal)
 	return string.format("%.1f/%d", tenths / 10, math.ceil(max))
 end
 
+local function hide(player, id)
+	local name = player:get_player_name()
+	local view = shown[name] and shown[name][id]
+	if not view then
+		return
+	end
+	for _, hud_id in ipairs(view.ids) do
+		player:hud_remove(hud_id)
+	end
+	shown[name][id] = nil
+end
+
 -- Brings the player's screen in line with the stored data
 local function render(player, id)
 	local element = elements[id]
@@ -149,6 +161,10 @@ local function render(player, id)
 		end
 		return
 	end
+	if data.hidden then
+		hide(player, id)
+		return
+	end
 	if not view then
 		view = create_bar(player, element.def)
 		shown[name][id] = view
@@ -176,18 +192,6 @@ local function render(player, id)
 	end
 end
 
-local function hide(player, id)
-	local name = player:get_player_name()
-	local view = shown[name] and shown[name][id]
-	if not view then
-		return
-	end
-	for _, hud_id in ipairs(view.ids) do
-		player:hud_remove(hud_id)
-	end
-	shown[name][id] = nil
-end
-
 local function store(player, id, kind, data)
 	local element = elements[id]
 	if not element or element.kind ~= kind then
@@ -199,10 +203,12 @@ local function store(player, id, kind, data)
 	render(player, id)
 end
 
--- opts: label replaces the default "value/max" text; text_color = 0xRRGGBB and bold for the label
+-- opts: label replaces the default "value/max" text; text_color = 0xRRGGBB and bold for the label;
+-- hidden removes the bar until it is set again without it
 function str_hud.set_bar(player, id, value, max, opts)
 	opts = opts or {}
-	store(player, id, "bar", {value = value, max = max, label = opts.label, text_color = opts.text_color, bold = opts.bold})
+	store(player, id, "bar", {value = value, max = max, label = opts.label, text_color = opts.text_color,
+		bold = opts.bold, hidden = opts.hidden})
 end
 
 function str_hud.set_text(player, id, label)

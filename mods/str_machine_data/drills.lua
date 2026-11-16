@@ -1,5 +1,5 @@
 -- Data only. Same shape as tanks.lua; stats.drill_tier = highest node tier dug, stats.dig_speed (base 0.5).
--- extra = more stats the upgrade station shows beside the main one; scale/format only change how they are shown.
+-- extra = more stats the upgrade station shows beside the main one; scale/format only change how they are shown; column = false keeps one out of the parts table.
 -- Costs: 10 of the level's alloy up to hardened steel, then 8 gems plus 12 body alloy. Placeholder values, not final.
 -- Sapphire and alexandrite bits are the same tier; sapphire digs faster.
 return {

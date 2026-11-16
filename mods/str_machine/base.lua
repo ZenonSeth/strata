@@ -40,7 +40,7 @@ local function engine_sound(session, player, control)
 		return
 	end
 	local sfx = str_audio.sfx
-	local climbing = control.up and not control.down and not session.liquid
+	local climbing = control.up and not control.down
 	local has_fuel = not fuel.is_empty(player)
 	local engine = "engine_idle"
 	if has_fuel then
@@ -417,6 +417,25 @@ local function take_node(pos, player, blasted)
 	return true
 end
 
+-- With the hull upgrade, a liquid source the machine is in goes into the hold whole, or stays if it does not fit
+local function collect_liquid(session, player, cell, def)
+	if def.liquidtype ~= "source" or not def.str_material
+			or not str_machine.hull_slots.has(player, "str_machine:hull_liquid_collection") then
+		return
+	end
+	local yield = def.str_yield or 1
+	if cargo.volume(player) + yield * str_materials.get(def.str_material).volume > stats.get(player).cargo_capacity + 1e-6 then
+		if not session.liquid_full_cell or not vector.equals(cell, session.liquid_full_cell) then
+			session.liquid_full_cell = cell
+			str_utils.show_popup(player:get_player_name(), "CARGO FULL!", 2, false, {color = 0xFF4500, size = 1.25})
+		end
+		return
+	end
+	session.liquid_full_cell = nil
+	core.remove_node(cell)
+	cargo.announce(player, def.str_material, cargo.add(player, def.str_material, yield))
+end
+
 -- Destroys a solid, diggable node up to max_tier regardless of the drill; returns whether it did
 function str_machine.destroy_node(player, pos, max_tier)
 	local def = node_def(pos)
@@ -506,6 +525,7 @@ local function control_step(session, player, pos, control, dtime)
 	local speed_mult = fuel.is_empty(player) and FUEL.empty_speed_mult or 1
 	local top_thrust = my_stats.thrust * speed_mult
 	if session.liquid then
+		top_thrust = my_stats.thrust * math.min(speed_mult, LIQUID.climb_speed_mult)
 		speed_mult = speed_mult * LIQUID.speed_mult
 	end
 	local target_vx = ((control.right and 1 or 0) - (control.left and 1 or 0)) * my_stats.move_speed * speed_mult
@@ -514,7 +534,7 @@ local function control_step(session, player, pos, control, dtime)
 	end
 	vel.x = approach(vel.x, target_vx, ACCEL * dtime)
 	local accel_y = -session.gravity
-	local climbing = control.up and not control.down and not session.liquid
+	local climbing = control.up and not control.down
 	if climbing then
 		burn_fuel(player, FUEL.climb_mult, dtime)
 	elseif control.left ~= control.right then
@@ -826,6 +846,9 @@ local function vehicle_step(player, dtime)
 	local def = node_def(vector.round(pos))
 	session.liquid = def and def.liquidtype and def.liquidtype ~= "none" and def or nil
 	local damage = session.liquid and session.liquid.damage_per_second or 0
+	if str_machine.heat.step(player, damage > 0, dtime) then
+		damage = 0
+	end
 	if damage > 0 then
 		hull.damage(player, damage * dtime)
 		if session.destroyed then
@@ -833,6 +856,9 @@ local function vehicle_step(player, dtime)
 		end
 	end
 	local cell = vector.round(pos)
+	if session.liquid then
+		collect_liquid(session, player, cell, session.liquid)
+	end
 	if not session.pile_cell or not vector.equals(cell, session.pile_cell) then
 		session.pile_cell = cell
 		str_piles.collect(cell, function(item, count)
@@ -919,6 +945,8 @@ function str_machine.destroy(player)
 	end
 	-- The penalty is applied at once so it survives leaving during the death screen
 	cargo.clear(player)
+	str_machine.hull_slots.clear(player)
+	str_machine.heat.reset(player)
 	stats.reset_upgrades(player)
 	hull.set(player, stats.get(player).max_hull)
 	fuel.set(player, stats.get(player).max_fuel / 2)

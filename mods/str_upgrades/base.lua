@@ -18,6 +18,7 @@ local TABS = {
 	{id = "cargo", title = "Cargo", tooltip = "Cargo hold"},
 	{id = "fuel", title = "Fuel tank", tooltip = "Fuel tank"},
 	{id = "hull", title = "Hull", tooltip = "Hull"},
+	{id = "hull_upgrades", title = "Hull Upgrades", tooltip = "Hull upgrades"},
 	{id = "items", title = "Create Items", tooltip = "Create Items"},
 }
 
@@ -123,17 +124,17 @@ local function needs(player, level, plain)
 		names[#names + 1] = material
 	end
 	table.sort(names)
-	local parts, ok = {}, true
+	local parts, missing = {}, {}
 	for _, material in ipairs(names) do
 		local need, have = level.from[material], stored[material] or 0
-		if have < need then
-			ok = false
-		end
 		local description = str_materials.get(material).description
+		if have < need then
+			missing[#missing + 1] = ("%d %s"):format(need - have, description)
+		end
 		parts[#parts + 1] = plain and ("%d %s"):format(need, description)
 			or ("%d %s (have %d)"):format(need, description, have)
 	end
-	return table.concat(parts, ", "), ok
+	return table.concat(parts, ", "), #missing == 0, table.concat(missing, ", ")
 end
 
 -- "equipped", "built" or "empty"
@@ -163,7 +164,9 @@ local function category_tab(player, category)
 		local _, affordable = needs(player, level)
 		local cells = {level.description, format_stat(category.stat, level.stats[category.stat.key])}
 		for _, extra in ipairs(category.extra or {}) do
-			cells[#cells + 1] = format_stat(extra, level.stats[extra.key])
+			if extra.column ~= false then
+				cells[#cells + 1] = format_stat(extra, level.stats[extra.key])
+			end
 		end
 		if category.condition then
 			cells[#cells + 1] = state == "empty" and "-" or condition_text(player, category, level)
@@ -180,8 +183,10 @@ local function category_tab(player, category)
 	end
 	local columns = {PART_COLUMN, {title = category.stat.label, spec = STAT_COLUMN.spec}}
 	for _, extra in ipairs(category.extra or {}) do
-		local spec = extra.width and ("text,width=%g,padding=0.3"):format(extra.width) or STAT_COLUMN.spec
-		columns[#columns + 1] = {title = extra.label, spec = spec}
+		if extra.column ~= false then
+			local spec = extra.width and ("text,width=%g,padding=0.3"):format(extra.width) or STAT_COLUMN.spec
+			columns[#columns + 1] = {title = extra.label, spec = spec}
+		end
 	end
 	if category.condition then
 		columns[#columns + 1] = CONDITION_COLUMN
@@ -261,6 +266,25 @@ local CRAFTABLES = {
 		from = {coal = 1, bronze = 1, sulphur = 1},
 		info = "Destroys nodes up to tier 8 in a circle of radius 4 around the machine\nOres and strange objects hit are lost\nCarry at most 50 in the hotbar"},
 }
+
+local HULL_UPGRADE_FROM = {
+	["str_machine:hull_liquid_collection"] = {steel = 4, copper_wire = 2, lens_glass = 1},
+	["str_machine:hull_lava_protection"] = {nickel_steel = 4, aquamarine = 2},
+}
+for _, def in ipairs(str_machine.hull_slots.items) do
+	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, item = def.name, description = def.description, count = 1,
+		from = HULL_UPGRADE_FROM[def.name],
+		info = def.info}
+end
+-- Hull upgrades cannot be destroyed yet, so only one of each may exist
+local function already_owned(player, def)
+	local hull_slots = str_machine.hull_slots
+	if not hull_slots.is_upgrade(def.item) then
+		return false
+	end
+	return hull_slots.has(player, def.item) or player:get_inventory():contains_item(BENCH_LIST, def.item)
+end
+
 local ITEM_COLUMNS = {
 	{title = "Item", spec = "text,width=11,padding=0.3"},
 	{title = "Needs", spec = "text,width=22,padding=0.3"},
@@ -279,11 +303,15 @@ local function items_tab(player)
 			selected, picked = i, def
 		end
 	end
-	local detail, create = "Select an item.", false
+	local detail, create, missing = "Select an item.", false, nil
 	if picked then
-		local _, ok = needs(player, picked)
+		local _, ok, short = needs(player, picked)
 		detail = picked.description .. "\n" .. picked.info
 		create = ok
+		missing = not ok and ("Missing: " .. short)
+		if already_owned(player, picked) then
+			create, missing = false, "Already owned"
+		end
 	end
 	local fs = {
 		str_gui.list_table({
@@ -296,12 +324,42 @@ local function items_tab(player)
 	if create then
 		fs[#fs + 1] = ("button[%g,%g;%g,%g;create_item;Create]"):format(
 			PART_X, ITEMS_Y + ITEMS_H + 0.3, CREATE_W, PART_BUTTON_H)
+	elseif missing then
+		fs[#fs + 1] = ("hypertext[%g,%g;%g,%g;;<global color=%s size=14>%s]"):format(PART_X,
+			ITEMS_Y + ITEMS_H + 0.3, CREATE_W, BENCH_LABEL_Y - 0.4 - ITEMS_Y - ITEMS_H, str_gui.theme.danger,
+			esc(missing))
 	end
 	fs[#fs + 1] = ("label[%g,%g;Crafted items]"):format(PART_X, BENCH_LABEL_Y)
 	fs[#fs + 1] = ("list[current_player;%s;%g,%g;%d,1;0.25]"):format(BENCH_LIST, PART_X, BENCH_Y, BENCH_SLOTS)
 	fs[#fs + 1] = ("label[%g,%g;Your hotbar]"):format(PART_X, HOTBAR_LABEL_Y)
 	fs[#fs + 1] = ("list[current_player;main;%g,%g;8,1;0.25]"):format(PART_X, HOTBAR_Y)
 	fs[#fs + 1] = ("listring[current_player;%s]listring[current_player;main]"):format(BENCH_LIST)
+	return table.concat(fs)
+end
+
+local SLOTS_LABEL_Y, SLOTS_Y = 3.15, 3.4
+
+local function hull_upgrades_tab(player)
+	local hull_slots = str_machine.hull_slots
+	local equipped = stats.get_level(player, "hull")
+	local slots = stats.get(player).hull_slots or 0
+	local fs = {
+		("style_type[label;font_size=*%g;textcolor=%s]"):format(TITLE_FONT, str_gui.theme.equipped),
+		("label[%g,%g;%s]"):format(PART_X, PART_NAME_Y, esc(equipped.description)),
+		("style_type[label;font_size=*%g;textcolor=%s]"):format(NORMAL_FONT, str_gui.theme.equipped),
+		("label[%g,%g;%s]"):format(PART_X, PART_STAT_Y, esc(("Upgrade slots: %d"):format(slots))),
+		("style_type[label;textcolor=%s]"):format(str_gui.theme.text),
+	}
+	if slots > 0 then
+		fs[#fs + 1] = ("label[%g,%g;Fitted upgrades]"):format(PART_X, SLOTS_LABEL_Y)
+		fs[#fs + 1] = ("list[current_player;%s;%g,%g;%d,1;0.25]"):format(hull_slots.LIST, PART_X, SLOTS_Y, slots)
+		fs[#fs + 1] = ("listring[current_player;%s]listring[current_player;%s]"):format(hull_slots.LIST, BENCH_LIST)
+	else
+		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PART_X, SLOTS_LABEL_Y,
+			esc("This hull has no upgrade slots."))
+	end
+	fs[#fs + 1] = ("label[%g,%g;Crafted items]"):format(PART_X, BENCH_LABEL_Y)
+	fs[#fs + 1] = ("list[current_player;%s;%g,%g;%d,1;0.25]"):format(BENCH_LIST, PART_X, BENCH_Y, BENCH_SLOTS)
 	return table.concat(fs)
 end
 
@@ -324,6 +382,8 @@ local function build(player)
 		fs[#fs + 1] = color_tab(player)
 	elseif tab == "items" then
 		fs[#fs + 1] = items_tab(player)
+	elseif tab == "hull_upgrades" then
+		fs[#fs + 1] = hull_upgrades_tab(player)
 	elseif TAB_CATEGORY[tab] then
 		fs[#fs + 1] = category_tab(player, str_machine_data.get_upgrade(TAB_CATEGORY[tab]))
 	end
@@ -394,7 +454,7 @@ local function handle_item_fields(player, fields)
 	elseif fields.create_item and def then
 		local stack = ItemStack(def.item .. " " .. def.count)
 		local _, ok = needs(player, def)
-		if not ok or not player:get_inventory():room_for_item(BENCH_LIST, stack) then
+		if not ok or already_owned(player, def) or not player:get_inventory():room_for_item(BENCH_LIST, stack) then
 			return
 		end
 		take_materials(player, def.from)

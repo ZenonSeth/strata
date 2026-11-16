@@ -2,6 +2,8 @@ local STEP = 0.0625
 local STEPS = 2
 local CELLS = math.floor(1 / STEP + 0.5)
 local HALF = 0.5
+-- Exposed sides sit this far inside the node so a neighbouring liquid's face does not z-fight them
+local EPS = 1 / 256
 -- Chance per cell of an extra cube on the dip, and of a lip cell being one step lower
 local P_DIP = 0.25
 local P_LIP = 0.25
@@ -91,21 +93,34 @@ local function front_boxes(mask, rand, boxes)
 						used[y * CELLS + x] = true
 					end
 				end
-				boxes[#boxes + 1] = {
-					-HALF + i * STEP, -HALF + j * STEP, -HALF + r * STEP,
-					-HALF + (i + w) * STEP, -HALF + (j + h) * STEP, HALF,
-				}
+				local x1, y1 = -HALF + i * STEP, -HALF + j * STEP
+				local x2, y2 = -HALF + (i + w) * STEP, -HALF + (j + h) * STEP
+				if i == 0 and has(mask, shapes.LEFT) then
+					x1 = x1 + EPS
+				end
+				if i + w == CELLS and has(mask, shapes.RIGHT) then
+					x2 = x2 - EPS
+				end
+				if j == 0 and has(mask, shapes.BOTTOM) then
+					y1 = y1 + EPS
+				end
+				if j + h == CELLS and has(mask, shapes.TOP) then
+					y2 = y2 - EPS
+				end
+				boxes[#boxes + 1] = {x1, y1, -HALF + r * STEP, x2, y2, HALF}
 			end
 		end
 	end
 end
 
--- make(a1, a2, raise, z1, z2) builds the box over span a1..a2 along the edge
+-- make(a1, a2, raise, z1, z2) builds the box over span a1..a2 along the edge; it reaches
+-- one step into the node to cover the EPS gap behind the pulled-back side
+local IN = HALF - STEP
 local EDGES = {
-	{bit = shapes.TOP, make = function(a1, a2, r, z1, z2) return {a1, HALF, z1, a2, HALF + r, z2} end},
-	{bit = shapes.BOTTOM, make = function(a1, a2, r, z1, z2) return {a1, -HALF - r, z1, a2, -HALF, z2} end},
-	{bit = shapes.LEFT, make = function(a1, a2, r, z1, z2) return {-HALF - r, a1, z1, -HALF, a2, z2} end},
-	{bit = shapes.RIGHT, make = function(a1, a2, r, z1, z2) return {HALF, a1, z1, HALF + r, a2, z2} end},
+	{bit = shapes.TOP, make = function(a1, a2, r, z1, z2) return {a1, IN, z1, a2, HALF + r, z2} end},
+	{bit = shapes.BOTTOM, make = function(a1, a2, r, z1, z2) return {a1, -HALF - r, z1, a2, -IN, z2} end},
+	{bit = shapes.LEFT, make = function(a1, a2, r, z1, z2) return {-HALF - r, a1, z1, -IN, a2, z2} end},
+	{bit = shapes.RIGHT, make = function(a1, a2, r, z1, z2) return {IN, a1, z1, HALF + r, a2, z2} end},
 }
 
 -- make(raise, z1, z2) builds the corner block where two exposed edges meet
