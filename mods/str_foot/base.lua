@@ -21,6 +21,15 @@ local NODES_PER_CYCLE = 3.0
 local WALK_RANGE = {x = 1, y = 2}
 local IDLE_RANGE = {x = 0, y = 0.01}
 
+-- In the vehicle the body is hidden from others. Zero size, as the engine resends players with
+-- is_visible forced on; a nametag color with alpha 0 removes the nametag
+local function update_body(player, mode)
+	local on_foot = mode == "foot"
+	local size = on_foot and 1 or 0
+	player:set_properties({visual_size = {x = size, y = size, z = size}})
+	player:set_nametag_attributes({color = {a = on_foot and 255 or 0, r = 255, g = 255, b = 255}})
+end
+
 core.register_on_joinplayer(function(player)
 	player:set_physics_override({speed = PHYSICS_SPEED})
 	player:set_local_animation(IDLE_RANGE, WALK_RANGE, IDLE_RANGE, WALK_RANGE,
@@ -29,10 +38,12 @@ core.register_on_joinplayer(function(player)
 		visual = "mesh",
 		mesh = "str_foot_player.glb",
 		textures = {"str_foot_player.png"},
-		visual_size = {x = 1, y = 1, z = 1},
 		eye_height = 1.62,
 	})
+	update_body(player, str_mode.get(player))
 end)
+
+str_mode.register_on_change(update_body)
 
 -- On foot: normal first person, regular player controls
 str_mode.register_mode("foot", {

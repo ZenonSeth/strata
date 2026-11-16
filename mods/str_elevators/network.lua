@@ -1,4 +1,6 @@
--- One network per x column, in mod storage: {top = y of the surface station, stops = {{y =, name =}, ...}, counter = n}
+-- One network per x column, in mod storage:
+-- {top = y of the surface station, stops = {{y =, name =, owner =}, ...}, counter = n, owner =, private = bool}
+-- Older saves have no owners; the first player to open a station claims them
 local storage = core.get_mod_storage()
 
 -- Nodes between a stop and every other stop or the surface station
@@ -24,12 +26,15 @@ function str_elevators.save_network(x, net)
 	storage:set_string(key(x), net and core.write_json(net) or "")
 end
 
--- Whether another network's column is closer than distance to x (the column x itself counts)
-function str_elevators.network_within(x, distance)
+-- Whether a network of owner (or an unowned one) has its column closer than distance to x
+function str_elevators.network_within(x, distance, owner)
 	for field in pairs(storage:to_table().fields) do
 		local other = tonumber(field:match("^net:(.+)$"))
-		if other and math.abs(other - x) < distance and storage:get_string(field) ~= "" then
-			return true
+		if other and math.abs(other - x) < distance then
+			local net = str_elevators.get_network(other)
+			if net and (not net.owner or net.owner == owner) then
+				return true
+			end
 		end
 	end
 	return false

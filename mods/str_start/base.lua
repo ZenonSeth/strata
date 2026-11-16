@@ -1,12 +1,12 @@
 local storage = core.get_mod_storage()
 
 -- Remove or comment out this block to allow multiplayer
-core.register_on_prejoinplayer(function()
-	if not core.is_singleplayer() then
-		return "Strata is singleplayer only: multiplayer has not been tested.\n"
-			.. "To try it anyway, comment out the singleplayer check in mods/str_start/base.lua."
-	end
-end)
+-- core.register_on_prejoinplayer(function()
+-- 	if not core.is_singleplayer() then
+-- 		return "Strata is singleplayer only: multiplayer has not been tested.\n"
+-- 			.. "To try it anyway, comment out the singleplayer check in mods/str_start/base.lua."
+-- 	end
+-- end)
 
 local grid = str_utils.constants.interior
 local SCHEMATIC = core.get_modpath("str_start") .. "/schems/shop_home.mts"

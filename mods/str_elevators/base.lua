@@ -143,10 +143,61 @@ local function is_live(st, net)
 	return net ~= nil and (st.kind == "surface" or str_elevators.stop_index(net, st.y) ~= nil)
 end
 
+-- A stop's owner is also kept in its node meta, so it stays known once the stop is disconnected
+local OWNER_META = "str_elevators:owner"
+
+local function stop_record(net, y)
+	local i = net and str_elevators.stop_index(net, y)
+	return i and net.stops[i] or nil
+end
+
+local function stop_node_meta(st)
+	return core.get_meta(vector.new(st.x, st.y, SLICE_Z + 1))
+end
+
+-- The network's owner for a surface station, the stop's own for a stop; "" when unknown
+local function station_owner(st, net)
+	if st.kind == "surface" then
+		return net and net.owner or ""
+	end
+	local stop = stop_record(net, st.y)
+	return stop and stop.owner or stop_node_meta(st):get_string(OWNER_META)
+end
+
+local function can_ride(net, name)
+	return not net.private or net.owner == name
+end
+
+-- The network owner may also clear other players' stops off their network
+local function can_pick_up(st, net, name)
+	local owner = station_owner(st, net)
+	return owner == "" or owner == name or (st.kind == "stop" and net ~= nil and net.owner == name)
+end
+
+-- Older saves have no owners: the first player to open a station claims its network and the stop
+local function claim(st, net, name)
+	if not net then
+		return
+	end
+	local changed = false
+	if not net.owner then
+		net.owner, changed = name, true
+	end
+	local stop = st.kind == "stop" and stop_record(net, st.y)
+	if stop and not stop.owner then
+		stop.owner, changed = name, true
+		stop_node_meta(st):set_string(OWNER_META, name)
+	end
+	if changed then
+		str_elevators.save_network(st.x, net)
+	end
+end
+
 local PAD = 0.7
 local WIDTH = 10
 local TABLE_H = 3.4
 local FIELD_W, BUTTON_W, BUTTON_GAP = 5.6, 2.8, 0.2
+local ACCESS_W = 3.4
 local TABLE_COLUMNS = {
 	{title = "Destination", spec = "text,width=14,padding=0.3"},
 	{title = "Depth", spec = "text,width=6,padding=0.3"},
@@ -166,19 +217,29 @@ local function build(player_name)
 	local fs = {str_gui.header(WIDTH, HEIGHT, title)}
 	local y = str_gui.CONTENT_Y + 0.1
 	local live = is_live(st, net)
+	local owner = station_owner(st, net)
+	local owner_note = owner ~= player_name and owner ~= "" and " - Owner: " .. owner or ""
 	local buttons_y = HEIGHT - ROW_H - 0.4
 	local button_x = PAD
 	if not live then
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, y + 0.4, esc("This stop is not connected to a surface station."))
+	elseif not can_ride(net, player_name) then
+		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, y + 0.4, esc("This elevator is private." .. owner_note))
 	else
-		if st.kind == "stop" then
+		if st.kind == "stop" and owner == player_name then
 			fs[#fs + 1] = "field_close_on_enter[name;false]"
 			fs[#fs + 1] = str_gui.input_bg(PAD, y, FIELD_W, ROW_H)
 			fs[#fs + 1] = ("field[%g,%g;%g,%g;name;;%s]"):format(PAD, y, FIELD_W, ROW_H, esc(stop_name(net, st.y)))
 			fs[#fs + 1] = ("button[%g,%g;%g,%g;rename;Rename]"):format(PAD + FIELD_W + BUTTON_GAP, y, BUTTON_W, ROW_H)
+		elseif st.kind == "stop" then
+			fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, y + ROW_H / 2, esc(stop_name(net, st.y) .. owner_note))
 		else
 			fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, y + ROW_H / 2,
-				esc(("%d connected stop%s"):format(#net.stops, #net.stops == 1 and "" or "s")))
+				esc(("%d connected stop%s"):format(#net.stops, #net.stops == 1 and "" or "s") .. owner_note))
+			if net.owner == player_name then
+				fs[#fs + 1] = ("button[%g,%g;%g,%g;access;%s]"):format(WIDTH - PAD - ACCESS_W, y, ACCESS_W, ROW_H,
+					net.private and "Access: Private" or "Access: Public")
+			end
 		end
 		local rows, selected, can_go = {}, 0, false
 		for i, dest in ipairs(destinations(st, net)) do
@@ -197,7 +258,9 @@ local function build(player_name)
 		end
 		button_x = button_x + BUTTON_W + BUTTON_GAP
 	end
-	fs[#fs + 1] = ("button[%g,%g;%g,%g;pickup;Pick up]"):format(button_x, buttons_y, BUTTON_W, ROW_H)
+	if can_pick_up(st, net, player_name) then
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;pickup;Pick up]"):format(button_x, buttons_y, BUTTON_W, ROW_H)
+	end
 	fs[#fs + 1] = ("button_exit[%g,%g;%g,%g;done;Done]"):format(
 		button_x + BUTTON_W + BUTTON_GAP, buttons_y, BUTTON_W, ROW_H)
 	if st.message then
@@ -217,6 +280,12 @@ local function open(player, pos)
 	if not st or str_elevators.is_traveling(name) then
 		return
 	end
+	local net = str_elevators.get_network(st.x)
+	claim(st, net, name)
+	if is_live(st, net) and not can_ride(net, name) and not can_pick_up(st, net, name) then
+		str_utils.show_popup(name, "This elevator is private.", 2, true)
+		return
+	end
 	open_at[name] = st
 	show(name)
 end
@@ -226,6 +295,9 @@ str_interact.register("elevator", {label = "Elevator", on_use = open})
 local function pick_up(player, st)
 	local name = player:get_player_name()
 	local net = str_elevators.get_network(st.x)
+	if not can_pick_up(st, net, name) then
+		return
+	end
 	if st.kind == "surface" and net and #net.stops > 0 and not st.confirm then
 		st.confirm = true
 		show(name, ("%d stop%s will be disconnected. Pick up again to confirm."):format(
@@ -255,11 +327,11 @@ local function pick_up(player, st)
 	core.close_formspec(name, FORMNAME)
 end
 
-local function rename(st, text)
+local function rename(st, text, player_name)
 	local net = str_elevators.get_network(st.x)
 	local i = net and str_elevators.stop_index(net, st.y)
 	local clean = text:gsub("[^%w _'%-%.]", ""):sub(1, NAME_MAX):match("^%s*(.-)%s*$")
-	if not i or clean == "" then
+	if not i or clean == "" or net.stops[i].owner ~= player_name then
 		return
 	end
 	net.stops[i].name = clean
@@ -268,7 +340,7 @@ end
 
 local function go(player, st)
 	local net = str_elevators.get_network(st.x)
-	if not net or not is_live(st, net) or not st.selected then
+	if not net or not is_live(st, net) or not st.selected or not can_ride(net, player:get_player_name()) then
 		return
 	end
 	for _, dest in ipairs(destinations(st, net)) do
@@ -300,7 +372,14 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	if fields.pickup then
 		pick_up(player, st)
 	elseif fields.rename or fields.key_enter_field == "name" then
-		rename(st, fields.name or "")
+		rename(st, fields.name or "", name)
+		show(name)
+	elseif fields.access then
+		local net = str_elevators.get_network(st.x)
+		if st.kind == "surface" and net and net.owner == name then
+			net.private = not net.private
+			str_elevators.save_network(st.x, net)
+		end
 		show(name)
 	elseif fields.go then
 		go(player, st)
@@ -325,15 +404,16 @@ end)
 
 -- Placement: each returns a problem text, or nil once the station is placed
 
-local function place_surface(_, pos)
+local function place_surface(player, pos)
 	if pos.y < SURFACE_Y then
 		return "A surface station must be at or above the surface."
 	end
 	if str_elevators.get_network(pos.x) then
 		return "This column already has a surface station."
 	end
-	if str_elevators.network_within(pos.x, MIN_X_DISTANCE) then
-		return ("Surface stations must be %d metres apart."):format(MIN_X_DISTANCE)
+	local player_name = player:get_player_name()
+	if str_elevators.network_within(pos.x, MIN_X_DISTANCE, player_name) then
+		return ("Your surface stations must be %d metres apart."):format(MIN_X_DISTANCE)
 	end
 	local upper = offset_y(pos, 1)
 	if not (is_ground(offset_y(pos, -1)) and is_clearable(pos) and is_clearable(upper)) then
@@ -341,7 +421,7 @@ local function place_surface(_, pos)
 	end
 	put(pos, "str_elevators:surface_low")
 	put(upper, "str_elevators:surface_high")
-	str_elevators.save_network(pos.x, {top = pos.y, stops = {}, counter = 0})
+	str_elevators.save_network(pos.x, {top = pos.y, stops = {}, counter = 0, owner = player_name, private = false})
 end
 
 local function place_stop(player, pos)
@@ -351,6 +431,10 @@ local function place_stop(player, pos)
 	local net = str_elevators.get_network(pos.x)
 	if not net then
 		return "A stop needs a surface station in this column."
+	end
+	local player_name = player:get_player_name()
+	if not can_ride(net, player_name) then
+		return "This elevator is private."
 	end
 	if not (is_rock(pos) and is_rock(offset_y(pos, -1))) then
 		return "A stop can't be placed here."
@@ -363,9 +447,10 @@ local function place_stop(player, pos)
 		return ("Stops must be %d metres from the surface station and each other."):format(MIN_DISTANCE)
 	end
 	net.counter = (net.counter or 0) + 1
-	net.stops[#net.stops + 1] = {y = pos.y, name = "Stop " .. net.counter}
+	net.stops[#net.stops + 1] = {y = pos.y, name = "Stop " .. net.counter, owner = player_name}
 	str_elevators.save_network(pos.x, net)
 	put(pos, "str_elevators:stop")
+	core.get_meta(pos):set_string(OWNER_META, player_name)
 	open(player, pos)
 end
 
