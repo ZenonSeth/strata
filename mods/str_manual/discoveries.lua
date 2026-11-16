@@ -1,7 +1,8 @@
 local TEXT_COLOR = "#101010"
 local TEXT_SIZE = 16
 local COLUMNS = 2
-local ROW_H = 1.9
+local ROW_H = 1.8
+local NAME_H = 0.42
 local ICON = 0.9
 local MAX_NAMES = 2
 local SCROLLBAR_W = 0.4
@@ -52,7 +53,7 @@ local uses
 local function build_uses()
 	uses = {}
 	for _, def in ipairs(str_materials.list) do
-		uses[def.name] = {fuel = str_materials.fuel[def.name] ~= nil, smelts = {}, upgrades = false}
+		uses[def.name] = {fuel = str_materials.fuel[def.name] ~= nil, smelts = {}, upgrades = false, crafts = false}
 	end
 	for _, def in ipairs(str_materials.list) do
 		if def.kind == "smelted" then
@@ -66,6 +67,11 @@ local function build_uses()
 			for input in pairs(level.from or {}) do
 				uses[input].upgrades = true
 			end
+		end
+	end
+	for _, craftable in ipairs(str_upgrades.craftables) do
+		for input in pairs(craftable.from or {}) do
+			uses[input].crafts = true
 		end
 	end
 end
@@ -87,8 +93,12 @@ local function note(def)
 		end
 		parts[#parts + 1] = "Smelts into " .. table.concat(names, ", ") .. (#use.smelts > MAX_NAMES and " and more." or ".")
 	end
-	if use.upgrades then
+	if use.upgrades and use.crafts then
+		parts[#parts + 1] = "Used for upgrades and workbench items."
+	elseif use.upgrades then
 		parts[#parts + 1] = "Used for upgrades."
+	elseif use.crafts then
+		parts[#parts + 1] = "Used for workbench items."
 	end
 	if #parts == 0 and def.kind ~= "relic" then
 		parts[1] = "Sold for credits."
@@ -115,10 +125,11 @@ local function render(player, sub, area)
 	end
 	local items, total = found_items(player, tab)
 	local esc = core.formspec_escape
-	local fs = {
-		("hypertext[%g,%g;%g,0.7;count;<global color=%s size=%d><b>Found %d / %d</b>]"):format(
-			area.x + PAD, area.y + 0.2, area.w - 2 * PAD, TEXT_COLOR, TEXT_SIZE, #items, total),
-	}
+	local fs = {}
+	if not tab.hidden_until_found then
+		fs[1] = ("hypertext[%g,%g;%g,0.7;count;<global color=%s size=%d><b>Found %d / %d</b>]"):format(
+			area.x + PAD, area.y + 0.2, area.w - 2 * PAD, TEXT_COLOR, TEXT_SIZE, #items, total)
+	end
 	local view_y = area.y + 0.9
 	local view_h = area.h - 0.9 - PAD
 	local view_w = area.w - 2 * PAD - SCROLLBAR_W
@@ -131,9 +142,12 @@ local function render(player, sub, area)
 		local x = ((i - 1) % COLUMNS) * col_w
 		local y = math.floor((i - 1) / COLUMNS) * ROW_H
 		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(x, y + 0.1, ICON, ICON, esc(entry.def.icon))
-		local text = "<b>" .. display_name(entry.def) .. "</b>\n" .. note(entry.def)
-		fs[#fs + 1] = ("hypertext[%g,%g;%g,%g;item_%d;<global color=%s size=%d>%s]"):format(
-			x + ICON + 0.3, y + 0.1, col_w - ICON - 0.5, ROW_H - 0.1, i, TEXT_COLOR, TEXT_SIZE, esc(text))
+		-- Separate elements: a newline in hypertext starts a paragraph with a fixed 10px gap
+		local text_x, text_w = x + ICON + 0.3, col_w - ICON - 0.5
+		fs[#fs + 1] = ("hypertext[%g,%g;%g,%g;name_%d;<global margin=0 color=%s size=%d><b>%s</b>]"):format(
+			text_x, y + 0.1, text_w, NAME_H + 0.1, i, TEXT_COLOR, TEXT_SIZE, esc(display_name(entry.def)))
+		fs[#fs + 1] = ("hypertext[%g,%g;%g,%g;item_%d;<global margin=0 color=%s size=%d>%s]"):format(
+			text_x, y + 0.1 + NAME_H, text_w, ROW_H - 0.1 - NAME_H, i, TEXT_COLOR, TEXT_SIZE, esc(note(entry.def)))
 	end
 	fs[#fs + 1] = "scroll_container_end[]"
 	if content_h > view_h then

@@ -269,13 +269,14 @@ local CRAFTABLES = {
 
 local HULL_UPGRADE_FROM = {
 	["str_machine:hull_liquid_collection"] = {steel = 4, copper_wire = 2, lens_glass = 1},
-	["str_machine:hull_lava_protection"] = {nickel_steel = 4, aquamarine = 2},
+	["str_machine:hull_lava_protection"] = {nickel_steel = 4, gold_wire = 2},
 }
 for _, def in ipairs(str_machine.hull_slots.items) do
 	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, item = def.name, description = def.description, count = 1,
 		from = HULL_UPGRADE_FROM[def.name],
 		info = def.info}
 end
+str_upgrades.craftables = CRAFTABLES
 -- Hull upgrades cannot be destroyed yet, so only one of each may exist
 local function already_owned(player, def)
 	local hull_slots = str_machine.hull_slots
