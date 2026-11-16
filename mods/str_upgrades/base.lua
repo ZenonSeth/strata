@@ -337,8 +337,8 @@ function str_upgrades.show(player_name)
 	end
 end
 
-str_audio.sfx.register("upgrade_bolt", {sound = "str_upgrades_bolt"})
-str_audio.sfx.register("upgrade_strike", {sound = "str_upgrades_metal_strike"})
+str_audio.sfx.register("upgrade_bolt", {sound = "str_upgrades_bolt", gain = 0.4})
+str_audio.sfx.register("upgrade_strike", {sound = "str_upgrades_metal_strike", gain = 0.4})
 
 local STRIKE_GAP = 0.3
 

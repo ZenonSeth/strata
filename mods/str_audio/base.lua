@@ -25,7 +25,7 @@ end
 -- Music: one current track per player
 
 -- Silence between clips of a scheduled track, in seconds
-local MIN_GAP, MAX_GAP = 30, 90
+local MIN_GAP, MAX_GAP = 60, 240
 
 local tracks = {}
 -- player name -> {track = name, handle = handle or nil, clip = sound or nil, last = clip index, job = job or nil}
