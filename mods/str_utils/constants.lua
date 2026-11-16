@@ -32,6 +32,11 @@ return {
 	max_fall_damage = 150,
 	-- Machine in any liquid: sideways speed multiplier, climb top speed as a fraction of thrust, terminal fall speed (nodes/s)
 	liquid = {speed_mult = 0.5, climb_speed_mult = 0.1, max_fall_speed = 4},
+	-- Gas pockets (str_gas): depths in unscaled metres like strata.lua. The chance per drilled stratum node grows
+	-- geometrically from min_chance at start_depth to max_chance at world_depth; damage grows linearly to damage * max_damage_mult.
+	-- Jim's warning mail goes out warning_distance above start_depth
+	gas = {start_depth = 12000, warning_distance = 2000, min_chance = 1e-5, max_chance = 1e-3,
+		damage = 50, max_damage_mult = 2},
 	-- Share of a falling rock's downward speed handed to the machine it hits
 	rock_momentum_transfer = 0.5,
 	fuel = {

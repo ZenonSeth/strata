@@ -86,6 +86,21 @@ return {
 			"Jim",
 		}, "\n"),
 	},
+	jim_gas = {
+		from = "Jim Harlow",
+		subject = "Watch out for gas",
+		text = table.concat({
+			"Hey friend,",
+			"",
+			"Looks like you're getting down there. Word of warning: the deeper you go, the more the rock holds pockets of natural gas.",
+			"",
+			"You can't see them coming. Your drill opens one up and it goes off right in your face, takes a chunk out of your hull and blows the rock around you apart. The further down you dig, the more often it happens and the harder it hits.",
+			"",
+			"Keep your hull patched up before you head deep, and take some repair kits with you just in case.",
+			"",
+			"Jim",
+		}, "\n"),
+	},
 	welcome = {
 		from = "Accounts Receivable, Excelsior Deep Yield Group",
 		subject = "Welcome aboard! Your account summary (ACTION REQUIRED)",
