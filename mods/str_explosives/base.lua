@@ -30,14 +30,20 @@ end
 -- cells() gives {dx, dy} offsets from the machine cell, in the slice plane
 str_explosives.items = {
 	{name = "str_explosives:weak", description = "Weak explosive", image = "str_explosives_weak.png",
-		info = "Destroys nodes up to tier 4 in a circle around the machine; ores and strange objects are lost",
+		info = "Destroys nodes up to tier 4 in a circle around the machine; ground content is destroyed",
 		tier = 4, cells = disc(2)},
 	{name = "str_explosives:line", description = "Line charge", image = "str_explosives_line.png",
-		info = "Horizontal: destroys nodes up to tier 6 in a row, 3 to each side of the machine; ores and strange objects are lost",
+		info = "Horizontal: destroys nodes up to tier 6 in a row, 3 to each side of the machine; ground content is destroyed",
 		tier = 6, cells = row(3)},
 	{name = "str_explosives:tnt", description = "TNT", image = "str_explosives_tnt.png",
-		info = "Destroys nodes up to tier 8 in a large circle around the machine; ores and strange objects are lost",
+		info = "Destroys nodes up to tier 8 in a large circle around the machine; ground content is destroyed",
 		tier = 8, cells = disc(4)},
+	{name = "str_explosives:c4", description = "C4", image = "str_explosives_c4.png",
+		info = "Destroys nodes up to tier 9 in a large circle around the machine; ground content is destroyed",
+		tier = 9, cells = disc(5)},
+	{name = "str_explosives:c4_shaped", description = "Shaped C4", image = "str_explosives_c4_shaped.png",
+		info = "Horizontal: destroys nodes up to tier 9 in a row, 4 to each side of the machine; ground content is destroyed",
+		tier = 9, cells = row(4)},
 }
 
 str_audio.sfx.register("blast", {sound = "str_explosives_blast", max_hear_distance = 48})
