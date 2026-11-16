@@ -15,11 +15,11 @@ return function(world)
 	local floor, ceil, sin, sqrt = math.floor, math.ceil, math.sin, math.sqrt
 	local AVG_SIZE = {
 		pocket = 50 * SIZE ^ 3, vein = 33 * SIZE, seam = 150 * SIZE ^ 2, gem = 2.5, lake = 250 * SIZE ^ 3,
-		clump = 5, boulder = 100,
+		clump = 5, boulder = 100, drop = 1.5,
 	}
 	local REACH = {
 		pocket = ceil(5 * SIZE), vein = ceil(22 * SIZE), seam = ceil(16 * SIZE), gem = 4, lake = ceil(10 * SIZE),
-		clump = 2, boulder = 7,
+		clump = 2, boulder = 7, drop = 1,
 	}
 	-- Must cover the biggest reach of any deposit shape
 	local MARGIN = 0
@@ -60,7 +60,7 @@ return function(world)
 	for _, m in ipairs(world.materials) do
 		local kind = {curve = m.curve, density = m.density}
 		if m.liquid then
-			kind.shape = "lake"
+			kind.shape = m.shape == "drop" and "drop" or "lake"
 			kind.ids = {id(m.name .. "_source")}
 			kind.replace = is_rock
 		else
@@ -144,6 +144,17 @@ return function(world)
 		for _ = 1, rng:next(0, 3) do
 			ox, oy, oz = ox + rng:next(-1, 1), oy + rng:next(-1, 1), oz + rng:next(-1, 1)
 			put(ox, oy, oz)
+		end
+	end
+
+	function shapes.drop(rng, ox, oy, oz, put)
+		put(ox, oy, oz)
+		if rng:next(0, 1) == 0 then
+			if rng:next(0, 1) == 0 then
+				put(ox + rng:next(0, 1) * 2 - 1, oy, oz)
+			else
+				put(ox, oy + rng:next(0, 1) * 2 - 1, oz)
+			end
 		end
 	end
 

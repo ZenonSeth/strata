@@ -33,6 +33,13 @@ return {
 	{name = "lava", shape = "pocket", liquid = true, density = 0.005, curve = {
 		{10500, 0.1}, {13000, 0.5}, {17000, 1}, {20000, 0.8}, {22000, 0.2}, {26000, 0.1}, {31000, 0.1},
 	}},
+	-- Scattered 1-2 node drops above the lakes; a second entry for the same liquid
+	{name = "oil", shape = "drop", liquid = true, density = 0.0004, curve = {
+		{4500, 0.1}, {6000, 0.8}, {7500, 1}, {9500, 0.4}, {11000, 0},
+	}},
+	{name = "lava", shape = "drop", liquid = true, density = 0.0003, curve = {
+		{8000, 0.1}, {9500, 0.7}, {11500, 1}, {14000, 0.3}, {16000, 0},
+	}},
 	{name = "core_ore", shape = "vein", density = 0.01, tier = 10, curve = {
 		{20000, 0.1}, {24000, 0.8}, {28000, 1}, {31000, 1},
 	}},

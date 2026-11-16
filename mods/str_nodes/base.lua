@@ -328,7 +328,7 @@ local FORMATION_SCALE = 1.1
 local FULL_BOX = {type = "fixed", fixed = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}}
 for _, f in ipairs(data.formations) do
 	local file = "str_nodes_formation_" .. f.name .. ".png"
-	for n = 1, data.formation_variants do
+	for n = 1, f.shape ~= "drop" and data.formation_variants or 0 do
 		core.register_node(data.formation_node(f.name, n), {
 			description = f.description,
 			drawtype = "mesh",
@@ -368,7 +368,7 @@ end
 
 for _, m in ipairs(materials) do
 	local l = LIQUIDS[m.name]
-	if m.liquid and l then
+	if m.liquid and l and m.shape ~= "drop" then
 		local file = "str_nodes_liquid_" .. m.name
 		local source_tile, textured = liquid_tile(file .. ".png", fill(l.color), l.source_loop)
 		local flowing_tile = liquid_tile(file .. "_flowing.png", fill(l.color), l.flowing_loop)

@@ -12,23 +12,18 @@ local THEMES = {
 local THEME = "dark_hazy"
 
 local theme = THEMES[THEME]
-local horizon = core.colorspec_to_table(theme.day_horizon)
-sky.DAY_HORIZON = {r = horizon.r, g = horizon.g, b = horizon.b}
+local function rgb(spec)
+	local c = core.colorspec_to_table(spec)
+	return {r = c.r, g = c.g, b = c.b}
+end
+sky.DAY_SKY = rgb(theme.day_sky)
+sky.DAY_HORIZON = rgb(theme.day_horizon)
 
 local bodies_shown = {}
 local clouds_shown = {}
-local colors_sent = {}
 
 function sky.update(player, y)
 	local name = player:get_player_name()
-
-	if not colors_sent[name] then
-		colors_sent[name] = true
-		player:set_sky({sky_color = {
-			day_sky = theme.day_sky,
-			day_horizon = theme.day_horizon,
-		}})
-	end
 
 	local show_bodies = y > HIDE_BODIES_AT
 	if bodies_shown[name] ~= show_bodies then
@@ -59,7 +54,6 @@ function sky.forget(player)
 	local name = player:get_player_name()
 	bodies_shown[name] = nil
 	clouds_shown[name] = nil
-	colors_sent[name] = nil
 end
 
 str_environment.sky = sky
