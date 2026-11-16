@@ -53,14 +53,15 @@ for tier, index in ipairs(LEVELS) do
 	})
 
 	local hull = hulls.levels[index]
+	local top = hulls.levels[index + 1] or hull
 	local hp = hull.stats.max_hull * FRACTION
 	local price = hull.from and build_cost(hull.from) * FRACTION * PRICE_MULT or hp * constants.repair_price_per_hp
 	add({
 		name = "str_consumables:repair_" .. hull.name, kind = "repair", tier = tier, level = index,
 		recipe = hull.from and ("hull:" .. hull.name) or nil, amount = hp,
 		description = ("Repair kit (%g HP)"):format(hp), price = round2(price),
-		info = ("Repairs %g HP (%d%%)"):format(hp, FRACTION * 100), note = "Up to " .. hull.description,
-		tooltip = "Repairs up to: " .. hull.description,
+		info = ("Repairs %g HP (%d%%)"):format(hp, FRACTION * 100), note = "Up to " .. top.description,
+		tooltip = "Repairs up to: " .. top.description,
 		image = icon("repair", tier),
 	})
 end

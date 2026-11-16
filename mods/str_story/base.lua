@@ -1,5 +1,6 @@
 local KEY_DEBT = "str_story:debt"
 local KEY_ENDING_DEBT = "str_story:ending_debt_found"
+local KEY_DEPARTURE_HOLD = "str_story:departure_hold"
 
 -- Whole cents; unset meta means the player has not touched the debt yet
 function str_story.get_debt(player)
@@ -39,4 +40,13 @@ end
 
 function str_story.set_ending_debt_found(player)
 	player:get_meta():set_string(KEY_ENDING_DEBT, "1")
+end
+
+-- Set by the Company's final notice about replying to transmissions; Leave Strata then shows a letter, not the ending
+function str_story.get_departure_hold(player)
+	return player:get_meta():get_string(KEY_DEPARTURE_HOLD) == "1"
+end
+
+function str_story.set_departure_hold(player)
+	player:get_meta():set_string(KEY_DEPARTURE_HOLD, "1")
 end

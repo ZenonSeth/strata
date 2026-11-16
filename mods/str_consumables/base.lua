@@ -52,7 +52,7 @@ local use = {
 		return str_machine.fuel.add(player, def.amount) > 0
 	end,
 	repair = function(player, def)
-		if hull_index(player) > def.level then
+		if hull_index(player) > def.level + 1 then
 			str_utils.show_popup(player:get_player_name(), "This kit is too weak for your hull.", 2, true)
 			return false
 		end

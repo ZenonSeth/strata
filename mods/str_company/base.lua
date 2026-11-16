@@ -280,6 +280,31 @@ local function show_ending(player)
 	}))
 end
 
+-- Shown by Leave Strata instead of the ending while the player is under a departure hold
+local LETTER_FORM = "str_company:departure_letter"
+local LETTER_W, LETTER_H = 12, 8
+local LETTER_TEXT = table.concat({
+	"Dear Miner,",
+	"",
+	"Thank you for your departure request. Your account is currently subject to a Departure Hold.",
+	"",
+	"Your request has been added to the queue for psychological evaluation. "
+		.. "A Company-approved assessor will visit you within 10 to 96 months.",
+	"",
+	"Until then, please continue mining.",
+	"",
+	"Employee Wellbeing Office, Excelsior Deep Yield Group",
+}, "\n")
+
+local function show_letter(player)
+	core.show_formspec(player:get_player_name(), LETTER_FORM, table.concat({
+		str_gui.header(LETTER_W, LETTER_H, "Departure Request"),
+		("hypertext[0.4,%g;%g,%g;;<global color=%s>%s]"):format(str_gui.CONTENT_Y, LETTER_W - 0.8,
+			LETTER_H - str_gui.CONTENT_Y - 1.6, str_gui.theme.text, esc(LETTER_TEXT)),
+		("button[%g,%g;3,%g;letter_close;Close]"):format((LETTER_W - 3) / 2, LETTER_H - 0.4 - BUTTON_H, BUTTON_H),
+	}))
+end
+
 local CONS_COLUMNS = {
 	{title = "Item", spec = "text,width=20,padding=0.3"},
 	{title = "Price", spec = "text,width=9,padding=0.3,tooltip=Price in credits"},
@@ -548,7 +573,11 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		cons_message[name] = nil
 		selected_tab[name], selected_item[name], debt_message[name], buyback_message[name] = tab, nil, nil, nil
 	elseif fields.leave_strata and str_story.get_debt(player) <= 0 then
-		show_ending(player)
+		if str_story.get_departure_hold(player) then
+			show_letter(player)
+		else
+			show_ending(player)
+		end
 		return
 	elseif fields.pay or fields.key_enter_field == "amount" then
 		debt_message[name] = pay_debt(player, fields.amount)
@@ -618,6 +647,12 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		selected_item[name] = row and row.def.name
 	end
 	str_company.show(player)
+end)
+
+core.register_on_player_receive_fields(function(player, formname, fields)
+	if formname == LETTER_FORM and fields.letter_close then
+		core.close_formspec(player:get_player_name(), LETTER_FORM)
+	end
 end)
 
 core.register_on_player_receive_fields(function(player, formname, fields)

@@ -147,6 +147,64 @@ local function hypertext_escape(text)
 	return (text:gsub("[\\<>]", "\\%0"))
 end
 
+-- The row under the log: signal_row[name] = {kind = "decode" or "reply", index = log index}
+local signal_row = {}
+local decode_input, decode_result = {}, {}
+local ROW_Y, ROW_H = HEIGHT - 1.4, 0.9
+local REPLY_GAP = 0.2
+
+local function decoded_line(revealed)
+	local words = {}
+	for i, word in ipairs(revealed) do
+		words[i] = word ~= "" and word or ("<style color=%s>?</style>"):format(muted)
+	end
+	return "Decoded: " .. table.concat(words, " ")
+end
+
+local function signal_controls(name, items)
+	local row = signal_row[name]
+	local labelled = row and items[row.index] and not items[row.index].sent
+	if labelled and row.kind == "reply" then
+		local options = str_transmissions.reply_options(name, row.index)
+		if options then
+			local w = (TABLE_W - REPLY_GAP * (#options - 1)) / #options
+			local fs = {}
+			for i, option in ipairs(options) do
+				local button = "reply_" .. i
+				local x = TABLE_X + (i - 1) * (w + REPLY_GAP)
+				if not option.enabled then
+					fs[#fs + 1] = ("style[%s;textcolor=%s]"):format(button, muted)
+					fs[#fs + 1] = ("tooltip[%s;Decode this signal first]"):format(button)
+				end
+				fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;%s]"):format(x, ROW_Y, w, ROW_H, button,
+					option.enabled and esc(option.label) or "???")
+			end
+			return table.concat(fs)
+		end
+	elseif labelled and row.kind == "decode" then
+		local field_x, field_w, check_w = TABLE_X + 2, 5.6, 1.5
+		local check_x = field_x + field_w + 0.2
+		local result_x = check_x + check_w + 0.2
+		return table.concat({
+			"style_type[label;valign=center]",
+			("label[%g,%g;1.8,%g;%s]"):format(TABLE_X, ROW_Y, ROW_H, esc("Signal " .. row.number)),
+			("label[%g,%g;%g,%g;%s]"):format(result_x, ROW_Y, TABLE_X + TABLE_W - result_x, ROW_H,
+				esc(core.colorize(muted, decode_result[name] or ""))),
+			"style_type[label;valign=top]",
+			str_gui.input_bg(field_x, ROW_Y, field_w, ROW_H),
+			("field[%g,%g;%g,%g;decode_text;;%s]"):format(field_x, ROW_Y, field_w, ROW_H, esc(decode_input[name] or "")),
+			"field_close_on_enter[decode_text;false]",
+			("button[%g,%g;%g,%g;decode_check;Check]"):format(check_x, ROW_Y, check_w, ROW_H),
+		})
+	end
+	return table.concat({
+		"style_type[label;valign=center]",
+		("label[%g,%g;%g,%g;%s]"):format(TABLE_X, ROW_Y, TABLE_W, ROW_H,
+			esc(core.colorize(muted, "Decode a signal to type your reading of it."))),
+		"style_type[label;valign=top]",
+	})
+end
+
 local function transmissions_tab(player, name)
 	local items = str_transmissions.get(name)
 	local open = expanded_analysis[name] or {}
@@ -155,18 +213,46 @@ local function transmissions_tab(player, name)
 		("<global margin=8 color=%s background=#00000055>"):format(text_color),
 		("<tag name=action color=%s hovercolor=%s>"):format(LOG_LINK, LOG_LINK_HOVER),
 	}
+	local numbers, count = {}, 0
+	for i, item in ipairs(items) do
+		if not item.sent then
+			count = count + 1
+			numbers[i] = count
+		end
+	end
 	for i = #items, 1, -1 do
 		local item = items[i]
-		lines[#lines + 1] = ("<style color=%s>Signal %d  %s</style>"):format(LOG_STAMP, i, os.date("%H:%M", item.time))
-		lines[#lines + 1] = str_transmissions.markup(item.text, GLYPH_SIZE)
-		lines[#lines + 1] = ("<action name=analysis_%d>[%s] Signal analysis</action>"):format(i, open[i] and "-" or "+")
-		if open[i] then
-			lines[#lines + 1] = hypertext_escape(item.analysis or "none")
+		local stamp = os.date("%H:%M", item.time)
+		if item.sent then
+			lines[#lines + 1] = ("<style color=%s>Sent  %s</style>"):format(LOG_STAMP, stamp)
+			lines[#lines + 1] = hypertext_escape(item.sent)
+		else
+			lines[#lines + 1] = ("<style color=%s>Signal %d  %s</style>"):format(LOG_STAMP, numbers[i], stamp)
+			lines[#lines + 1] = str_transmissions.markup(item.text, GLYPH_SIZE)
+			local revealed = str_transmissions.revealed(name, i)
+			if revealed and table.concat(revealed) ~= "" then
+				lines[#lines + 1] = decoded_line(revealed)
+			end
+			local links = {("<action name=analysis_%d>[%s] Signal analysis</action>"):format(i, open[i] and "-" or "+")}
+			if not str_transmissions.is_decoded(name, i) then
+				links[#links + 1] = ("<action name=decode_%d>Decode</action>"):format(i)
+			end
+			if str_transmissions.reply_options(name, i) then
+				links[#links + 1] = ("<action name=reply_%d>Reply</action>"):format(i)
+			end
+			lines[#lines + 1] = table.concat(links, "    ")
+			if open[i] then
+				lines[#lines + 1] = hypertext_escape(item.analysis or "none")
+			end
 		end
 		lines[#lines + 1] = ""
 	end
+	local row = signal_row[name]
+	if row then
+		row.number = numbers[row.index]
+	end
 	return ("hypertext[%g,%g;%g,%g;transmission_log;%s]"):format(
-		TABLE_X, TABLE_Y, TABLE_W, LOG_H, esc(table.concat(lines, "\n")))
+		TABLE_X, TABLE_Y, TABLE_W, LOG_H, esc(table.concat(lines, "\n"))) .. signal_controls(name, items)
 end
 
 local VOLUME_STEP = 10
@@ -305,8 +391,9 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	end
 	if fields.quit then
 		-- The Danger Zone tab is never remembered: the inventory reopens on the default tab
-		local reset = armed[name] or selected_tab[name] == "danger"
-		armed[name] = nil
+		-- The decode row closes too, so its field does not grab the inventory key next time
+		local reset = armed[name] or selected_tab[name] == "danger" or signal_row[name]
+		armed[name], signal_row[name] = nil, nil
 		if selected_tab[name] == "danger" then
 			selected_tab[name] = nil
 		end
@@ -354,6 +441,36 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		refresh(player)
 		return
 	end
+	local kind, index = (fields.transmission_log or ""):match("^action:(%a+)_(%d+)$")
+	if kind == "decode" or kind == "reply" then
+		signal_row[name] = {kind = kind, index = tonumber(index)}
+		decode_input[name], decode_result[name] = nil, nil
+		refresh(player)
+		return
+	end
+	local row = signal_row[name]
+	if row and row.kind == "decode" and (fields.decode_check or fields.key_enter_field == "decode_text") then
+		local text = fields.decode_text or ""
+		local new = str_transmissions.decode(name, row.index, text)
+		decode_input[name] = text
+		if not str_transmissions.revealed(name, row.index) then
+			decode_result[name] = "No words found"
+		elseif str_transmissions.is_decoded(name, row.index) then
+			decode_result[name] = "Fully decoded"
+		else
+			decode_result[name] = new == 0 and "No match" or ("%d new word%s"):format(new, new == 1 and "" or "s")
+		end
+		refresh(player)
+		return
+	end
+	for i = 1, 3 do
+		if row and row.kind == "reply" and fields["reply_" .. i] then
+			if str_transmissions.reply(name, row.index, i) then
+				signal_row[name] = nil
+			end
+			return
+		end
+	end
 	if fields.discard or fields.discard10 then
 		if selected_item[name] then
 			local removed = str_machine.cargo.remove(player, selected_item[name], fields.discard10 and 10 or 1)
@@ -373,4 +490,5 @@ core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	selected_tab[name], selected_item[name], armed[name] = nil, nil, nil
 	expanded_analysis[name] = nil
+	signal_row[name], decode_input[name], decode_result[name] = nil, nil, nil
 end)
