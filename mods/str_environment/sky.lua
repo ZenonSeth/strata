@@ -3,6 +3,8 @@ local sky = {}
 -- At and below these y values the sky bodies / the clouds are hidden
 local HIDE_BODIES_AT = -10
 local HIDE_CLOUDS_AT = -20
+-- Matches fog FADE_END, where the sky is fully black
+local HIDE_SUN_AT = -50
 
 local THEMES = {
 	warm_morning = {day_sky = "#7099cc", day_horizon = "#f2d9b0"},
@@ -21,6 +23,7 @@ sky.DAY_HORIZON = rgb(theme.day_horizon)
 
 local bodies_shown = {}
 local clouds_shown = {}
+local sun_shown = {}
 
 function sky.update(player, y)
 	local name = player:get_player_name()
@@ -39,6 +42,12 @@ function sky.update(player, y)
 		end
 	end
 
+	local show_sun = y > HIDE_SUN_AT
+	if sun_shown[name] ~= show_sun then
+		sun_shown[name] = show_sun
+		player:set_sun({visible = show_sun, sunrise_visible = show_sun})
+	end
+
 	local show_clouds = y > HIDE_CLOUDS_AT
 	if clouds_shown[name] ~= show_clouds then
 		clouds_shown[name] = show_clouds
@@ -54,6 +63,7 @@ function sky.forget(player)
 	local name = player:get_player_name()
 	bodies_shown[name] = nil
 	clouds_shown[name] = nil
+	sun_shown[name] = nil
 end
 
 str_environment.sky = sky

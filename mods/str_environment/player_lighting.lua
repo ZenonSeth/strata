@@ -1,7 +1,8 @@
 local player_lighting = {}
 
 local BASE = {
-	shadows = {intensity = 0.33},
+	-- Engine sun direction at the frozen 7am; a set direction keeps shadows on while the sun is hidden
+	shadows = {intensity = 0.33, direction = {x = 0.8996, y = 0.4368, z = 0}},
 	bloom = {intensity = 0.1},
 	volumetric_light = {strength = 0.2},
 	exposure = {
