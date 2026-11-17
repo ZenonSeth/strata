@@ -1,4 +1,5 @@
-local COMMON_GROUPS = {oddly_breakable_by_hand = 1}
+-- No dig groups: only the machine (drill, explosives, lasers) breaks nodes, never the engine's digging
+local COMMON_GROUPS = {}
 
 -- Fresh groups table for solid nodes; overrides add to or replace the common ones
 function str_utils.get_common_groups(overrides)

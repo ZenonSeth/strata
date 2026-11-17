@@ -69,13 +69,16 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
   - `mods/str_elevators/sounds/`
   - `mods/str_explosives/sounds/`
   - `mods/str_interior/sounds/`
+  - `mods/str_lasers/sounds/`
   - `mods/str_machine/sounds/`
   - `mods/str_refuel/sounds/`
   - `mods/str_transmissions/sounds/`
   - `mods/str_upgrades/sounds/` (including the colour spray hiss, `str_upgrades_spray_hiss.ogg`)
 - Textures:
   - `mods/str_manual/textures/` (the manual book and window, generated with a Python script, no third-party images)
-  - `mods/str_machine/textures/`: the machine model textures `str_machine_chassis_*.png`, `str_machine_thruster_*.png`, `str_machine_right_tires.png`, `str_machine_noise.png` and `str_machine_drill_*.png` (generated with Python scripts, no third-party images)
+  - `mods/str_machine/textures/`: the machine model textures `str_machine_chassis_*.png`, `str_machine_thruster_*.png`, `str_machine_right_tires.png`, `str_machine_noise.png`, `str_machine_drill_*.png` and `str_machine_hull_laser_mount.png` (generated with Python scripts, no third-party images)
+  - `mods/str_company/textures/str_company_item.png` (generated with a Python script, no third-party images)
+  - `mods/str_lasers/textures/str_lasers_laser_*.png` and `str_lasers_battery_*.png` (generated with a Python script, no third-party images)
 - Models and schematics:
   - `mods/str_foot/models/str_foot_player.glb`
   - `mods/str_machine/models/digger1.glb`

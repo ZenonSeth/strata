@@ -252,11 +252,23 @@ local function category_tab(player, category)
 end
 
 -- Items made here land in the player's own bench list (shared by every part of the station), then are moved to the hotbar by hand
-local BENCH_LIST, BENCH_SLOTS = "str_upgrades_bench", 8
+local BENCH_LIST, BENCH_SLOTS, BENCH_PAGE = "str_upgrades_bench", 16, 8
 local ITEMS_Y, ITEMS_H = 1.1, 3.0
 local CREATE_W = 3
 local BENCH_LABEL_Y, BENCH_Y = 5.75, 6.0
 local HOTBAR_LABEL_Y, HOTBAR_Y = 7.35, 7.6
+local PAGE_X = PART_X + BENCH_PAGE * 1.25 - 0.25 + 0.2
+
+local bench_page = {}
+
+-- The bench label, one page of its slots and the page button
+local function bench_fs(player)
+	local pages = BENCH_SLOTS / BENCH_PAGE
+	local page = math.min(bench_page[player:get_player_name()] or 1, pages)
+	return ("label[%g,%g;Crafted items]"):format(PART_X, BENCH_LABEL_Y)
+		.. ("list[current_player;%s;%g,%g;%d,1;%d]"):format(BENCH_LIST, PART_X, BENCH_Y, BENCH_PAGE, (page - 1) * BENCH_PAGE)
+		.. ("button[%g,%g;%g,1;bench_page;Pg. %d/%d]"):format(PAGE_X, BENCH_Y, PART_X + PART_W - PAGE_X, page, pages)
+end
 
 -- From is taken from storage, then the cargo hold
 local CRAFTABLES = {
@@ -290,13 +302,30 @@ local CRAFTABLES = {
 		info = "Horizontal: destroys nodes up to tier 9 in a row, 4 to each side of the machine\nGround content is destroyed\nCarry at most 50 in the hotbar"},
 }
 
+-- Entries with recipes are listed only once any of those blueprints is owned
+local lasers = str_machine_data.lasers
+local laser_recipes = str_recipes.laser_recipes
+for _, def in ipairs(lasers.lasers) do
+	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, item = def.item, description = def.description, count = 1,
+		from = def.from, recipes = {str_recipes.item_recipe(def.name)},
+		info = ("Fires a beam up to %d nodes long that breaks nodes up to tier %d\nUses %s per shot from a battery in the hotbar\n"
+			.. "Needs a %s fitted in the hull"):format(def.range, def.tier, str_lasers.format_energy(def.shot_kj),
+			lasers.mount.description:lower())}
+end
+for _, def in ipairs(lasers.batteries) do
+	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, item = def.item, description = def.description, count = 1,
+		from = def.from, recipes = def.blueprint and {str_recipes.item_recipe(def.name)} or laser_recipes,
+		info = ("Holds %s for lasers\nCarry it in the hotbar"):format(str_lasers.format_energy(def.capacity_kj))}
+end
+
 local HULL_UPGRADE_FROM = {
 	["str_machine:hull_liquid_collection"] = {steel = 4, copper_wire = 2, lens_glass = 1},
 	["str_machine:hull_lava_protection"] = {nickel_steel = 4, gold_wire = 2},
+	[lasers.mount.item] = lasers.mount.from,
 }
 for _, def in ipairs(str_machine.hull_slots.items) do
 	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, item = def.name, description = def.description, count = 1,
-		from = HULL_UPGRADE_FROM[def.name],
+		from = HULL_UPGRADE_FROM[def.name], recipes = def.name == lasers.mount.item and laser_recipes or nil,
 		info = def.info}
 end
 str_upgrades.craftables = CRAFTABLES
@@ -316,10 +345,20 @@ local ITEM_COLUMNS = {
 
 local selected_item = {}
 
+local function listed_craftables(player)
+	local list = {}
+	for _, def in ipairs(CRAFTABLES) do
+		if not def.recipes or str_recipes.has_any(player, def.recipes) then
+			list[#list + 1] = def
+		end
+	end
+	return list
+end
+
 local function items_tab(player)
 	local chosen = selected_item[player:get_player_name()]
 	local rows, selected, picked = {}, 0, nil
-	for i, def in ipairs(CRAFTABLES) do
+	for i, def in ipairs(listed_craftables(player)) do
 		local text, ok = needs(player, def, true)
 		local item = def.count > 1 and ("%s x%d"):format(def.description, def.count) or def.description
 		rows[i] = {color = ok and str_gui.theme.text or str_gui.theme.muted, cells = {item, text}}
@@ -353,8 +392,7 @@ local function items_tab(player)
 			ITEMS_Y + ITEMS_H + 0.3, CREATE_W, BENCH_LABEL_Y - 0.4 - ITEMS_Y - ITEMS_H, str_gui.theme.danger,
 			esc(missing))
 	end
-	fs[#fs + 1] = ("label[%g,%g;Crafted items]"):format(PART_X, BENCH_LABEL_Y)
-	fs[#fs + 1] = ("list[current_player;%s;%g,%g;%d,1;0.25]"):format(BENCH_LIST, PART_X, BENCH_Y, BENCH_SLOTS)
+	fs[#fs + 1] = bench_fs(player)
 	fs[#fs + 1] = ("label[%g,%g;Your hotbar]"):format(PART_X, HOTBAR_LABEL_Y)
 	fs[#fs + 1] = ("list[current_player;main;%g,%g;8,1;0.25]"):format(PART_X, HOTBAR_Y)
 	fs[#fs + 1] = ("listring[current_player;%s]listring[current_player;main]"):format(BENCH_LIST)
@@ -382,8 +420,7 @@ local function hull_upgrades_tab(player)
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PART_X, SLOTS_LABEL_Y,
 			esc("This hull has no upgrade slots."))
 	end
-	fs[#fs + 1] = ("label[%g,%g;Crafted items]"):format(PART_X, BENCH_LABEL_Y)
-	fs[#fs + 1] = ("list[current_player;%s;%g,%g;%d,1;0.25]"):format(BENCH_LIST, PART_X, BENCH_Y, BENCH_SLOTS)
+	fs[#fs + 1] = bench_fs(player)
 	return table.concat(fs)
 end
 
@@ -464,8 +501,9 @@ end
 
 local function handle_item_fields(player, fields)
 	local name = player:get_player_name()
+	local listed = listed_craftables(player)
 	local def
-	for _, candidate in ipairs(CRAFTABLES) do
+	for _, candidate in ipairs(listed) do
 		if candidate.name == selected_item[name] then
 			def = candidate
 		end
@@ -475,7 +513,7 @@ local function handle_item_fields(player, fields)
 		if event.type ~= "CHG" and event.type ~= "DCL" then
 			return
 		end
-		selected_item[name] = CRAFTABLES[event.row] and CRAFTABLES[event.row].name
+		selected_item[name] = listed[event.row] and listed[event.row].name
 	elseif fields.create_item and def then
 		local stack = ItemStack(def.item .. " " .. def.count)
 		local _, ok = needs(player, def)
@@ -527,6 +565,12 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	if tab then
 		selected_tab[player:get_player_name()] = tab
 		str_upgrades.show(player:get_player_name())
+		return
+	end
+	if fields.bench_page then
+		local name = player:get_player_name()
+		bench_page[name] = (bench_page[name] or 1) % (BENCH_SLOTS / BENCH_PAGE) + 1
+		str_upgrades.show(name)
 		return
 	end
 	if selected_tab[player:get_player_name()] == "items" then
@@ -592,6 +636,7 @@ core.register_on_leaveplayer(function(player)
 	selected_level[player:get_player_name()] = nil
 	selected_item[player:get_player_name()] = nil
 	selected_part[player:get_player_name()] = nil
+	bench_page[player:get_player_name()] = nil
 end)
 
 str_interior.register_on_use(str_utils.constants.interact.upgrade, str_upgrades.show)

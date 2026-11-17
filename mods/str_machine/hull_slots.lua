@@ -13,6 +13,9 @@ hull_slots.items = {
 		info = "Hull upgrade, protects from lava for a time",
 		image = "str_machine_hull_lava_protection.png"},
 }
+local mount = str_machine_data.lasers.mount
+hull_slots.items[#hull_slots.items + 1] = {name = mount.item, description = mount.description, info = mount.info,
+	image = mount.image}
 
 for _, def in ipairs(hull_slots.items) do
 	core.register_craftitem(def.name, {

@@ -21,7 +21,7 @@ local shapes = str_nodes.shapes
 -- base name -> {[mask] = {node names}}, mask 0 being the base itself
 local shaped = {}
 
--- Solid hand-diggable node plus its shaped variants (masks 1..15 with shapes.VARIANTS rough
+-- Solid node plus its shaped variants (masks 1..15 with shapes.VARIANTS rough
 -- variants each, see shapes.lua); def.groups, if given, overrides the common groups
 function str_nodes.register_shaped_node(name, def)
 	def = table.copy(def)

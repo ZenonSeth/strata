@@ -60,6 +60,29 @@ for _, category in ipairs(str_machine_data.upgrades) do
 	end
 end
 
+-- Recipe name of a created item blueprint, e.g. "laser_red" -> "item:laser_red"
+function str_recipes.item_recipe(name)
+	return "item:" .. name
+end
+
+local lasers = str_machine_data.lasers
+str_recipes.laser_recipes = {}
+local function add_item(def)
+	add({
+		name = str_recipes.item_recipe(def.name), description = def.description, kind = "item",
+		from = def.from, price = round2(build_cost(def.from) * constants.upgrade_recipe_mult),
+	})
+end
+for _, def in ipairs(lasers.lasers) do
+	add_item(def)
+	str_recipes.laser_recipes[#str_recipes.laser_recipes + 1] = str_recipes.item_recipe(def.name)
+end
+for _, def in ipairs(lasers.batteries) do
+	if def.blueprint then
+		add_item(def)
+	end
+end
+
 function str_recipes.get(name)
 	return str_recipes.items[name]
 end
@@ -192,6 +215,15 @@ end
 function str_recipes.is_available(player, name)
 	local def = str_recipes.items[name]
 	return def ~= nil and (def.open or all_found(load("found", player:get_player_name()), def.from))
+end
+
+function str_recipes.has_any(player, names)
+	for _, name in ipairs(names) do
+		if str_recipes.has(player, name) then
+			return true
+		end
+	end
+	return false
 end
 
 function str_recipes.can_buy(player, name)

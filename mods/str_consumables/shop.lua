@@ -76,12 +76,24 @@ local function sell_inv(player)
 	return core.get_inventory({type = "detached", name = str_consumables.sell_inventory_name(player)})
 end
 
+-- Other items the sell area takes, at sell_fraction of this full value per item
+local extra_prices = {}
+
+function str_consumables.register_sellable(item_name, value)
+	extra_prices[item_name] = value
+end
+
+local function full_price(item_name)
+	local def = str_consumables.items[item_name]
+	return def and def.price or extra_prices[item_name]
+end
+
 function str_consumables.sell_value(player)
 	local value = 0
 	for _, stack in ipairs(sell_inv(player):get_list(SELL_LIST)) do
-		local def = str_consumables.items[stack:get_name()]
-		if def then
-			value = value + stack:get_count() * def.price * str_consumables.sell_fraction
+		local price = full_price(stack:get_name())
+		if price then
+			value = value + stack:get_count() * price * str_consumables.sell_fraction
 		end
 	end
 	return round2(value)
@@ -124,7 +136,7 @@ local function changed(player)
 end
 
 local function sellable(stack)
-	return str_consumables.items[stack:get_name()] and stack:get_count() or 0
+	return full_price(stack:get_name()) and stack:get_count() or 0
 end
 
 core.register_on_joinplayer(function(player)

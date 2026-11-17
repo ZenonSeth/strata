@@ -61,6 +61,8 @@ return {
 	upgrade_recipe_mult = 4,
 	-- Credits per hit point the repair station charges for the stock hull (other hulls cost materials)
 	repair_price_per_hp = 2,
+	-- Credits per MJ the refuel station charges to recharge a laser battery
+	recharge_price_per_mj = 5,
 	-- Story: what the player owes the company at the start, in credits
 	story = {starting_debt = 10000000},
 	-- Gauge bar colors, shared by the HUD and the station windows

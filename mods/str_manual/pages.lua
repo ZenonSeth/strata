@@ -71,3 +71,19 @@ str_manual.register_page("drill", "Drill", lines(
 	"<b>Speed</b>",
 	"A better bit also digs faster. How long a node takes depends on how hard it is and how fast your drill is, so tough rock takes longer than soft rock."
 ))
+
+str_manual.register_page("demolition", "Demolition", lines(
+	"<b>Explosives and lasers</b>",
+	"Both can break nodes your drill bit is too weak for, up to their own tier. Make them in the Create Items tab of the upgrade station, then move them to your hotbar. Select one in the hotbar and press use (left click) while in the machine. Like everything in the hotbar, they are lost if the machine is destroyed.",
+	"",
+	"<b>Explosives</b>",
+	"Each explosive is used up when it goes off. It blasts the nodes around the machine, and whatever they held is destroyed with them. Round charges clear a circle; line and shaped charges clear a row to each side. You can carry up to 50 of each kind.",
+	"",
+	"<b>Lasers</b>",
+	"A laser needs its blueprint from the company shop, and three things to fire: the laser in your hotbar, a laser mounting point fitted in the hull, and a battery in your hotbar. Buying any laser blueprint lets you make the mounting point and the small battery.",
+	"With a laser selected, a crosshair appears. Aim it at a node in your slice and click to fire. The beam runs from the machine towards that node, up to the laser's range, and breaks everything on the way. It stops at the first node too hard for it. Gems survive the beam and are left behind as a pile to collect; everything else it breaks is destroyed.",
+	"Red, green and blue lasers reach further and break harder rock in that order, and the stronger ones take more energy per shot.",
+	"",
+	"<b>Batteries</b>",
+	"Each shot takes energy from the first battery in your hotbar that has enough. The bar under a battery shows how much charge is left. A battery that is too low for a shot stays in the hotbar; carry a bigger one, or several. Recharge batteries at the refuel station for credits per MJ; the battery section shows while one is in your hotbar, and the > button picks the next one. Bigger batteries need their own blueprints."
+))

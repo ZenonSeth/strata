@@ -26,6 +26,17 @@ local format_credits = resources.format_credits
 
 str_audio.sfx.register("shop_register", {sound = "str_company_register"})
 
+-- Crafted items sell like consumables, valued at their material cost per item
+for _, def in ipairs(str_upgrades.craftables) do
+	local cost = 0
+	for material, amount in pairs(def.from or {}) do
+		cost = cost + str_materials.get(material).price * amount
+	end
+	if cost > 0 then
+		str_consumables.register_sellable(def.item, cost / def.count)
+	end
+end
+
 local function play_register(player)
 	str_audio.sfx.play("shop_register", {player = player})
 end
@@ -97,9 +108,9 @@ for _, category in ipairs(str_machine_data.upgrades) do
 	category_titles[category.id] = category.title
 end
 
--- Icon cell value 1 is a smelter recipe (paper), 2 an upgrade (arrow)
+-- Icon cell value 1 is a smelter recipe (paper), 2 an upgrade (arrow), 3 a created item
 local RECIPE_COLUMNS = {
-	{title = "", spec = "image,align=center,padding=0.3,width=1.5,1=str_company_recipe.png,2=str_company_upgrade.png"},
+	{title = "", spec = "image,align=center,padding=0.3,width=1.5,1=str_company_recipe.png,2=str_company_upgrade.png,3=str_company_item.png"},
 	{title = "Recipe", spec = "text,width=24,padding=0.3"},
 	{title = "Price", spec = "text,width=9,padding=0.3,tooltip=Price in credits"},
 }
@@ -161,7 +172,7 @@ local function recipe_table(player, selected_name)
 		rows[i] = recipe.spacer and {cells = {"", "", ""}} or {
 			color = (available and not owned) and str_gui.theme.text or str_gui.theme.muted,
 			cells = {
-				recipe.kind == "material" and "1" or "2",
+				recipe.kind == "material" and "1" or (recipe.kind == "item" and "3" or "2"),
 				recipe.description,
 				owned and "Owned" or (available and format_credits(recipe.price) or "Locked"),
 			},
@@ -214,14 +225,15 @@ local function recipes_tab(player, name)
 	local recipe = str_recipes.get(selected_item[name] or "")
 	local fs = {recipe_table(player, selected_item[name])}
 	local legend_y = TABLE_Y + BUY_TABLE_H + 0.15
-	for i, key in ipairs({"recipe", "upgrade"}) do
+	local legend_text = {recipe = "= Recipe", upgrade = "= Upgrade", item = "= Item"}
+	for i, key in ipairs({"recipe", "upgrade", "item"}) do
 		local x = TABLE_X + (i - 1) * LEGEND_STEP
 		fs[#fs + 1] = ("image[%g,%g;%g,%g;str_company_%s.png]"):format(x, legend_y, LEGEND_ICON, LEGEND_ICON, key)
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(x + LEGEND_ICON + 0.15, legend_y + LEGEND_ICON / 2,
-			key == "recipe" and "= Recipe" or "= Upgrade")
+			legend_text[key])
 	end
 	local lines = {"Select a recipe to see its details."}
-	if recipe and recipe.kind ~= "material"
+	if recipe and str_machine_data.get_upgrade(recipe.kind)
 			and (str_recipes.has(player, recipe.name) or str_recipes.is_available(player, recipe.name)) then
 		fs[#fs + 1] = stats_box(recipe, legend_y)
 	end
@@ -236,7 +248,7 @@ local function recipes_tab(player, name)
 		end
 		lines = {
 			recipe.description,
-			{"Type: ", recipe.kind == "material" and "Crafting recipe"
+			{"Type: ", recipe.kind == "material" and "Crafting recipe" or recipe.kind == "item" and "Item blueprint"
 				or "Upgrade for " .. (category_titles[recipe.kind] or recipe.kind):lower()},
 			{"Cost: ", cost},
 			{"Requires: ", ingredients_text(player, recipe)},
@@ -350,7 +362,7 @@ local function consumables_tab(player, name)
 	fs[#fs + 1] = ("label[%g,%g;%g,1.8;%s]"):format(
 		TABLE_X + 5.8, CONS_BUY_Y, TABLE_W - 5.8, esc(table.concat(lines, "\n")))
 	fs[#fs + 1] = "style_type[label;valign=center]"
-	fs[#fs + 1] = ("label[%g,%g;5,0.5;Sell area (50%% of price)]"):format(TABLE_X, CONS_SELL_Y)
+	fs[#fs + 1] = ("label[%g,%g;5,0.5;Sell area (50%% of value)]"):format(TABLE_X, CONS_SELL_Y)
 	local inv = str_consumables.sell_inventory_name(player)
 	fs[#fs + 1] = ("list[detached:%s;sell;%g,%g;%d,1;0.25]"):format(inv, TABLE_X, CONS_SLOTS_Y, SELL_SLOTS)
 	fs[#fs + 1] = ("label[%g,%g;%g,0.5;Your hotbar]"):format(TABLE_X, INV_Y - 0.7, TABLE_W)

@@ -61,3 +61,5 @@ for _, file in ipairs({"tanks", "hulls", "cargo", "thrusters", "drills", "engine
 	by_id[category.id] = category
 	table.insert(str_machine_data.upgrades, category)
 end
+
+str_machine_data.lasers = dofile(str_machine_data.modpath .. "/lasers.lua")
