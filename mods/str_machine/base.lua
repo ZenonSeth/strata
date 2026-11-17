@@ -227,25 +227,26 @@ end
 local colors = str_machine.colors
 local color_listeners = {}
 
--- Entity textures for the player's chosen colors (the defaults without a player)
-function str_machine.model_textures(player)
-	return colors.textures(colors.get(player))
-end
-
+-- The player's chosen colors plus the equipped thruster kind and drill level (the defaults without a player)
 function str_machine.get_colors(player)
-	return colors.get(player)
+	local chosen = colors.get(player)
+	if player then
+		chosen.thruster_kind = stats.get_level(player, "thrusters").kind
+		chosen.drill = stats.get_level(player, "drill").name
+	end
+	return chosen
 end
 
--- fn(player, textures) runs after a color changes, so display models can follow
+function str_machine.model_textures(player)
+	return colors.textures(str_machine.get_colors(player))
+end
+
+-- fn(player, textures) runs after the model look changes (colors or parts), so display models can follow
 function str_machine.register_on_colors_changed(fn)
 	color_listeners[#color_listeners + 1] = fn
 end
 
--- key is "frame" or "panel", hex is "#rrggbb"; updates the machine now and the display models via listeners
-function str_machine.set_color(player, key, hex)
-	if not colors.set(player, key, hex) then
-		return false
-	end
+local function refresh_model(player)
 	local textures = str_machine.model_textures(player)
 	local session = sessions[player:get_player_name()]
 	if session and session.obj:is_valid() then
@@ -254,6 +255,17 @@ function str_machine.set_color(player, key, hex)
 	for _, fn in ipairs(color_listeners) do
 		fn(player, textures)
 	end
+end
+
+stats.register_on_change(refresh_model)
+core.register_on_joinplayer(refresh_model)
+
+-- key is a colors.defaults key, hex is "#rrggbb"; updates the machine now and the display models via listeners
+function str_machine.set_color(player, key, hex)
+	if not colors.set(player, key, hex) then
+		return false
+	end
+	refresh_model(player)
 	return true
 end
 

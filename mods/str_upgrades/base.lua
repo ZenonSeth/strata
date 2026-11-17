@@ -28,17 +28,25 @@ local SWATCHES = {
 	{"#2b2521", "#40372f", "#574b40", "#716354", "#8c7c6b", "#a89784", "#c4b5a1", "#ddd0bd"},
 	{"#1f242b", "#303843", "#444f5d", "#5b6878", "#748294", "#8f9dad", "#aebbc8", "#cfd9e2"},
 	{"#a2807e", "#ad977e", "#ada97e", "#849b84", "#7ea0a2", "#808faa", "#9784a6", "#aa8497"},
+	{"#f07a6e", "#f5a85e", "#f2e46a", "#86d886", "#6fdcdc", "#7aa8f2", "#b98af0", "#f28abf"},
+	{"#c8382e", "#d9782a", "#d8c22e", "#4aa64a", "#2fa5a8", "#3a6fd0", "#8a4fc8", "#d04f8f"},
 	{"#7a4a46", "#8a6a46", "#8a8446", "#4f7050", "#46787a", "#4a5f85", "#6a4f80", "#85506a"},
 	{"#492c2a", "#53402a", "#534f2a", "#2f4330", "#2a4849", "#2c3950", "#402f4d", "#503040"},
 }
 
 local SWATCH = 0.6
 local SWATCH_GAP = 0.1
-local SWATCH_SECTIONS = {
-	{key = "frame", title = "Frame", x = 0.7},
-	{key = "panel", title = "Panels", x = 6.9},
+local COLOR_PARTS = {
+	{key = "frame", title = "Frame"},
+	{key = "panel", title = "Panels"},
+	{key = "spokes", title = "Rims"},
+	{key = "thruster", title = "Thrusters"},
+	{key = "ladder", title = "Ladder"},
 }
-local SWATCH_Y = 2.2
+local SWATCH_X, SWATCH_Y = 0.7, 2.6
+local PART_ROW_Y, PART_ROW_H = 1.6, 0.7
+local PART_TAB_W, PART_TAB_GAP = 2.2, 0.15
+local GRID_X = (WIDTH - (#SWATCHES[1] * (SWATCH + SWATCH_GAP) - SWATCH_GAP)) / 2
 
 -- Tabs that list the parts of an upgrade category (str_machine_data.upgrades)
 local TAB_CATEGORY = {lights = "lights", fuel = "tank", hull = "hull", cargo = "cargo", drill = "drill", engine = "engine", thrusters = "thrusters"}
@@ -56,6 +64,8 @@ local CONDITION_COLUMN = {title = "Condition", spec = "text,width=8,padding=0.3"
 local STATE_COLUMN = {title = "State", spec = "text,width=6,padding=0.3"}
 
 local selected_tab = {}
+-- player name -> index into COLOR_PARTS
+local selected_part = {}
 -- player name -> category id -> selected level name
 local selected_level = {}
 
@@ -69,22 +79,29 @@ local function tab_title(id)
 end
 
 local function color_tab(player)
-	local chosen = str_machine.get_colors(player)
+	local index = selected_part[player:get_player_name()] or 1
+	local key = COLOR_PARTS[index].key
+	local current = str_machine.get_colors(player)[key]
 	local fs = {}
-	for _, section in ipairs(SWATCH_SECTIONS) do
-		fs[#fs + 1] = ("label[%g,%g;%s]"):format(section.x, SWATCH_Y - 0.4, section.title)
-		for row, family in ipairs(SWATCHES) do
-			for col, hex in ipairs(family) do
-				local x = section.x + (col - 1) * (SWATCH + SWATCH_GAP)
-				local y = SWATCH_Y + (row - 1) * (SWATCH + SWATCH_GAP)
-				local name = ("swatch_%s_%d_%d"):format(section.key, row, col)
-				local img = core.formspec_escape("[fill:8x8:" .. hex)
-				if hex == chosen[section.key] then
-					fs[#fs + 1] = ("box[%g,%g;%g,%g;#e0a020]"):format(x - 0.05, y - 0.05, SWATCH + 0.1, SWATCH + 0.1)
-				end
-				fs[#fs + 1] = ("style[%s;bgimg=%s;bgimg_hovered=%s;bgimg_pressed=%s]"):format(name, img, img, img)
-				fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;]"):format(x, y, SWATCH, SWATCH, name)
+	for i, part in ipairs(COLOR_PARTS) do
+		local x = SWATCH_X + (i - 1) * (PART_TAB_W + PART_TAB_GAP)
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;color_part_%d;%s]"):format(x, PART_ROW_Y, PART_TAB_W, PART_ROW_H, i,
+			core.formspec_escape(part.title))
+		if i == index then
+			fs[#fs + 1] = ("box[%g,%g;%g,0.06;#e0a020]"):format(x, PART_ROW_Y + PART_ROW_H + 0.02, PART_TAB_W)
+		end
+	end
+	for row, family in ipairs(SWATCHES) do
+		for col, hex in ipairs(family) do
+			local x = GRID_X + (col - 1) * (SWATCH + SWATCH_GAP)
+			local y = SWATCH_Y + (row - 1) * (SWATCH + SWATCH_GAP)
+			local name = ("swatch_%d_%d"):format(row, col)
+			local img = core.formspec_escape("[fill:8x8:" .. hex)
+			if hex == current then
+				fs[#fs + 1] = ("box[%g,%g;%g,%g;#e0a020]"):format(x - 0.05, y - 0.05, SWATCH + 0.1, SWATCH + 0.1)
 			end
+			fs[#fs + 1] = ("style[%s;bgimg=%s;bgimg_hovered=%s;bgimg_pressed=%s]"):format(name, img, img, img)
+			fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;]"):format(x, y, SWATCH, SWATCH, name)
 		end
 	end
 	return table.concat(fs)
@@ -406,6 +423,7 @@ end
 
 str_audio.sfx.register("upgrade_bolt", {sound = "str_upgrades_bolt", gain = 0.4})
 str_audio.sfx.register("upgrade_strike", {sound = "str_upgrades_metal_strike", gain = 0.4})
+str_audio.sfx.register("upgrade_spray", {sound = "str_upgrades_spray_hiss", gain = 0.4})
 
 local STRIKE_GAP = 0.3
 
@@ -520,13 +538,31 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		handle_category_fields(player, category, fields)
 		return
 	end
-	for field in pairs(fields) do
-		local key, row, col = field:match("^swatch_(%a+)_(%d+)_(%d+)$")
-		local hex = key and SWATCHES[tonumber(row)] and SWATCHES[tonumber(row)][tonumber(col)]
-		if hex and str_machine.set_color(player, key, hex) then
-			str_upgrades.show(player:get_player_name())
-			return
+	local name = player:get_player_name()
+	if (selected_tab[name] or TABS[1].id) ~= "color" then
+		return
+	end
+	local changed = false
+	for i in ipairs(COLOR_PARTS) do
+		if fields["color_part_" .. i] and i ~= (selected_part[name] or 1) then
+			selected_part[name] = i
+			changed = true
 		end
+	end
+	local key = COLOR_PARTS[selected_part[name] or 1].key
+	for field in pairs(fields) do
+		local row, col = field:match("^swatch_(%d+)_(%d+)$")
+		local hex = row and SWATCHES[tonumber(row)] and SWATCHES[tonumber(row)][tonumber(col)]
+		if hex then
+			if str_machine.set_color(player, key, hex) then
+				str_audio.sfx.play("upgrade_spray", {player = player})
+				changed = true
+			end
+			break
+		end
+	end
+	if changed then
+		str_upgrades.show(name)
 	end
 end)
 
@@ -555,6 +591,7 @@ core.register_on_leaveplayer(function(player)
 	selected_tab[player:get_player_name()] = nil
 	selected_level[player:get_player_name()] = nil
 	selected_item[player:get_player_name()] = nil
+	selected_part[player:get_player_name()] = nil
 end)
 
 str_interior.register_on_use(str_utils.constants.interact.upgrade, str_upgrades.show)

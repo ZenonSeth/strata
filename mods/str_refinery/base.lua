@@ -35,6 +35,9 @@ end)
 
 local selected_recipe, selected_fuel, messages = {}, {}, {}
 
+-- Engine picks one of str_refinery_craft.N.ogg at random
+str_audio.sfx.register("refinery_craft", {sound = "str_refinery_craft"})
+
 local function desc(name)
 	return str_materials.get(name).description
 end
@@ -139,6 +142,7 @@ local function refine(player, recipe, fuel_name, count, fuel_mult)
 	if made == 0 then
 		return reason
 	end
+	str_audio.sfx.play("refinery_craft", {player = player})
 	return ("Made %d %s.%s"):format(made, recipe.description, reason and (" Stopped: " .. reason) or "")
 end
 

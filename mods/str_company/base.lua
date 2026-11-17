@@ -24,6 +24,12 @@ local num = str_inventory.num
 local resources = str_player_resources
 local format_credits = resources.format_credits
 
+str_audio.sfx.register("shop_register", {sound = "str_company_register"})
+
+local function play_register(player)
+	str_audio.sfx.play("shop_register", {player = player})
+end
+
 local selected_tab = {}
 local selected_item = {}
 local debt_message = {}
@@ -462,7 +468,7 @@ local function buy_back(player, item, count)
 		table.remove(list, entry_index)
 	end
 	save_buyback(player)
-	return ("Bought %d %s for %s credits."):format(added, def.description, format_credits(added * unit))
+	return ("Bought %d %s for %s credits."):format(added, def.description, format_credits(added * unit)), added
 end
 
 local function buyback_tab(player, name)
@@ -540,6 +546,7 @@ local function sell(player, item, count, store)
 		str_transmissions.count_relic(player:get_player_name(), item, "sold", removed)
 		record_sale(player, item, removed)
 	end
+	return removed
 end
 
 local function pay_debt(player, text)
@@ -582,20 +589,32 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	elseif fields.pay or fields.key_enter_field == "amount" then
 		debt_message[name] = pay_debt(player, fields.amount)
 	elseif (fields.buy_back_1 or fields.buy_back_10 or fields.buy_back_100) and selected_item[name] then
-		buyback_message[name] = buy_back(player, selected_item[name],
+		local message, added = buy_back(player, selected_item[name],
 			fields.buy_back_100 and 100 or fields.buy_back_10 and 10 or 1)
+		buyback_message[name] = message
+		if added then
+			play_register(player)
+		end
 	elseif fields.sell_src_cargo or fields.sell_src_storage then
 		sell_source[name] = fields.sell_src_cargo and "cargo" or "storage"
 		selected_item[name] = nil
 	elseif fields.sell_one and selected_item[name] then
-		sell(player, selected_item[name], 1, current_source(name).store())
+		if sell(player, selected_item[name], 1, current_source(name).store()) > 0 then
+			play_register(player)
+		end
 	elseif fields.sell_stack and selected_item[name] then
 		local store = current_source(name).store()
-		sell(player, selected_item[name], store.get(player)[selected_item[name]] or 0, store)
+		if sell(player, selected_item[name], store.get(player)[selected_item[name]] or 0, store) > 0 then
+			play_register(player)
+		end
 	elseif fields.sell_all then
 		local store = current_source(name).store()
+		local sold = 0
 		for item, count in pairs(store.get(player)) do
-			sell(player, item, count, store)
+			sold = sold + sell(player, item, count, store)
+		end
+		if sold > 0 then
+			play_register(player)
 		end
 	elseif fields.buy_recipe and selected_item[name] then
 		local recipe = str_recipes.get(selected_item[name])
@@ -607,6 +626,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 				end
 			end
 			str_recipes.unlock(player, recipe.name)
+			play_register(player)
 			-- The bought recipe moves to the owned end; keep the row, so the view does not jump
 			local list = visible_recipes(player)
 			local next_recipe = list[math.min(index, #list)]
@@ -616,11 +636,17 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 			selected_item[name] = next_recipe and next_recipe.name
 		end
 	elseif (fields.buy_cons_1 or fields.buy_cons_10) and selected_item[name] then
-		local _, message = str_consumables.buy(player, selected_item[name], fields.buy_cons_10 and 10 or 1)
+		local bought, message = str_consumables.buy(player, selected_item[name], fields.buy_cons_10 and 10 or 1)
 		cons_message[name] = message
+		if bought > 0 then
+			play_register(player)
+		end
 	elseif fields.sell_cons then
 		local value = str_consumables.sell(player)
 		cons_message[name] = value > 0 and ("Sold for %s credits."):format(format_credits(value)) or nil
+		if value > 0 then
+			play_register(player)
+		end
 	elseif fields.consumables then
 		local event = core.explode_table_event(fields.consumables)
 		if event.type ~= "CHG" and event.type ~= "DCL" then

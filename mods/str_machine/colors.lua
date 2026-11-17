@@ -1,39 +1,49 @@
--- Model colors: the glb texture slots are filled with solid colors; frame and panel are the player's choice
+-- Model textures: each glb texture slot gets a solid color, a fixed texture, a player-picked color or an upgrade look
 local colors = {}
 
 local META_KEY = "str_machine:colors"
-local LADDER_COLOR = "#9a8530"
 
-colors.defaults = {frame = "#34373b", panel = "#8a8d91"}
+colors.defaults = {frame = "#34373b", panel = "#8a8d91", spokes = "#aaacb0", thruster = "#55585c", ladder = "#7a671d"}
 
--- Keyed by the glb texture name (without .png); "frame" and "panel" are the configurable ones
+local THRUSTER_INNER = {propeller = "#3c3e42", jet = "#6f7f94", rocket = "#a5552e"}
+-- Drill level name -> cone texture
+local DRILL_TEXTURES = {}
+for _, level in ipairs(str_machine_data.get_upgrade("drill").levels) do
+	DRILL_TEXTURES[level.name] = "str_machine_drill_" .. level.name .. ".png"
+end
+
+-- Near-white noise tinted by a fixed color
+local function noise(hex)
+	return {texture = "str_machine_noise.png", tint = hex}
+end
+
+-- Keyed by glb texture name: a color, a colors.defaults key, {texture, tint = key or color}, {texture, thruster_kind} or {drill}
 local MODEL_COLORS = {
-	rear_drive_shaft = "#5a5f64",
-	rear_differential = "#6e6e73",
-	gas_strut_lower = "#8c9196",
-	gast_strut = "#b9bec3",
-	drive_shaft_rear = "#5a5f64",
-	metal_front_support = "#64686e",
-	gas_strut_front_bottom = "#8c9196",
-	gas_strut_front_top = "#b9bec3",
-	chassis_front_top = "panel",
-	chassis_rear = "panel",
-	chassis_front_bottom = "panel",
-	drill_metal_beam_for_rotating = "#50545a",
-	gearbox_misc_under_carrige = "#44474c",
-	metal_cylinder_gearbox = "#44474c",
-	rear_to_front_drive_shaft = "#50545a",
-	gearbox_misc_under_carrige_small = "#44474c",
-	chassis_front_frame = "frame",
-	chassis_cockpit_front_glass = "#aad7f0",
-	drill_shaft = "#3a3c40",
-	left_drill = "#8a9097",
-	right_drill = "#8a9097",
-	thruster_outer = "#55585c",
-	thruster_inner = "#3c3e42",
-	ladder = LADDER_COLOR,
-	right_tires = "#232326",
-	tire_spokes = "#aaacb0",
+	rear_drive_shaft = noise("#393c3e"),
+	rear_differential = noise("#505152"),
+	gas_strut_lower = noise("#676b6f"),
+	gast_strut = noise("#505152"),
+	drive_shaft_rear = noise("#393c3e"),
+	metal_front_support = noise("#64686e"),
+	gas_strut_front_bottom = noise("#676b6f"),
+	gas_strut_front_top = noise("#505152"),
+	chassis_front_top = {texture = "str_machine_chassis_front_top.png", tint = "panel"},
+	chassis_rear = {texture = "str_machine_chassis_rear.png", tint = "panel"},
+	chassis_front_bottom = {texture = "str_machine_chassis_front_bottom.png", tint = "panel"},
+	drill_metal_beam_for_rotating = noise("#505152"),
+	gearbox_misc_under_carrige = noise("#434951"),
+	metal_cylinder_gearbox = noise("#434951"),
+	rear_to_front_drive_shaft = noise("#393c3e"),
+	gearbox_misc_under_carrige_small = noise("#434951"),
+	chassis_front_frame = {texture = "str_machine_chassis_front_frame.png", tint = "frame"},
+	chassis_cockpit_front_glass = noise("#aad7f0"),
+	drill_shaft = noise("#64686e"),
+	right_drill = {drill = DRILL_TEXTURES},
+	thruster_outer = {texture = "str_machine_thruster_outer.png", tint = "thruster"},
+	thruster_inner = {texture = "str_machine_thruster_inner.png", thruster_kind = THRUSTER_INNER},
+	ladder = {texture = "str_machine_noise.png", tint = "ladder"},
+	right_tires = {texture = "str_machine_right_tires.png"},
+	tire_spokes = {texture = "str_machine_noise.png", tint = "spokes"},
 }
 local MISSING_COLOR = "#ff00ff"
 
@@ -100,12 +110,25 @@ function colors.set(player, key, hex)
 	return true
 end
 
--- Entity texture list for the given colors (default colors when nil)
+local function slot_texture(spec, chosen)
+	if type(spec) == "string" then
+		return "[fill:16x16:" .. (chosen[spec] or colors.defaults[spec] or spec)
+	elseif spec.drill then
+		return spec.drill[chosen.drill] or spec.drill.stock
+	elseif spec.thruster_kind then
+		return spec.texture .. "^[multiply:" .. (spec.thruster_kind[chosen.thruster_kind] or spec.thruster_kind.propeller)
+	elseif spec.tint then
+		return spec.texture .. "^[multiply:" .. (chosen[spec.tint] or colors.defaults[spec.tint] or spec.tint)
+	end
+	return spec.texture
+end
+
+-- Entity texture list for the given colors plus thruster_kind and drill (defaults when nil or missing)
 function colors.textures(chosen)
-	chosen = chosen or colors.defaults
+	chosen = chosen or {}
 	local textures = {}
-	for i, color in ipairs(SLOT_COLORS) do
-		textures[i] = "[fill:16x16:" .. (chosen[color] or color)
+	for i, spec in ipairs(SLOT_COLORS) do
+		textures[i] = slot_texture(spec, chosen)
 	end
 	return textures
 end

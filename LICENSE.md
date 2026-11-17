@@ -46,6 +46,20 @@ Third-party assets, with their licenses and authors, are listed below.
 - Files: `mods/str_audio/sounds/str_audio_music_ending.ogg` (a cut version of the original, otherwise unmodified)
 - License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
 
+### "Coins in Cloth 05" (shop purchase sound)
+
+- Author: Anthousai (freesound.org)
+- Source: https://freesound.org/people/Anthousai/sounds/336579/
+- Files: `mods/str_company/sounds/str_company_register.ogg` (converted to mono Ogg Vorbis, otherwise unmodified)
+- License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+
+### "crowbar falls on ground or metal iron hits blacksmith anvil.wav" (refinery craft sounds)
+
+- Author: kyles (freesound.org)
+- Source: https://freesound.org/people/kyles/sounds/452584/
+- Files: `mods/str_refinery/sounds/str_refinery_craft.1.ogg`, `.2.ogg`, `.3.ogg`, `.4.ogg` (short clips cut from the original)
+- License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+
 ## Original work
 
 Everything not listed under Credits above is original work by Zenon Seth, licensed CC BY-SA 3.0 (media) and LGPL-3.0-only (code). This includes:
@@ -58,12 +72,13 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
   - `mods/str_machine/sounds/`
   - `mods/str_refuel/sounds/`
   - `mods/str_transmissions/sounds/`
-  - `mods/str_upgrades/sounds/`
+  - `mods/str_upgrades/sounds/` (including the colour spray hiss, `str_upgrades_spray_hiss.ogg`)
 - Textures:
   - `mods/str_manual/textures/` (the manual book and window, generated with a Python script, no third-party images)
+  - `mods/str_machine/textures/`: the machine model textures `str_machine_chassis_*.png`, `str_machine_thruster_*.png`, `str_machine_right_tires.png`, `str_machine_noise.png` and `str_machine_drill_*.png` (generated with Python scripts, no third-party images)
 - Models and schematics:
   - `mods/str_foot/models/str_foot_player.glb`
   - `mods/str_machine/models/digger1.glb`
   - `mods/str_nodes/models/str_nodes_rock_1.obj`, `str_nodes_rock_2.obj`, `str_nodes_rock_3.obj`
   - `mods/str_start/schems/shop_home.mts`
-- Source art in `art/` (`.nbx`, `.kra` and `.png` files), the sources of the game textures.
+- Source art in `art/` (`.nbx`, `.kra` and `.png` files), the sources of the game textures. `art/drill_spiral_unwrap.png` (the drill cone groove pattern) is generated with a Python script.
