@@ -28,8 +28,10 @@ end
 local MIN_GAP, MAX_GAP = 60, 240
 
 local tracks = {}
--- player name -> {track = name, handle = handle or nil, clip = sound or nil, last = clip index, job = job or nil}
+-- player name -> {track = name, handle = handle or nil, clip = sound or nil, job = job or nil}
 local current_music = {}
+-- player name -> {track name -> last clip index}, kept across music.play/stop until leave
+local last_clip = {}
 
 -- def: {sound = name} for a looping track, or {clips = {{sound = name, length = seconds}, ...}}
 -- for a track that plays a random clip (never the same twice in a row) after each stretch of silence
@@ -92,11 +94,13 @@ local function schedule_clip(pname, state)
 			return
 		end
 		local clips = tracks[state.track].clips
+		local lasts = last_clip[pname] or {}
+		last_clip[pname] = lasts
 		local i
 		repeat
 			i = math.random(#clips)
-		until i ~= state.last or #clips == 1
-		state.last = i
+		until i ~= lasts[state.track] or #clips == 1
+		lasts[state.track] = i
 		state.clip = clips[i].sound
 		apply_music(player)
 		state.job = core.after(clips[i].length, function()
@@ -286,6 +290,7 @@ end
 
 core.register_on_leaveplayer(function(player)
 	music.stop(player)
+	last_clip[player:get_player_name()] = nil
 	sfx.stop_all_loops(player)
 end)
 
@@ -298,6 +303,8 @@ music.register_track("underground", {
 		{sound = "str_audio_music_underground_1", length = 63.9},
 		{sound = "str_audio_music_underground_2", length = 99.5},
 		{sound = "str_audio_music_underground_3", length = 28.8},
+		{sound = "str_audio_music_underground_4", length = 23.2},
+		{sound = "str_audio_music_underground_5", length = 38.0},
 	},
 	gain = 1.0,
 })

@@ -39,6 +39,13 @@ Third-party assets, with their licenses and authors, are listed below.
 - Files: `mods/str_audio/sounds/str_audio_music_underground_1.ogg`, `_2.ogg`, `_3.ogg` (edited, shortened excerpts of the original)
 - License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
 
+### "Blue Feather" (underground music)
+
+- Author: Kevin MacLeod (incompetech.com)
+- Source: http://incompetech.com
+- Files: `mods/str_audio/sounds/str_audio_music_underground_4.ogg`, `_5.ogg` (excerpts cut from the original, otherwise unmodified)
+- License (SPDX): CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
 ### "Dark Star" (ending music)
 
 - Author: Kevin MacLeod (incompetech.com)
