@@ -770,13 +770,17 @@ local function clamp_look(player)
 	end
 end
 
--- Shows the prompt of the pad under the machine, else of the interactable node behind it; a fresh Aux1
+-- Shows the prompt of the pad under the machine, else of an interactable node in its cell or behind it; a fresh Aux1
 -- press uses it. Returns true if that left vehicle mode.
 local function pad_step(session, player, pos, control)
 	local target, use_pos
 	if not session.dig then
 		use_pos = vector.round(vector.new(pos.x, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z))
 		target = str_pads.get(use_pos)
+		if not target then
+			use_pos = vector.round(pos)
+			target = str_interact.get(use_pos)
+		end
 		if not target then
 			use_pos = vector.round(vector.new(pos.x, pos.y, SLICE_Z + 1))
 			target = str_interact.get(use_pos)

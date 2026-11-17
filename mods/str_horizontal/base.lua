@@ -244,6 +244,9 @@ local function place(player, pos)
 	if not (str_elevators.is_ground(vector.offset(pos, 0, -1, 0)) and str_elevators.is_clearable(pos)) then
 		return "A waypoint can't be placed here."
 	end
+	if str_groups.at(vector.offset(pos, 0, 0, -1), str_groups.CARGO_CRATE) then
+		return "A cargo crate is in the way."
+	end
 	str_elevators.put(pos, NODE)
 	str_horizontal.save(pos.x, {y = pos.y, name = "Waypoint " .. str_horizontal.next_number(), owner = player_name})
 	open(player, pos)

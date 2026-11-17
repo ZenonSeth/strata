@@ -44,6 +44,14 @@ function str_piles.drop(pos, item, count)
 	return true
 end
 
+-- Item and unit count of the pile at pos, or nil if there is none
+function str_piles.get(pos)
+	local def = core.registered_nodes[core.get_node(pos).name]
+	if def and def.str_pile_item then
+		return def.str_pile_item, core.get_meta(pos):get_int(COUNT_KEY)
+	end
+end
+
 -- Moves as much of the pile at pos as add(item, count) -> taken accepts; removes it once empty
 function str_piles.collect(pos, add)
 	local def = core.registered_nodes[core.get_node(pos).name]

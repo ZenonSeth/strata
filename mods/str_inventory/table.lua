@@ -60,7 +60,7 @@ local function header_table(spec)
 end
 
 -- Items as a scrollable table with a fixed header row (the header only shows when there are rows).
--- spec: x, y, w, h, name (table field name), selected (item name or nil), empty (text when empty).
+-- spec: x, y, w, h, name (table field name), selected (item name or nil), empty (text when empty), bg (body colour).
 -- Optional unit_price(def) replaces the material's price in the Price column.
 -- Returns the formspec elements, the rows (str_inventory.rows) and the selected row index (0 = none).
 function str_inventory.item_table(contents, spec)
@@ -85,7 +85,7 @@ function str_inventory.item_table(contents, spec)
 		fs[#fs + 1] = header_table(spec)
 		body_y, body_h = spec.y + HEADER_H, spec.h - HEADER_H
 	end
-	fs[#fs + 1] = TABLE_OPTIONS:format("#1b1c1e", "#7a3f1d")
+	fs[#fs + 1] = TABLE_OPTIONS:format(spec.bg or "#1b1c1e", "#7a3f1d")
 	fs[#fs + 1] = columns(table.concat(images))
 	fs[#fs + 1] = ("table[%g,%g;%g,%g;%s;%s;%d]"):format(spec.x, body_y, spec.w, body_h,
 		spec.name or "items", table.concat(cells, ","), selected)

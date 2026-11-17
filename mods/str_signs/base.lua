@@ -175,6 +175,10 @@ core.register_craftitem(ITEM, {
 			str_utils.show_popup(user:get_player_name(), "A sign can't be placed here.", 2, true)
 			return
 		end
+		if str_groups.at(vector.offset(pos, 0, 0, -1), str_groups.CARGO_CRATE) then
+			str_utils.show_popup(user:get_player_name(), "A cargo crate is in the way.", 2, true)
+			return
+		end
 		place(user, pos)
 		itemstack:take_item()
 		return itemstack

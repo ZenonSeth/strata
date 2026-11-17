@@ -28,6 +28,16 @@ local muted = str_gui.theme.muted
 
 local selected_tab = {}
 local selected_item = {}
+-- One-line result of the last Drop, shown in place of the item details
+local message = {}
+local drop_handler
+local AMOUNTS = {1, 10, 50}
+local AMOUNT_W, AMOUNT_GAP, AMOUNT_H, AMOUNT_LABEL_H = 1.1, 0.1, 0.8, 0.4
+
+-- fn(player, item, count) -> units moved, reason when none did; Drop buttons call it
+function str_inventory.set_drop_handler(fn)
+	drop_handler = fn
+end
 -- Players who clicked Self Destruct and have not confirmed yet
 local armed = {}
 
@@ -60,11 +70,26 @@ local function inventory_tab(player, name)
 		("label[%g,%g;%g,0.9;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 0.1, TABLE_W,
 			esc(("Hold: %s / %s %s"):format(num(volume), num(stats.cargo_capacity), volume_unit))),
 		"style_type[label;font_size=*1;halign=left;valign=top]",
-		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 1.4, esc(detail)),
+		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 1.4, esc(message[name] or detail)),
 	}
 	if selected > 0 then
-		fs[#fs + 1] = ("button[%g,%g;3,0.8;discard;Discard 1]"):format(TABLE_X + TABLE_W - 3, TABLE_Y + TABLE_H + 1.05)
-		fs[#fs + 1] = ("button[%g,%g;3,0.8;discard10;Discard 10]"):format(TABLE_X + TABLE_W - 3, TABLE_Y + TABLE_H + 1.95)
+		local group_w = #AMOUNTS * AMOUNT_W + (#AMOUNTS - 1) * AMOUNT_GAP
+		local buttons_x = TABLE_X + TABLE_W - group_w
+		fs[#fs + 1] = "style_type[label;valign=center]"
+		for row, action in ipairs({{id = "drop", label = "Drop"}, {id = "discard", label = "Discard"}}) do
+			local label_y = TABLE_Y + TABLE_H + 0.15 + (row - 1) * (AMOUNT_LABEL_H + AMOUNT_H + 0.1)
+			local y = label_y + AMOUNT_LABEL_H
+			fs[#fs + 1] = ("label[%g,%g;%g,%g;%s]"):format(buttons_x, label_y, group_w, AMOUNT_LABEL_H, action.label)
+			for i, amount in ipairs(AMOUNTS) do
+				local field = action.id .. "_" .. amount
+				if action.id == "discard" then
+					fs[#fs + 1] = ("style[%s:hovered;bgcolor=#d04030]"):format(field)
+				end
+				fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;%d]"):format(buttons_x + (i - 1) * (AMOUNT_W + AMOUNT_GAP), y,
+					AMOUNT_W, AMOUNT_H, field, amount)
+			end
+		end
+		fs[#fs + 1] = "style_type[label;valign=top]"
 	end
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.9,
 		esc(("%s %s     %s %s credits"):format(
@@ -385,6 +410,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	local tab = str_gui.tab_clicked(fields, "inv_") or str_gui.tab_clicked(fields, "invr_")
 	if tab then
 		selected_tab[name] = tab
+		message[name] = nil
 		armed[name] = nil
 		refresh(player)
 		return
@@ -471,17 +497,29 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 			return
 		end
 	end
-	if fields.discard or fields.discard10 then
-		if selected_item[name] then
-			local removed = str_machine.cargo.remove(player, selected_item[name], fields.discard10 and 10 or 1)
-			str_transmissions.count_relic(name, selected_item[name], "discarded", removed)
+	local item = selected_item[name]
+	for _, amount in ipairs(AMOUNTS) do
+		if item and fields["discard_" .. amount] then
+			message[name] = nil
+			local removed = str_machine.cargo.remove(player, item, amount)
+			str_transmissions.count_relic(name, item, "discarded", removed)
+			refresh(player)
+			return
 		end
-		return
+		if item and fields["drop_" .. amount] and drop_handler then
+			local moved, problem = drop_handler(player, item, amount)
+			local def = str_materials.get(item)
+			message[name] = moved > 0 and ("Dropped %d %s into the crate."):format(moved, def and def.description or item)
+				or problem
+			refresh(player)
+			return
+		end
 	end
 	local event = core.explode_table_event(fields.items or "")
 	if event.type == "CHG" or event.type == "DCL" then
 		local row = str_inventory.cargo_rows(player)[event.row]
 		selected_item[name] = row and row.def.name
+		message[name] = nil
 		refresh(player)
 	end
 end)
@@ -489,6 +527,7 @@ end)
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	selected_tab[name], selected_item[name], armed[name] = nil, nil, nil
+	message[name] = nil
 	expanded_analysis[name] = nil
 	signal_row[name], decode_input[name], decode_result[name] = nil, nil, nil
 end)

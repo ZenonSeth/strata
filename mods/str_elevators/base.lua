@@ -419,6 +419,10 @@ local function place_surface(player, pos)
 	if not (is_ground(offset_y(pos, -1)) and is_clearable(pos) and is_clearable(upper)) then
 		return "A surface station can't be placed here."
 	end
+	local crate = str_groups.CARGO_CRATE
+	if str_groups.at(vector.offset(pos, 0, 0, -1), crate) or str_groups.at(vector.offset(upper, 0, 0, -1), crate) then
+		return "A cargo crate is in the way."
+	end
 	put(pos, "str_elevators:surface_low")
 	put(upper, "str_elevators:surface_high")
 	str_elevators.save_network(pos.x, {top = pos.y, stops = {}, counter = 0, owner = player_name, private = false})
@@ -438,6 +442,9 @@ local function place_stop(player, pos)
 	end
 	if not (is_rock(pos) and is_rock(offset_y(pos, -1))) then
 		return "A stop can't be placed here."
+	end
+	if str_groups.at(vector.offset(pos, 0, 0, -1), str_groups.CARGO_CRATE) then
+		return "A cargo crate is in the way."
 	end
 	local too_close = math.abs(pos.y - net.top) < MIN_DISTANCE
 	for _, stop in ipairs(net.stops) do

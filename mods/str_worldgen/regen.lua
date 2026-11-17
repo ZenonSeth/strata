@@ -7,6 +7,12 @@ local SLICE_BLOCK_Z = math.floor(MARK_Z / BLOCK)
 -- Loaded on first use, once every node is registered
 local terrain, c_air
 local data, param2, out, out2 = {}, {}, {}, {}
+local regen_listeners = {}
+
+-- fn(minp, maxp) runs after regenerate_block rewrites that area
+function str_worldgen.register_on_regenerate(fn)
+	regen_listeners[#regen_listeners + 1] = fn
+end
 
 -- The cycle mark (mod 256) of slice mapblock bp, or nil if it has no liquid stop corner
 function str_worldgen.block_mark(bp)
@@ -58,5 +64,8 @@ function str_worldgen.regenerate_block(bp)
 	dst:set_data(out)
 	dst:set_param2_data(out2)
 	dst:write_to_map(true)
+	for _, fn in ipairs(regen_listeners) do
+		fn(minp, maxp)
+	end
 	return minp, maxp
 end

@@ -55,6 +55,8 @@ return {
 	weight_unit = "T",
 	-- Total volume the mechanic shop storage holds; it has no weight limit
 	storage_capacity = 100000,
+	-- Cargo crates dropped in the world: volume each holds (no weight limit) and how many one player may have
+	cargo_crate = {capacity = 500, per_player = 50},
 	-- Recipe price = this times the sell price of what a smelter recipe makes
 	recipe_price_mult = 8,
 	-- Upgrade recipe price = this times the market price of the materials the part is built from

@@ -80,7 +80,8 @@ core.register_on_joinplayer(function(player)
 				restore_stops(minp, maxp)
 			end
 		end
-		if core.get_node(cell).name ~= "air" then
+		local def = core.registered_nodes[core.get_node(cell).name]
+		if not def or def.walkable ~= false then
 			core.set_node(cell, {name = "air"})
 			str_nodes.refresh_shapes(cell)
 		end
