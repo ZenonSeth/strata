@@ -484,7 +484,7 @@ local function take_materials(player, from)
 	end
 end
 
--- Takes the materials from shop storage, then the cargo hold, and marks the part built, if the recipe is owned and all are there
+-- Takes the materials from shop storage, then the cargo hold, and marks the part built (equipped if above the current tier), if the recipe is owned and all are there
 local function build_part(player, category, level)
 	if not level or not level.from or stats.has_level(player, category.id, level.name)
 			or not str_recipes.has(player, str_recipes.level_recipe(category.id, level.name)) then
@@ -497,6 +497,15 @@ local function build_part(player, category, level)
 	take_materials(player, level.from)
 	stats.build_level(player, category.id, level.name)
 	play_build_strikes(player)
+	local equipped_name = stats.get_level(player, category.id).name
+	for _, candidate in ipairs(category.levels) do
+		if candidate.name == level.name then
+			return
+		elseif candidate.name == equipped_name then
+			stats.equip_level(player, category.id, level.name)
+			return
+		end
+	end
 end
 
 local function handle_item_fields(player, fields)
