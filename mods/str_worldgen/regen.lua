@@ -14,8 +14,8 @@ function str_worldgen.block_mark(bp)
 	return node.name == "str_nodes:liquid_stop" and node.param2 or nil
 end
 
-function str_worldgen.current_mark()
-	return str_worldgen.get_cycle() % 256
+function str_worldgen.current_mark(z)
+	return str_worldgen.get_cycle(z) % 256
 end
 
 -- Regenerates slice mapblock bp and the backing wall behind it with the current cycle, clearing
@@ -37,7 +37,7 @@ function str_worldgen.regenerate_block(bp)
 	for i in area:iterp(minp, maxp) do
 		data[i], param2[i] = c_air, 0
 	end
-	terrain.generate(data, param2, area, minp, maxp, str_worldgen.get_cycle())
+	terrain.generate(data, param2, area, minp, maxp, str_worldgen.get_cycle(SLICE_Z))
 
 	local dst = core.get_voxel_manip(minp, maxp)
 	local dst_area = VoxelArea(dst:get_emerged_area())

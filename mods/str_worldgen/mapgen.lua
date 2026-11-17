@@ -14,7 +14,7 @@ core.register_on_generated(function(vm, minp, maxp)
 	vm:get_data(data)
 	vm:get_param2_data(param2)
 	terrain.generate(data, param2, VoxelArea(vm:get_emerged_area()), minp, maxp,
-		core.ipc_get("str_worldgen:cycle") or 0)
+		(core.ipc_get("str_worldgen:cycles") or {})[slice_z] or 0)
 	vm:set_data(data)
 	vm:set_param2_data(param2)
 	vm:calc_lighting()

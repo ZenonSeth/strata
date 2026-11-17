@@ -21,11 +21,36 @@ local DIGGER_SPAWN_DELAY = 1
 -- Feet this far above the bed foot node's centre (its top face), so the drop onto the blanket is small
 local FEET_ABOVE_BED = 0.5
 
+local LAYOUT_KEY = "str_start:interior_layout"
+-- 1 (unset): the legacy grid below; 2: the grid in constants
+local LAYOUT = 2
+local LEGACY = {origin = {x = 0, y = 0, z = -1000}, spacing = 500, columns = 16}
+-- Older schematic versions may have been bigger; nothing else lives within a legacy slot
+local LEGACY_MARGIN = 16
+local RELEASED_KEY = "legacy_interiors_released"
+
 local function slot_origin(slot)
 	return vector.new(
 		grid.origin.x + (slot % grid.columns) * grid.spacing,
 		grid.origin.y,
-		grid.origin.z - math.floor(slot / grid.columns) * grid.spacing)
+		grid.origin.z + math.floor(slot / grid.columns) * grid.spacing)
+end
+
+local function legacy_origin(slot)
+	return vector.new(
+		LEGACY.origin.x + (slot % LEGACY.columns) * LEGACY.spacing,
+		LEGACY.origin.y,
+		LEGACY.origin.z - math.floor(slot / LEGACY.columns) * LEGACY.spacing)
+end
+
+-- True once the legacy interior area has been handed over for reuse; legacy copies are then never deleted
+function str_start.legacy_interiors_released()
+	return storage:get_string(RELEASED_KEY) ~= ""
+end
+
+-- Call before anything else writes into the legacy interior area
+function str_start.release_legacy_interiors()
+	storage:set_string(RELEASED_KEY, "1")
 end
 
 -- Lowest corner of the player's interior, nil before their first spawn
@@ -113,6 +138,39 @@ local function ensure_diggers(player_name, origin, last, delay)
 	end
 end
 
+-- Deletes the legacy copy of slot's interior, only while the area is unreleased and still holds that interior
+local function delete_legacy_interior(slot, size)
+	if not slot or str_start.legacy_interiors_released() then
+		return
+	end
+	local origin = legacy_origin(slot)
+	local last = vector.offset(vector.add(origin, size), LEGACY_MARGIN, LEGACY_MARGIN, LEGACY_MARGIN)
+	core.load_area(origin, last)
+	if #core.find_nodes_in_area(origin, last, {SPAWN_MARKER, BED_FOOT}) == 0 then
+		return
+	end
+	for obj in core.objects_in_area(origin, last) do
+		if not obj:is_player() then
+			obj:remove()
+		end
+	end
+	core.delete_area(origin, last)
+end
+
+-- Re-places a stale interior at origin (its blocks must be loaded); a legacy one also loses its old copy, once
+local function refresh_interior(player, origin)
+	local meta = player:get_meta()
+	local legacy = meta:get_int(LAYOUT_KEY) < LAYOUT
+	if legacy or meta:get_int(VERSION_KEY) < grid.version then
+		core.place_schematic(origin, SCHEMATIC, "0", nil, true)
+		meta:set_int(VERSION_KEY, grid.version)
+	end
+	if legacy then
+		meta:set_int(LAYOUT_KEY, LAYOUT)
+		delete_legacy_interior(tonumber(meta:get_string(SLOT_KEY)), get_interior_size())
+	end
+end
+
 local LETTER_TEXT = table.concat({
 	"<center><big><b>DO YOU LIKE GEMS?</b></big>",
 	"<big><b>DO YOU LIKE BEING RICH?</b></big>",
@@ -179,6 +237,7 @@ local function first_spawn(player)
 		end
 		core.place_schematic(origin, SCHEMATIC, "0", nil, true)
 		joined:get_meta():set_int(VERSION_KEY, grid.version)
+		joined:get_meta():set_int(LAYOUT_KEY, LAYOUT)
 		ensure_diggers(name, origin, last, DIGGER_SPAWN_DELAY)
 		place_player(joined, origin, last)
 		joined:get_meta():set_string(DONE_KEY, "1")
@@ -265,12 +324,29 @@ function str_start.enter_workshop(player)
 	entering[name] = trip
 	str_machine.set_frozen(player, true)
 	emerge_interior(name, origin, last, function(joined)
-		local meta = joined and joined:get_meta()
-		if meta and meta:get_int(VERSION_KEY) < grid.version then
-			core.place_schematic(origin, SCHEMATIC, "0", nil, true)
-			meta:set_int(VERSION_KEY, grid.version)
+		if joined then
+			refresh_interior(joined, origin)
 		end
 		trip.ready = true
+	end)
+end
+
+-- A player who quit on foot in their legacy interior rejoins there: move them onto the bed of the current one
+local function migrate_on_join(player)
+	local name = player:get_player_name()
+	local origin, size = str_start.get_origin(player), get_interior_size()
+	if not (origin and size) then
+		return
+	end
+	local last = vector.offset(vector.add(origin, size), -1, -1, -1)
+	player:set_pos(origin)
+	emerge_interior(name, origin, last, function(joined)
+		if not joined then
+			return -- still legacy: the next join tries again
+		end
+		refresh_interior(joined, origin)
+		ensure_diggers(name, origin, last)
+		place_player(joined, origin, last)
 	end)
 end
 
@@ -356,9 +432,15 @@ core.register_on_joinplayer(function(player)
 	for _, id in ipairs({"jim", "free_gift", "welcome"}) do
 		str_mail.send_story(name, id)
 	end
-	if player:get_meta():get_string(DONE_KEY) == "" then
+	local meta = player:get_meta()
+	if meta:get_string(DONE_KEY) == "" then
 		first_spawn(player)
-	elseif player:get_meta():get_string(LETTER_KEY) == "" then
+		return
+	end
+	if meta:get_int(LAYOUT_KEY) < LAYOUT and str_mode.get(player) == "foot" then
+		migrate_on_join(player)
+	end
+	if meta:get_string(LETTER_KEY) == "" then
 		show_letter(name)
 	end
 end)
