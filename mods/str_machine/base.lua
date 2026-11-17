@@ -199,6 +199,10 @@ local TURN_SPEED = 15
 local WHEEL_RADIUS = 1.5 / 16
 -- Drills pitch from sideways (0) to straight down (+) or up (-) at this speed (rad/s)
 local DRILL_TURN_SPEED = 6
+-- Under pi per server step, or the client's shortest-path interpolation spins the cones backwards
+local DRILL_SPIN_SPEED = 25
+local DRILL_SPIN_ACCEL = 40
+local DRILL_CONES = {"drill_l_cone", "drill_r_cone"}
 -- Nozzle offsets from the machine origin at yaw 0 (the tail is +x)
 local NOZZLES = {vector.new(0.22, -0.31, 0.31), vector.new(0.22, -0.31, -0.31)}
 local EXHAUST_TEXTURE = {
@@ -677,6 +681,16 @@ local function animate(session, player, control, dtime)
 	obj:set_bone_override("drills_combined", {
 		rotation = {vec = vector.new(0, 0, session.drill_pitch), absolute = true},
 	})
+	local spin_target = session.dig and DRILL_SPIN_SPEED or 0
+	session.drill_spin_rate = approach(session.drill_spin_rate or 0, spin_target, DRILL_SPIN_ACCEL * dtime)
+	if session.drill_spin_rate > 0 then
+		session.drill_spin = ((session.drill_spin or 0) + session.drill_spin_rate * dtime) % (2 * math.pi)
+		for _, bone in ipairs(DRILL_CONES) do
+			obj:set_bone_override(bone, {
+				rotation = {vec = vector.new(-session.drill_spin, 0, 0), interpolation = dtime, absolute = true},
+			})
+		end
+	end
 	for _, bone in ipairs(WHEELS) do
 		obj:set_bone_override(bone, {rotation = {vec = vector.new(0, 0, session.wheel_angle), absolute = true}})
 	end
