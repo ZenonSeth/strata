@@ -8,6 +8,10 @@ local MAX_NAMES = 2
 local SCROLLBAR_W = 0.4
 local PAD = 0.3
 local SCROLL_NAME = "discoveries_scroll"
+local TIP_WIDTH = 12
+local TIP_LABEL_COLOR = "#c4bcad"
+local volume_unit = str_utils.constants.volume_unit
+local weight_unit = str_utils.constants.weight_unit
 
 local SUBTABS = {
 	{id = "ores", title = "Ores", kinds = {ore = true, liquid = true}},
@@ -106,6 +110,21 @@ local function note(def)
 	return table.concat(parts, " ")
 end
 
+local function num(value)
+	return ("%g"):format(math.floor(value * 10 + 0.5) / 10)
+end
+
+local function stats_tip(def)
+	local function line(label, value)
+		return ("<style color=%s>%s:</style> %s"):format(TIP_LABEL_COLOR, label, value)
+	end
+	return table.concat({
+		line("Price", str_player_resources.format_credits(def.price) .. " each"),
+		line("Volume", num(def.volume) .. " " .. volume_unit),
+		line("Weight", num(def.weight) .. " " .. weight_unit),
+	}, "\n")
+end
+
 local function visible_tabs(player)
 	local tabs = {}
 	for _, tab in ipairs(SUBTABS) do
@@ -138,16 +157,24 @@ local function render(player, sub, area)
 	local content_h = rows * ROW_H
 	fs[#fs + 1] = ("scroll_container[%g,%g;%g,%g;%s;vertical;0.1]"):format(
 		area.x + PAD, view_y, view_w, view_h, SCROLL_NAME)
+	fs[#fs + 1] = ("style_type[hypertip;border=false;bgcolor=#00000000;bgimg=%s;bgimg_middle=%s]"):format(
+		str_gui.theme.window, str_gui.theme.window_slice)
 	for i, entry in ipairs(items) do
 		local x = ((i - 1) % COLUMNS) * col_w
 		local y = math.floor((i - 1) / COLUMNS) * ROW_H
-		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(x, y + 0.1, ICON, ICON, esc(entry.def.icon))
+		-- A button, not an image: hypertips only bind to named elements and must follow the scroll
+		fs[#fs + 1] = ("style[icon_%d;border=false;content_offset=0]"):format(i)
+		fs[#fs + 1] = ("image_button[%g,%g;%g,%g;%s;icon_%d;]"):format(x, y + 0.1, ICON, ICON, esc(entry.def.icon), i)
 		-- Separate elements: a newline in hypertext starts a paragraph with a fixed 10px gap
 		local text_x, text_w = x + ICON + 0.3, col_w - ICON - 0.5
 		fs[#fs + 1] = ("hypertext[%g,%g;%g,%g;name_%d;<global margin=0 color=%s size=%d><b>%s</b>]"):format(
 			text_x, y + 0.1, text_w, NAME_H + 0.1, i, TEXT_COLOR, TEXT_SIZE, esc(display_name(entry.def)))
 		fs[#fs + 1] = ("hypertext[%g,%g;%g,%g;item_%d;<global margin=0 color=%s size=%d>%s]"):format(
 			text_x, y + 0.1 + NAME_H, text_w, ROW_H - 0.1 - NAME_H, i, TEXT_COLOR, TEXT_SIZE, esc(note(entry.def)))
+		local tip = esc(stats_tip(entry.def))
+		for _, element in ipairs({"icon_", "name_", "item_"}) do
+			fs[#fs + 1] = ("hypertip[%s%d;;%g;tip_%s%d;%s]"):format(element, i, TIP_WIDTH, element, i, tip)
+		end
 	end
 	fs[#fs + 1] = "scroll_container_end[]"
 	if content_h > view_h then
