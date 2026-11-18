@@ -7,7 +7,7 @@ local Z_BG, Z_FILL, Z_TEXT = 0, 1, 2
 local elements = {}
 -- player name -> id -> latest pushed data, kept whatever the mode is
 local model = {}
--- player name -> id -> {ids = {hud ids}, fill/text = hud id, fraction = n, label = s}
+-- player name -> id -> {ids = {hud ids}, fill/text = hud id, px = filled width, label = s}
 local shown = {}
 
 -- def: {color = ColorString, width, height (px), offset = {x, y} from bottom center,
@@ -47,8 +47,7 @@ local function create_bar(player, def)
 	local fill = player:hud_add({
 		type = "image", position = anchor, z_index = Z_FILL,
 		offset = {x = off.x - w / 2, y = off.y},
-		text = "[fill:" .. w .. "x" .. h .. ":" .. def.color,
-		scale = {x = 0, y = 1}, alignment = {x = 1, y = 0},
+		text = "", scale = {x = 0, y = 1}, alignment = {x = 1, y = 0},
 	})
 	local text = player:hud_add({
 		type = "text", position = anchor, offset = off, z_index = Z_TEXT,
@@ -182,9 +181,15 @@ local function render(player, id)
 		view.style = style
 		player:hud_change(view.text, "style", style)
 	end
-	if fraction ~= view.fraction then
-		view.fraction = fraction
-		player:hud_change(view.fill, "scale", {x = fraction, y = 1})
+	-- Crop the texture to whole pixels instead of scaling, so the stripes do not squash
+	local def = element.def
+	local px = math.floor(def.width * fraction + 0.5)
+	if px ~= view.px then
+		view.px = px
+		if px > 0 then
+			player:hud_change(view.fill, "text", str_utils.bar_fill(def.color, px, def.height))
+		end
+		player:hud_change(view.fill, "scale", {x = px > 0 and 1 or 0, y = 1})
 	end
 	if label ~= view.label then
 		view.label = label

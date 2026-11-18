@@ -4,6 +4,8 @@ local MARGIN = 0.6
 local BAR_Y, BAR_W, BAR_H, BAR_BORDER = 1.8, WIDTH - 2 * MARGIN, 0.9, 0.05
 local BUTTON_W, BUTTON_GAP, BUTTON_H = 3.5, 0.15, 0.9
 local BAR_COLOR, BAR_BG = str_utils.constants.colors.fuel, "#1b1c1e"
+-- Fill texture pixels per formspec unit; keeps the stripes the same shape at any fill level
+local BAR_PX = 25
 local BUY_LITRES = 5
 -- Battery section below the fuel buttons, shown while a battery is in the hotbar
 local CHARGE_Y, CHARGE_EXTRA = HEIGHT - 0.1, 1.9
@@ -47,9 +49,10 @@ local function bar(level, max)
 		("image[%g,%g;%g,%g;%s]"):format(MARGIN, BAR_Y, BAR_W, BAR_H, fill(BAR_BG)),
 	}
 	if level > 0 then
-		local w = (BAR_W - 2 * BAR_BORDER) * math.min(level / max, 1)
-		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(
-			MARGIN + BAR_BORDER, BAR_Y + BAR_BORDER, w, BAR_H - 2 * BAR_BORDER, fill(BAR_COLOR))
+		local px = math.max(1, math.floor((BAR_W - 2 * BAR_BORDER) * BAR_PX * math.min(level / max, 1) + 0.5))
+		local h = BAR_H - 2 * BAR_BORDER
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(MARGIN + BAR_BORDER, BAR_Y + BAR_BORDER, px / BAR_PX, h,
+			core.formspec_escape(str_utils.bar_fill(BAR_COLOR, px, math.floor(h * BAR_PX + 0.5))))
 	end
 	-- A flat button is the only element that centers text on top of the bar
 	local clear = fill("#00000000")

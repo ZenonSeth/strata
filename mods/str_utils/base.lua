@@ -92,3 +92,10 @@ function str_utils.interact_key_name(player)
 	local info = core.get_player_window_information(player:get_player_name())
 	return (info and info.touch_controls) and "Aux1" or "E"
 end
+
+-- A bar fill texture of the given size in px (width > 0): the color with the bevel and stripes,
+-- cropped rather than scaled; the shade texture is 500x20
+function str_utils.bar_fill(color, width, height)
+	local size = width .. "x" .. height
+	return "[fill:" .. size .. ":" .. color .. "^[combine:" .. size .. ":0,0=str_utils_bar_shade.png"
+end
