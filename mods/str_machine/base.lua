@@ -404,6 +404,29 @@ local function spawn_dust(pos, node_name)
 	end
 end
 
+local LANDING_DUST_MIN, LANDING_DUST_MAX = 6, 20
+
+-- t is the impact scale (0..1)
+local function spawn_landing_dust(pos, t)
+	local ground = vector.round(vector.new(pos.x, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z))
+	local palette = str_nodes.dust_colors(core.get_node(ground).name)
+	local count = math.floor(LANDING_DUST_MIN + (LANDING_DUST_MAX - LANDING_DUST_MIN) * t + 0.5)
+	local speed = 1.5 + 2.5 * t
+	for _ = 1, count do
+		local angle = math.random() * math.pi
+		local dx, dy = math.cos(angle), math.sin(angle)
+		core.add_particle({
+			pos = vector.new(pos.x + dx * HALF_WIDTH, pos.y + BOX_BOTTOM + 0.05, pos.z + (math.random() - 0.5) * 0.4),
+			velocity = vector.new(dx * speed, dy * speed * 0.5, (math.random() - 0.5) * 0.4),
+			acceleration = vector.new(-dx * speed * 1.2, -0.5, 0),
+			expirationtime = 0.4 + math.random() * 0.3,
+			size = (3 + math.random() * 2) * (0.8 + 0.4 * t),
+			texture = {name = "str_machine_puff.png^[multiply:" .. palette[math.random(#palette)], blend = "alpha",
+				alpha_tween = {1, 0}, scale_tween = {0.6, 1.6}},
+		})
+	end
+end
+
 -- Nodes with str_material and str_yield add that much of the item to the hold; what does not fit stays as a pile.
 -- A blasted node is destroyed: no yield and no dig sound
 local function take_node(pos, player, blasted)
@@ -636,6 +659,7 @@ local function impact(session, player, pos, vel_y)
 	str_audio.sfx.play("vehicle_tire_impact", {
 		pos = pos, gain = IMPACT_GAIN_MIN + (IMPACT_GAIN_MAX - IMPACT_GAIN_MIN) * t,
 	})
+	spawn_landing_dust(pos, t)
 	hull.damage(player, str_utils.impact_damage(fall))
 end
 for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner", "helicopter"}) do

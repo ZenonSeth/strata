@@ -88,6 +88,13 @@ Third-party assets, with their licenses and authors, are listed below.
 - Files: `mods/str_start/sounds/str_start_deposit.ogg` (a short clip cut from the original)
 - License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
 
+### "Charge" (battery recharge sound)
+
+- Author: NightDrawr (freesound.org)
+- Source: https://freesound.org/people/NightDrawr/sounds/819529/
+- Files: `mods/str_refuel/sounds/str_refuel_charge.ogg` (sped up from the original)
+- License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+
 ## Original work
 
 Everything not listed under Credits above is original work by Zenon Seth, licensed CC BY-SA 3.0 (media) and LGPL-3.0-only (code). This includes:

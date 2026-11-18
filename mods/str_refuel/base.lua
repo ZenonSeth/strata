@@ -129,6 +129,7 @@ function str_refuel.show(player)
 end
 
 str_audio.sfx.register("refuel", {sound = "str_refuel_fill"})
+str_audio.sfx.register("charge", {sound = "str_refuel_charge"})
 
 -- Buys up to `litres`, or as much as the credits allow; returns the result line
 local function buy(player, litres)
@@ -174,6 +175,7 @@ local function charge_to(player, slot, target_kj, full_text)
 	resources.spend_credits(player, cost)
 	str_lasers.set_charge(stack, have + kj)
 	inv:set_stack("main", slot, stack)
+	str_audio.sfx.play("charge", {player = player})
 	return ("Charged %s for %s credits."):format(format_energy(kj), format_credits(cost))
 end
 
