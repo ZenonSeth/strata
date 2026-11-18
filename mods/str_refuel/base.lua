@@ -128,7 +128,7 @@ function str_refuel.show(player)
 	core.show_formspec(player:get_player_name(), FORMNAME, build(player))
 end
 
-str_audio.sfx.register("refuel", {sound = "str_refuel_fill"})
+str_audio.sfx.register("refuel", {sound = "str_refuel_fill", gain = 0.5})
 str_audio.sfx.register("charge", {sound = "str_refuel_charge"})
 
 -- Buys up to `litres`, or as much as the credits allow; returns the result line

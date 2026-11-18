@@ -74,11 +74,11 @@ Third-party assets, with their licenses and authors, are listed below.
 - Files: `mods/str_machine/sounds/str_machine_vehicle_tire_impact.1.ogg`, `.2.ogg`, `.3.ogg` (short clips cut from the original)
 - License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
 
-### "Pouring water into a glass" (refuel sound)
+### "Small Water Spill" (refuel sound)
 
-- Author: astonedf (freesound.org)
-- Source: https://freesound.org/people/astonedf/sounds/841426/
-- Files: `mods/str_refuel/sounds/str_refuel_fill.ogg` (edited from the original)
+- Author: Braleven (freesound.org)
+- Source: https://freesound.org/people/Braleven/sounds/319418/
+- Files: `mods/str_refuel/sounds/str_refuel_fill.ogg` (a short clip cut from the original)
 - License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
 
 ### "Dumping Out Pencils" (workshop deposit sound)

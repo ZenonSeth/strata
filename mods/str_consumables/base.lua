@@ -49,7 +49,11 @@ local use = {
 		return true
 	end,
 	fuel = function(player, def)
-		return str_machine.fuel.add(player, def.amount) > 0
+		if str_machine.fuel.add(player, def.amount) > 0 then
+			str_audio.sfx.play("refuel", {player = player})
+			return true
+		end
+		return false
 	end,
 	repair = function(player, def)
 		if hull_index(player) > def.level + 1 then
