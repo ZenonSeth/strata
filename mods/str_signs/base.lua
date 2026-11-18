@@ -28,10 +28,11 @@ local GRID_Y = str_gui.CONTENT_Y + 0.2
 local MESSAGE_Y = GRID_Y + ROWS * (BUTTON + GAP) + 0.2
 local HEIGHT = MESSAGE_Y + 1.9
 
-local type_of_node = {}
+local type_of_node, sign_nodes = {}, {}
 for _, sign in ipairs(TYPES) do
 	local name = "str_signs:" .. sign.id
 	type_of_node[name] = sign.id
+	sign_nodes[#sign_nodes + 1] = name
 	core.register_node(name, {
 		description = "Sign (" .. sign.description .. ")",
 		tiles = {"str_signs_" .. sign.id .. ".png"},
@@ -39,6 +40,7 @@ for _, sign in ipairs(TYPES) do
 		diggable = false,
 		is_ground_content = false,
 		str_interact = "sign",
+		light_source = 10,
 	})
 end
 
@@ -184,4 +186,16 @@ core.register_craftitem(ITEM, {
 		return itemstack
 	end,
 	on_drop = function(itemstack) return itemstack end,
+})
+
+-- Swapping through air forces a light update (same-node swaps skip it); swap_node keeps the meta
+core.register_lbm({
+	name = "str_signs:relight",
+	label = "Light up signs placed before they were light sources",
+	nodenames = sign_nodes,
+	run_at_every_load = false,
+	action = function(pos, node)
+		core.swap_node(pos, {name = "air"})
+		core.swap_node(pos, node)
+	end,
 })

@@ -11,7 +11,7 @@ local esc = core.formspec_escape
 local NODES = {
 	surface_low = {kind = "surface", description = "Elevator Surface (lower)"},
 	surface_high = {kind = "surface", description = "Elevator Surface (upper)"},
-	stop = {kind = "stop", description = "Elevator Stop"},
+	stop = {kind = "stop", description = "Elevator Stop", light = 13},
 }
 local kind_of_node = {}
 for id, def in pairs(NODES) do
@@ -24,6 +24,7 @@ for id, def in pairs(NODES) do
 		diggable = false,
 		is_ground_content = false,
 		str_interact = "elevator",
+		light_source = def.light,
 	}
 	if id == "surface_high" then
 		node.drawtype = "nodebox"
@@ -536,3 +537,15 @@ core.after(0, function()
 		end
 	end
 end)
+
+-- Swapping through air forces a light update (same-node swaps skip it); swap_node keeps the meta
+core.register_lbm({
+	name = "str_elevators:relight_stops",
+	label = "Light up elevator stops placed before they were light sources",
+	nodenames = {"str_elevators:stop"},
+	run_at_every_load = false,
+	action = function(pos, node)
+		core.swap_node(pos, {name = "air"})
+		core.swap_node(pos, node)
+	end,
+})
