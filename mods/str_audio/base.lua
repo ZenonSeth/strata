@@ -34,9 +34,11 @@ local current_music = {}
 local last_clip = {}
 
 -- def: {sound = name} for a looping track, or {clips = {{sound = name, length = seconds}, ...}}
--- for a track that plays a random clip (never the same twice in a row) after each stretch of silence
+-- for a track that plays a random clip (never the same twice in a row) after each stretch of silence;
+-- chance (0-1, default 1) is the odds a clip plays when a silence ends, else another silence follows
 function music.register_track(name, def)
-	tracks[name] = {sound = def.sound, clips = def.clips, gain = def.gain or 1, enabled = def.enabled ~= false}
+	tracks[name] = {sound = def.sound, clips = def.clips, chance = def.chance or 1, gain = def.gain or 1,
+		enabled = def.enabled ~= false}
 end
 
 function music.set_track_enabled(name, value)
@@ -91,6 +93,10 @@ local function schedule_clip(pname, state)
 		end
 		if state.can_play and not state.can_play(player) then
 			music.stop(player)
+			return
+		end
+		if math.random() >= tracks[state.track].chance then
+			schedule_clip(pname, state)
 			return
 		end
 		local clips = tracks[state.track].clips
@@ -306,5 +312,6 @@ music.register_track("underground", {
 		{sound = "str_audio_music_underground_4", length = 23.2},
 		{sound = "str_audio_music_underground_5", length = 38.0},
 	},
+	chance = 0.5,
 	gain = 1.0,
 })
