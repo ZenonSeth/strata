@@ -207,7 +207,12 @@ function str_refuel.full_cost(player)
 end
 
 function str_refuel.fill_full(player)
-	return fill_to(player, 1)
+	local before = str_machine.fuel.get(player)
+	local result = fill_to(player, 1)
+	if str_machine.fuel.get(player) > before then
+		str_audio.sfx.play("refuel", {player = player})
+	end
+	return result
 end
 
 core.register_on_player_receive_fields(function(player, formname, fields)

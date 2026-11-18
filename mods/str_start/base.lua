@@ -364,6 +364,8 @@ function str_start.show_workshop_menu(player)
 	core.show_formspec(player:get_player_name(), MENU_FORM, fs)
 end
 
+str_audio.sfx.register("storage_deposit", {sound = "str_start_deposit"})
+
 core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname ~= MENU_FORM then
 		return
@@ -374,7 +376,9 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		str_refuel.fill_full(player)
 		str_start.show_workshop_menu(player)
 	elseif fields.deposit then
-		str_storage.deposit_all(player)
+		if str_storage.deposit_all(player) > 0 then
+			str_audio.sfx.play("storage_deposit", {player = player})
+		end
 		str_start.show_workshop_menu(player)
 	end
 end)
