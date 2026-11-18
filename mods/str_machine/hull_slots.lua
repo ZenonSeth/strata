@@ -12,6 +12,12 @@ hull_slots.items = {
 	{name = "str_machine:hull_lava_protection", description = "Lava protection",
 		info = "Hull upgrade, protects from lava for a time",
 		image = "str_machine_hull_lava_protection.png"},
+	{name = "str_machine:hull_autorepair_1", description = "Auto-repair Mk I",
+		info = "Hull upgrade, slowly repairs the hull up to the next of 6 marks\nStops while out of fuel",
+		image = "str_machine_hull_autorepair_1.png", segments = 6, segment_time = 60},
+	{name = "str_machine:hull_autorepair_2", description = "Auto-repair Mk II",
+		info = "Hull upgrade, repairs the hull up to the next of 4 marks\nStops while out of fuel",
+		image = "str_machine_hull_autorepair_2.png", segments = 4, segment_time = 40},
 }
 local mount = str_machine_data.lasers.mount
 hull_slots.items[#hull_slots.items + 1] = {name = mount.item, description = mount.description, info = mount.info,

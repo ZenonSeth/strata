@@ -321,6 +321,8 @@ end
 local HULL_UPGRADE_FROM = {
 	["str_machine:hull_liquid_collection"] = {steel = 4, copper_wire = 2, lens_glass = 1},
 	["str_machine:hull_lava_protection"] = {nickel_steel = 4, gold_wire = 2},
+	["str_machine:hull_autorepair_1"] = {nickel_steel = 4, copper_wire = 2, garnet = 1},
+	["str_machine:hull_autorepair_2"] = {titanium_alloy = 4, gold_wire = 2, aquamarine = 1},
 	[lasers.mount.item] = lasers.mount.from,
 }
 for _, def in ipairs(str_machine.hull_slots.items) do

@@ -1,7 +1,8 @@
 local BORDER = 2
 local BG_COLOR = "#202020"
 local TEXT_COLOR = 0xFFFFFF
-local Z_BG, Z_FILL, Z_TEXT = 0, 1, 2
+local Z_BG, Z_FILL, Z_TICK, Z_TEXT = 0, 1, 2, 3
+local TICK, TICK_CENTER = "str_utils_bar_tick.png", 1
 
 -- id -> {kind = "bar" or "text", def = ...}
 local elements = {}
@@ -114,6 +115,30 @@ local function bar_label(value, max, decimal)
 	return string.format("%.1f/%d", tenths / 10, math.ceil(max))
 end
 
+-- Groove marks splitting the bar into this many segments (0 or 1 for none)
+local function set_ticks(player, view, def, segments)
+	for _, hud_id in ipairs(view.tick_ids or {}) do
+		player:hud_remove(hud_id)
+		for i, other in ipairs(view.ids) do
+			if other == hud_id then
+				table.remove(view.ids, i)
+				break
+			end
+		end
+	end
+	view.tick_ids = {}
+	local left = def.offset.x - def.width / 2
+	for i = 1, segments - 1 do
+		local hud_id = player:hud_add({
+			type = "image", position = {x = 0.5, y = 1}, z_index = Z_TICK, text = TICK,
+			offset = {x = left + math.floor(def.width * i / segments + 0.5) - TICK_CENTER, y = def.offset.y},
+			scale = {x = 1, y = def.height / 20}, alignment = {x = 1, y = 0},
+		})
+		view.tick_ids[i] = hud_id
+		view.ids[#view.ids + 1] = hud_id
+	end
+end
+
 local function hide(player, id)
 	local name = player:get_player_name()
 	local view = shown[name] and shown[name][id]
@@ -195,6 +220,11 @@ local function render(player, id)
 		view.label = label
 		player:hud_change(view.text, "text", label)
 	end
+	local ticks = data.ticks or 0
+	if ticks ~= (view.ticks or 0) then
+		view.ticks = ticks
+		set_ticks(player, view, def, ticks)
+	end
 end
 
 local function store(player, id, kind, data)
@@ -209,11 +239,11 @@ local function store(player, id, kind, data)
 end
 
 -- opts: label replaces the default "value/max" text; text_color = 0xRRGGBB and bold for the label;
--- hidden removes the bar until it is set again without it
+-- hidden removes the bar until it is set again without it; ticks = n splits it into n segments with groove marks
 function str_hud.set_bar(player, id, value, max, opts)
 	opts = opts or {}
 	store(player, id, "bar", {value = value, max = max, label = opts.label, text_color = opts.text_color,
-		bold = opts.bold, hidden = opts.hidden})
+		bold = opts.bold, hidden = opts.hidden, ticks = opts.ticks})
 end
 
 function str_hud.set_text(player, id, label)

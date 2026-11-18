@@ -6,6 +6,8 @@ local BUTTON_W, BUTTON_GAP, BUTTON_H = 3.5, 0.15, 0.9
 local BAR_COLOR, BAR_BG = str_utils.constants.colors.hull, "#1b1c1e"
 -- Fill texture pixels per formspec unit; keeps the stripes the same shape at any fill level
 local BAR_PX = 25
+-- Pixel width of the segment mark texture and the column that sits on the mark
+local TICK_W, TICK_CENTER = 3, 1
 
 local stats = str_machine.stats
 local hull = str_machine.hull
@@ -24,13 +26,18 @@ local function fill(color)
 	return core.formspec_escape("[fill:8x8:" .. color)
 end
 
-local function bar(level, max)
+-- segments = auto-repair marks, or nil
+local function bar(level, max, segments)
 	local fs = {("image[%g,%g;%g,%g;%s]"):format(MARGIN, BAR_Y, BAR_W, BAR_H, fill(BAR_BG))}
+	local inner_w, h = BAR_W - 2 * BAR_BORDER, BAR_H - 2 * BAR_BORDER
 	if level > 0 then
-		local px = math.max(1, math.floor((BAR_W - 2 * BAR_BORDER) * BAR_PX * math.min(level / max, 1) + 0.5))
-		local h = BAR_H - 2 * BAR_BORDER
+		local px = math.max(1, math.floor(inner_w * BAR_PX * math.min(level / max, 1) + 0.5))
 		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(MARGIN + BAR_BORDER, BAR_Y + BAR_BORDER, px / BAR_PX, h,
 			core.formspec_escape(str_utils.bar_fill(BAR_COLOR, px, math.floor(h * BAR_PX + 0.5))))
+	end
+	for i = 1, (segments or 0) - 1 do
+		local x = MARGIN + BAR_BORDER + (math.floor(inner_w * BAR_PX * i / segments + 0.5) - TICK_CENTER) / BAR_PX
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;str_utils_bar_tick.png]"):format(x, BAR_Y + BAR_BORDER, TICK_W / BAR_PX, h)
 	end
 	local clear = fill("#00000000")
 	local text = ("%d / %d HP"):format(math.ceil(level), max)
@@ -120,7 +127,7 @@ local function build(player)
 	local fs = {
 		str_gui.header(WIDTH, HEIGHT, "Repair"),
 		("label[%g,%g;%s]"):format(MARGIN, 1.75, core.formspec_escape(p.level.description)),
-		bar(hull.get(player), p.max),
+		bar(hull.get(player), p.max, str_machine.autorepair.segments(player)),
 	}
 	local y = BAR_Y + BAR_H + 0.5
 	local lines = {}
