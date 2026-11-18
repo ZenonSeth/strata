@@ -67,6 +67,8 @@ return {
 	recharge_price_per_mj = 5,
 	-- Story: what the player owes the company at the start, in credits
 	story = {starting_debt = 10000000},
+	-- Player mail: max subject and body length (bytes), seconds between sends, sent copies kept
+	mail = {subject_max = 60, text_max = 2000, cooldown = 10, sent_max = 100},
 	-- Gauge bar colors, shared by the HUD and the station windows
 	colors = {hull = "#b85450", fuel = "#4f9a60", cargo = "#b8923a", heat = "#e07a20"},
 	-- kinds of interior node use; nodes are tagged with one, game logic listens for it
