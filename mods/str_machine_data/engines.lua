@@ -9,9 +9,9 @@ return {
 	levels = {
 		{name = "stock", description = "Stock motor", stats = {move_speed = 3.5, fuel_use = 1}},
 		{name = "inline4", description = "Inline-4 engine", stats = {move_speed = 4.5, fuel_use = 1.29},
-			from = {aluminum_plate = 8, copper_wire = 8}},
+			from = {steel = 8, copper_wire = 8}},
 		{name = "turbo_inline4", description = "Turbo Inline-4 engine", stats = {move_speed = 5.25, fuel_use = 1.5},
-			from = {aluminum_plate = 10, nickel = 8, graphite = 8}},
+			from = {steel = 10, aluminum_plate = 8, graphite = 8}},
 		{name = "v6", description = "V6 engine", stats = {move_speed = 6, fuel_use = 1.71},
 			from = {nickel_steel = 8, graphite = 10, sulphur = 10}},
 		{name = "twin_turbo_v6", description = "Twin-turbo V6 engine", stats = {move_speed = 6.5, fuel_use = 1.86},
