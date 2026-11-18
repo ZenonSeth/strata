@@ -67,6 +67,13 @@ Third-party assets, with their licenses and authors, are listed below.
 - Files: `mods/str_refinery/sounds/str_refinery_craft.1.ogg`, `.2.ogg`, `.3.ogg`, `.4.ogg` (short clips cut from the original)
 - License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
 
+### "Hard Impact on Concrete" (vehicle impact sounds)
+
+- Author: Elements-Library (freesound.org)
+- Source: https://freesound.org/people/Elements-Library/sounds/683774/
+- Files: `mods/str_machine/sounds/str_machine_vehicle_tire_impact.1.ogg`, `.2.ogg`, `.3.ogg` (short clips cut from the original)
+- License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+
 ## Original work
 
 Everything not listed under Credits above is original work by Zenon Seth, licensed CC BY-SA 3.0 (media) and LGPL-3.0-only (code). This includes:
@@ -77,7 +84,7 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
   - `mods/str_explosives/sounds/`
   - `mods/str_interior/sounds/`
   - `mods/str_lasers/sounds/`
-  - `mods/str_machine/sounds/`
+  - `mods/str_machine/sounds/` (except `str_machine_vehicle_tire_impact.*.ogg`, see Credits)
   - `mods/str_refuel/sounds/`
   - `mods/str_transmissions/sounds/`
   - `mods/str_upgrades/sounds/` (including the colour spray hiss, `str_upgrades_spray_hiss.ogg`)

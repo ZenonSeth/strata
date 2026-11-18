@@ -5,7 +5,7 @@ local hull = str_machine.hull
 
 local ENGINE_GAIN = 0.8
 local MIN_IMPACT_SPEED = str_utils.constants.min_impact_speed
-local IMPACT_GAIN_MIN, IMPACT_GAIN_MAX = 0.4, 1.0
+local IMPACT_GAIN_MIN, IMPACT_GAIN_MAX = 0.8, 1.0
 str_audio.sfx.register("vehicle_tire_impact", {
 	sound = "str_machine_vehicle_tire_impact", category = "vehicle", max_hear_distance = 32,
 })

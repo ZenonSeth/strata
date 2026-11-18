@@ -12,6 +12,8 @@ end
 dofile(str_machine.modpath .. "/gauge.lua")
 dofile(str_machine.modpath .. "/fuel.lua")
 dofile(str_machine.modpath .. "/hull.lua")
+dofile(str_machine.modpath .. "/damage_text.lua")
+dofile(str_machine.modpath .. "/damage_flash.lua")
 dofile(str_machine.modpath .. "/hull_slots.lua")
 dofile(str_machine.modpath .. "/autorepair.lua")
 dofile(str_machine.modpath .. "/heat.lua")
