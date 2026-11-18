@@ -11,7 +11,7 @@ return {
 	{name = "tin", shape = "vein", density = 0.02, tier = 2, curve = {
 		{800, 0.1}, {2500, 1}, {3800, 0.6}, {4600, 0.2}, {9000, 0.05}, {12000, 0},
 	}},
-	{name = "quartz", shape = "pocket", density = 0.02, tier = 5, curve = {
+	{name = "quartz", shape = "pocket", density = 0.02, tier = 4, curve = {
 		{2400, 0.1}, {4500, 1}, {6000, 0.7}, {7500, 0.2}, {11000, 0.05}, {14000, 0},
 	}},
 	{name = "iron", shape = "vein", density = 0.04, tier = 3, curve = {
