@@ -58,9 +58,9 @@ local function save(owner)
 	storage:set_string(KEY_PREFIX .. owner, core.write_json(out))
 end
 
-local function changed(pos)
+local function changed(pos, owner)
 	for _, fn in ipairs(listeners) do
-		fn(pos)
+		fn(pos, owner)
 	end
 end
 
@@ -114,7 +114,7 @@ local function delete(found)
 	end
 end
 
--- fn(pos) runs after the crate at pos changes (contents, privacy, or removed)
+-- fn(pos, owner) runs after the crate at pos changes (contents, privacy, or removed)
 function crates.register_on_change(fn)
 	listeners[#listeners + 1] = fn
 end
@@ -135,7 +135,7 @@ function crates.set_private(pos, private)
 	if found then
 		found.record.private = private and true or false
 		save(found.owner)
-		changed(found.record.pos)
+		changed(found.record.pos, found.owner)
 	end
 end
 
@@ -148,6 +148,15 @@ end
 -- Number of crates owner has across all slices
 function crates.count(owner)
 	return #(by_owner[owner] or {})
+end
+
+-- Copies of owner's crates {pos, private, items}, in the order they were made
+function crates.list(owner)
+	local out = {}
+	for i, rec in ipairs(by_owner[owner] or {}) do
+		out[i] = {pos = vector.copy(rec.pos), private = rec.private, items = table.copy(rec.items)}
+	end
+	return out
 end
 
 function crates.get(pos)
@@ -184,7 +193,7 @@ function crates.add(pos, name, count)
 	local items = found.record.items
 	items[name] = (items[name] or 0) + fit
 	save(found.owner)
-	changed(found.record.pos)
+	changed(found.record.pos, found.owner)
 	return fit
 end
 
@@ -205,7 +214,7 @@ function crates.remove(pos, name, count)
 	else
 		delete(found)
 	end
-	changed(found.record.pos)
+	changed(found.record.pos, found.owner)
 	return removed
 end
 
@@ -217,7 +226,7 @@ function crates.destroy(pos)
 	end
 	local items = found.record.items
 	delete(found)
-	changed(found.record.pos)
+	changed(found.record.pos, found.owner)
 	return items
 end
 

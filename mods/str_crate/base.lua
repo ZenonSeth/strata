@@ -47,7 +47,7 @@ local function build(player)
 	})
 	local stock_fs, _, stock_sel = str_inventory.item_table(stored, {
 		x = MARGIN, y = Y_STORAGE, w = TABLE_W, h = TABLE_H, name = "stock", selected = selected_stock[name],
-		empty = "The storage is empty.",
+		empty = "The storage is empty.", bg = "#241e19",
 	})
 	local capacity = str_utils.constants.storage_capacity
 	return table.concat({

@@ -17,6 +17,20 @@ local TABS = {
 table.insert(TABS, 3, {id = "transmissions", title = "Transmissions", tooltip = "Transmissions",
 	image = "str_transmissions_tab.png", visible = str_transmissions.is_unlocked})
 
+str_inventory.WIDTH, str_inventory.HEIGHT = WIDTH, HEIGHT
+
+-- def: id, title, tooltip, image, visible (optional fn(player)), after (tab id to follow),
+-- build(player, name) -> formspec, on_fields(player, fields) -> true when handled, on_leave(name)
+function str_inventory.register_tab(def)
+	local at = #TABS + 1
+	for i, tab in ipairs(TABS) do
+		if tab.id == def.after then
+			at = i + 1
+		end
+	end
+	table.insert(TABS, at, def)
+end
+
 local TABLE_X, TABLE_W = 0.4, WIDTH - 0.8
 local TABLE_Y = str_gui.CONTENT_Y
 local TABLE_H = HEIGHT - TABLE_Y - 3.2
@@ -380,6 +394,12 @@ local function build(player)
 		fs[#fs + 1] = settings_tab(player)
 	elseif tab == "danger" then
 		fs[#fs + 1] = danger_tab(player, name)
+	else
+		for _, def in ipairs(TABS) do
+			if def.id == tab and def.build then
+				fs[#fs + 1] = def.build(player, name)
+			end
+		end
 	end
 	return table.concat(fs)
 end
@@ -387,6 +407,8 @@ end
 local function refresh(player)
 	player:set_inventory_formspec(build(player))
 end
+
+str_inventory.refresh = refresh
 
 core.register_on_joinplayer(refresh)
 str_mode.register_on_change(function(player)
@@ -427,6 +449,11 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 			refresh(player)
 		end
 		return
+	end
+	for _, def in ipairs(TABS) do
+		if def.on_fields and def.id == selected_tab[name] and def.on_fields(player, fields) then
+			return
+		end
 	end
 	if fields.self_destruct then
 		armed[name] = str_mode.get(player) == "vehicle" or nil
@@ -530,4 +557,9 @@ core.register_on_leaveplayer(function(player)
 	message[name] = nil
 	expanded_analysis[name] = nil
 	signal_row[name], decode_input[name], decode_result[name] = nil, nil, nil
+	for _, def in ipairs(TABS) do
+		if def.on_leave then
+			def.on_leave(name)
+		end
+	end
 end)
