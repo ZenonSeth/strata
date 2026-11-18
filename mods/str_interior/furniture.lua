@@ -122,7 +122,10 @@ register_box("shop_upgrade_br", "Upgrade station (bottom right)", "str_interior_
 	{12/32, 8/32, -11/32, 16/32, 12/32, 11/32},
 	{12/32, -16/32, -11/32, 16/32, -12/32, 11/32},
 	{-16/32, -16/32, -10/32, 4/32, 12/32, 16/32},
-}, {use = USE.upgrade})
+}, {
+	use = USE.upgrade,
+	selection_box = {type = "fixed", fixed = {-15/32, -15/32, -15/32, 15/32, 15/32, 15/32}},
+})
 
 register_box("shop_upgrade_tl", "Upgrade station (top left)", "str_interior_shop_upgrade_tl", {
 	{-10/32, -7/32, 10/32, 16/32, 14/32, 14/32},
@@ -132,7 +135,12 @@ register_box("shop_upgrade_tl", "Upgrade station (top left)", "str_interior_shop
 	{12/32, -3/32, 0, 16/32, 5/32, 8/32},
 	{13/32, -5/32, 1/32, 16/32, -3/32, 7/32},
 	{6/32, -16/32, -2/32, 16/32, -14/32, 10/32},
-}, {use = USE.upgrade, light_source = 5})
+}, {
+	use = USE.upgrade,
+	light_source = 5,
+	-- one solid box over both top halves, so the gaps under the gantry still point at it
+	selection_box = {type = "fixed", fixed = {-10/32, -16/32, -3/32, 42/32, 14/32, 14/32}},
+})
 
 register_box("shop_upgrade_tr", "Upgrade station (top right)", "str_interior_shop_upgrade_tr", {
 	{-16/32, -7/32, 10/32, 10/32, 14/32, 14/32},

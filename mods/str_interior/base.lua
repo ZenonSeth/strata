@@ -63,7 +63,61 @@ end
 world_aligned("shop_floor", "Shop floor (concrete)", "str_interior_shop_floor")
 -- Marks where the player arrives; facing in param2 (schematics keep it, not metadata)
 world_aligned("shop_floor_spawn", "Shop floor (player spawn)", "str_interior_shop_floor", {paramtype2 = "4dir"})
-simple("shop_floor_grate", "Shop floor (grate)", "str_interior_shop_floor_grate")
+-- Grate: dark inner cube 1/16 in, a 1/16 deep shell of bars around it with 4x4 holes per face.
+-- The texture paints the same holes dark; boxes do not overlap, so no z-fighting.
+local function grate_boxes()
+	local cuts = {0, 2, 6, 10, 14, 18, 22, 26, 30, 32}
+	local n = #cuts - 1
+	local function shell(i) return i == 1 or i == n end
+	local function hole(i) return i % 2 == 0 end
+	local function solid(c)
+		for a = 1, 3 do
+			if shell(c[a]) and hole(c[a % 3 + 1]) and hole(c[(a + 1) % 3 + 1]) then
+				return false
+			end
+		end
+		return shell(c[1]) or shell(c[2]) or shell(c[3])
+	end
+	local used = {}
+	local function free(x, y, z)
+		return not used[(z * 16 + y) * 16 + x] and solid({x, y, z})
+	end
+	local function px(i) return cuts[i] / 32 - 0.5 end
+	local boxes = {{-7/16, -7/16, -7/16, 7/16, 7/16, 7/16}}
+	for z = 1, n do for y = 1, n do for x = 1, n do
+		if free(x, y, z) then
+			local x2, y2, z2 = x, y, z
+			while x2 < n and free(x2 + 1, y, z) do x2 = x2 + 1 end
+			local function row_free(yy, zz)
+				for xx = x, x2 do
+					if not free(xx, yy, zz) then return false end
+				end
+				return true
+			end
+			while y2 < n and row_free(y2 + 1, z) do y2 = y2 + 1 end
+			local function layer_free(zz)
+				for yy = y, y2 do
+					if not row_free(yy, zz) then return false end
+				end
+				return true
+			end
+			while z2 < n and layer_free(z2 + 1) do z2 = z2 + 1 end
+			for zz = z, z2 do for yy = y, y2 do for xx = x, x2 do
+				used[(zz * 16 + yy) * 16 + xx] = true
+			end end end
+			boxes[#boxes + 1] = {px(x), px(y), px(z), px(x2 + 1), px(y2 + 1), px(z2 + 1)}
+		end
+	end end end
+	return boxes
+end
+register_node("shop_floor_grate", {
+	description = "Shop floor (grate)",
+	drawtype = "nodebox",
+	tiles = {"str_interior_shop_floor_grate.png"},
+	node_box = {type = "fixed", fixed = grate_boxes()},
+	collision_box = {type = "regular"},
+	selection_box = {type = "regular"},
+})
 simple("shop_wall", "Shop wall (concrete)", "str_interior_shop_wall")
 register("shop_wall_beam", "Shop wall (concrete, steel beam)",
 	"str_interior_shop_wall", "str_interior_shop_wall", "str_interior_shop_wall_beam")
