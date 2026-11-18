@@ -8,8 +8,23 @@ str_elevators.MIN_DISTANCE = 250
 -- Nodes between two surface stations along x
 str_elevators.MIN_X_DISTANCE = 200
 
+-- x rounded from just below 0 is -0, which must share the column's key with 0
 local function key(x)
-	return "net:" .. x
+	return "net:" .. (x == 0 and 0 or x)
+end
+
+-- Older saves may hold a column under a non-canonical key ("net:-0")
+for _, field in ipairs(storage:get_keys()) do
+	local x = tonumber(field:match("^net:(.+)$"))
+	if x and key(x) ~= field then
+		local raw = storage:get_string(field)
+		if storage:get_string(key(x)) == "" then
+			storage:set_string(key(x), raw)
+		else
+			core.log("warning", ("str_elevators: dropped duplicate network %s: %s"):format(field, raw))
+		end
+		storage:set_string(field, "")
+	end
 end
 
 function str_elevators.get_network(x)

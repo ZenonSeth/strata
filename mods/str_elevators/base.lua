@@ -490,3 +490,49 @@ register_item("surface", "Elevator Surface Station\nPlaced behind the machine at
 	"str_elevators_surface_high.png", place_surface)
 register_item("stop", "Elevator Stop\nPlaced behind the machine below a surface station in the same column",
 	"str_elevators_stop.png", place_stop)
+
+-- Node the network in column x expects at y, and the stop record there
+local function expected_node(x, y)
+	local net = str_elevators.get_network(x)
+	if not net then
+		return nil
+	end
+	if y == net.top then
+		return "str_elevators:surface_low"
+	elseif y == net.top + 1 then
+		return "str_elevators:surface_high"
+	end
+	local stop = stop_record(net, y)
+	return stop and "str_elevators:stop", stop
+end
+
+local function restore_station(x, y)
+	local pos = vector.new(x, y, SLICE_Z + 1)
+	local name, stop = expected_node(x, y)
+	if not name or core.get_node(pos).name == name or not is_clearable(pos) then
+		return
+	end
+	put(pos, name)
+	if stop and stop.owner then
+		core.get_meta(pos):set_string(OWNER_META, stop.owner)
+	end
+	core.log("action", "str_elevators: put back missing " .. name .. " at " .. core.pos_to_string(pos))
+end
+
+-- Stations lost while their record stayed (e.g. the old x = -0 pick-up bug) come back on start
+core.after(0, function()
+	for _, entry in ipairs(str_elevators.all()) do
+		local ys = {entry.net.top, entry.net.top + 1}
+		for _, stop in ipairs(entry.net.stops) do
+			ys[#ys + 1] = stop.y
+		end
+		for _, y in ipairs(ys) do
+			local pos = vector.new(entry.x, y, SLICE_Z + 1)
+			core.emerge_area(pos, pos, function(_, _, remaining)
+				if remaining == 0 then
+					restore_station(entry.x, y)
+				end
+			end)
+		end
+	end
+end)

@@ -274,3 +274,17 @@ core.register_craftitem(ITEM, {
 	end,
 	on_drop = function(itemstack) return itemstack end,
 })
+
+-- Waypoints lost while their record stayed come back on start
+core.after(0, function()
+	for _, wp in ipairs(str_horizontal.all()) do
+		local pos = node_pos(wp.x, wp.y)
+		core.emerge_area(pos, pos, function(_, _, remaining)
+			local now = remaining == 0 and str_horizontal.get(wp.x)
+			if now and now.y == wp.y and core.get_node(pos).name ~= NODE and str_elevators.is_clearable(pos) then
+				str_elevators.put(pos, NODE)
+				core.log("action", "str_horizontal: put back missing waypoint at " .. core.pos_to_string(pos))
+			end
+		end)
+	end
+end)

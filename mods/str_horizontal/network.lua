@@ -5,8 +5,23 @@ local storage = core.get_mod_storage()
 -- Nodes between two waypoints along x
 str_horizontal.MIN_DISTANCE = 100
 
+-- x rounded from just below 0 is -0, which must share the column's key with 0
 local function key(x)
-	return "wp:" .. x
+	return "wp:" .. (x == 0 and 0 or x)
+end
+
+-- Older saves may hold a column under a non-canonical key ("wp:-0")
+for _, field in ipairs(storage:get_keys()) do
+	local x = tonumber(field:match("^wp:(.+)$"))
+	if x and key(x) ~= field then
+		local raw = storage:get_string(field)
+		if storage:get_string(key(x)) == "" then
+			storage:set_string(key(x), raw)
+		else
+			core.log("warning", ("str_horizontal: dropped duplicate waypoint %s: %s"):format(field, raw))
+		end
+		storage:set_string(field, "")
+	end
 end
 
 function str_horizontal.get(x)

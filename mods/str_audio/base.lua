@@ -312,6 +312,6 @@ music.register_track("underground", {
 		{sound = "str_audio_music_underground_4", length = 23.2},
 		{sound = "str_audio_music_underground_5", length = 38.0},
 	},
-	chance = 0.5,
+	chance = 0.75,
 	gain = 1.0,
 })
