@@ -1,7 +1,7 @@
 local SLICE_Z = str_utils.constants.slice_z
 
 -- Nodes per second of the virtual ride, the shortest ride, the fade to black, and how long to wait for the map
-local SPEED = 100
+local SPEED = 300
 local MIN_TIME = 2
 local FADE = 0.6
 local MAP_TIMEOUT = 15
