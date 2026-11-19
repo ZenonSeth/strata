@@ -52,45 +52,13 @@ local function display_name(def)
 	return number and (def.description .. " " .. number) or def.description
 end
 
--- What a material is for, worked out from the fuel, smelter and upgrade data so it cannot go stale
-local uses
-local function build_uses()
-	uses = {}
-	for _, def in ipairs(str_materials.list) do
-		uses[def.name] = {fuel = str_materials.fuel[def.name] ~= nil, smelts = {}, upgrades = false, crafts = false}
-	end
-	for _, def in ipairs(str_materials.list) do
-		if def.kind == "smelted" then
-			for input in pairs(def.from) do
-				table.insert(uses[input].smelts, def.description)
-			end
-		end
-	end
-	for _, category in ipairs(str_machine_data.upgrades) do
-		for _, level in ipairs(category.levels) do
-			for input in pairs(level.from or {}) do
-				uses[input].upgrades = true
-			end
-		end
-	end
-	for _, craftable in ipairs(str_upgrades.craftables) do
-		for input in pairs(craftable.from or {}) do
-			uses[input].crafts = true
-		end
-	end
-end
-
 local function note(def)
-	if not uses then
-		build_uses()
-	end
-	local use = uses[def.name]
+	local use = str_upgrades.material_uses(def.name)
 	local parts = {}
 	if use.fuel then
 		parts[#parts + 1] = "Fuel for smelting."
 	end
 	if #use.smelts > 0 then
-		table.sort(use.smelts)
 		local names = {}
 		for i = 1, math.min(MAX_NAMES, #use.smelts) do
 			names[i] = use.smelts[i]
@@ -104,7 +72,9 @@ local function note(def)
 	elseif use.crafts then
 		parts[#parts + 1] = "Used for workbench items."
 	end
-	if #parts == 0 and def.kind ~= "relic" then
+	if def.kind == "relic" then
+		parts[#parts + 1] = "Unknown use?"
+	elseif #parts == 0 then
 		parts[1] = "Sold for credits."
 	end
 	return table.concat(parts, " ")

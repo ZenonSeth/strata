@@ -67,6 +67,12 @@ local function sell_tab(player, name)
 	local table_fs, list, selected = str_inventory.item_table(store.get(player), {
 		x = TABLE_X, y = LIST_Y, w = TABLE_W, h = TABLE_H - (LIST_Y - TABLE_Y),
 		selected = selected_item[name], empty = src.empty,
+		suffix = function(def)
+			if def.kind == "relic" then
+				return " (relic)"
+			end
+			return not str_upgrades.has_uses(def.name) and " (no uses)" or ""
+		end,
 	})
 	local detail = "Select an item to sell it."
 	local total_value = 0
