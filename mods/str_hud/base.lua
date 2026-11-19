@@ -22,7 +22,7 @@ end
 -- color = 0xRRGGBB, mode = only shown in this mode (default: always),
 -- align = "right" keeps the right edge fixed at the anchor (default: centered),
 -- background = {color = ColorString, padding = {x, y} px} for a rectangle behind the text,
--- mono = true for a monospace font}
+-- mono = true for a monospace font}; labels may have several lines and core.colorize escapes
 function str_hud.register_text(id, def)
 	elements[id] = {kind = "text", def = def}
 end
@@ -70,9 +70,13 @@ local function background_scale(def, label)
 	end
 	local size = def.size or 1
 	local padding = def.background.padding or DEFAULT_PADDING
+	local longest, lines = 0, 0
+	for line in (core.strip_colors(label) .. "\n"):gmatch("(.-)\n") do
+		longest, lines = math.max(longest, #line), lines + 1
+	end
 	return {
-		x = #label * CHAR_WIDTH * size + 2 * padding.x,
-		y = LINE_HEIGHT * size + 2 * padding.y,
+		x = longest * CHAR_WIDTH * size + 2 * padding.x,
+		y = lines * LINE_HEIGHT * size + 2 * padding.y,
 	}
 end
 

@@ -276,6 +276,8 @@ local CRAFTABLES = {
 		info = "Placed behind the machine to mark the way"},
 	{name = "platform", item = "str_platforms:platform", description = "Platform", count = 5, from = {bronze = 1, graphite = 1},
 		info = "Placed below the machine to stand on\nCan be passed through if holding down/up while standing on/below it"},
+	{name = "scanner", item = str_scanner.ITEM, description = "Scanner", count = 1, from = {copper_wire = 2, copper_plate = 1},
+		info = "In the machine, point it at a node in your slice\nShows rock, mineral, tier and if your drill can dig it"},
 	{name = "elevator_stop", item = "str_elevators:stop_station", description = "Elevator Stop", count = 1,
 		from = {bronze = 2, lens_glass = 2, copper_wire = 1},
 		info = "Placed below the surface, 250 m from other stops; needs a surface station in the column"},

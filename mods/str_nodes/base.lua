@@ -304,6 +304,8 @@ for host, s in ipairs(strata) do
 					str_materials.get(m.name).description .. " (" .. r.name .. ", " .. s.name .. ")",
 					"str_nodes_ore_" .. m.name .. "_" .. r.name .. ".png", name_color(m.name), r.mark, host, {
 						str_material = m.name,
+						str_host = "str_nodes:" .. s.name,
+						str_richness = r.name,
 						str_tier = m.tier,
 						str_yield = r.yield,
 						str_hardness = math.floor(tier_hardness(m.tier) * r.hardness * 100 + 0.5) / 100,
@@ -316,6 +318,7 @@ for host, s in ipairs(strata) do
 		register_embedded(data.gem_node(g.name, s.name), str_materials.get(g.name).description .. " (" .. s.name .. ")",
 			"str_materials_" .. g.name .. ".png", name_color(g.name), 6, host, {
 				str_material = g.name,
+				str_host = "str_nodes:" .. s.name,
 				str_tier = g.tier,
 				str_yield = 1,
 				str_hardness = tier_hardness(g.tier),

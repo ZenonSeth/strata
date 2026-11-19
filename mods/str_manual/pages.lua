@@ -80,7 +80,10 @@ str_manual.register_page("drill", "Drill", lines(
 	"Every node has a tier, and the harder the rock, the higher it is. The drill bit can only break nodes up to its own max tier. Anything harder is too tough for it, so you will need a better bit to go deeper.",
 	"",
 	"<b>Speed</b>",
-	"A better bit also digs faster. How long a node takes depends on how hard it is and how fast your drill is, so tough rock takes longer than soft rock."
+	"A better bit also digs faster. How long a node takes depends on how hard it is and how fast your drill is, so tough rock takes longer than soft rock.",
+	"",
+	"<b>Scanner</b>",
+	"Make a scanner in the Create Items tab of the upgrade station and move it to your hotbar. Select it while in the machine and point at a node in your slice. The panel at the top of the screen shows the rock, the mineral in it, its tier and whether your drill can dig it. Minerals you have never had in your cargo hold show as ???."
 ))
 
 str_manual.register_page("demolition", "Demolition", lines(
