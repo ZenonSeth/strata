@@ -21,6 +21,19 @@ function str_interior.register_on_use(kind, fn)
 	table.insert(listeners[kind], fn)
 end
 
+local state_listeners = {}
+
+-- fn(pos, node): a node in group str_groups.SAVED_STATE at pos changed to node
+function str_interior.register_on_state_change(fn)
+	table.insert(state_listeners, fn)
+end
+
+function str_interior.notify_state_change(pos, node)
+	for _, fn in ipairs(state_listeners) do
+		fn(pos, node)
+	end
+end
+
 function str_interior.make_on_rightclick(kind)
 	check(kind)
 	return function(pos, node, clicker)

@@ -20,10 +20,9 @@ return {
 	shop_x = -7,
 	refinery_x = 4,
 	contact_x = -20,
-	-- Player interiors, one schematic copy each, in a grid near the top of the map, far above the world:
-	-- slot n is at origin + (n % columns, 0, n // columns) * spacing
-	-- version: bump it each time shop_home.mts is saved; stale interiors are re-placed on the next entry
-	interior = {origin = {x = -30720, y = 30800, z = -30720}, spacing = 64, columns = 960, version = 2},
+	-- Player interiors, one row of session slots high above the world: slot n is at origin + (n * spacing, 0, 0).
+	-- A slot is held from join to leave and placed fresh each session, so `slots` caps players online
+	interior = {origin = {x = -30720, y = 30000, z = -30720}, spacing = 64, slots = 960},
 	-- Landing speed (nodes/s) below which a machine landing makes no sound and does no damage
 	min_impact_speed = 10.9,
 	-- Terminal fall speed of a machine (nodes/s); landings at this speed do max_fall_damage

@@ -60,6 +60,8 @@ local function register_door(skin, description)
 		core.swap_node(pos, {name = "str_interior:" .. names[partner_toggle(key)], param2 = node.param2})
 		str_audio.sfx.play(key:find("_open$") and "door_close" or "door_open", {pos = top_pos})
 		core.swap_node(top_pos, {name = "str_interior:" .. names[partner_toggle(top_key)], param2 = top.param2})
+		str_interior.notify_state_change(pos, core.get_node(pos))
+		str_interior.notify_state_change(top_pos, core.get_node(top_pos))
 	end
 
 	for _, half in ipairs({"bottom", "top"}) do
@@ -76,6 +78,8 @@ local function register_door(skin, description)
 				tiles = tiles("door_" .. skin .. (half == "top" and "_top" or "_bottom") .. (open and "_open" or "")),
 				node_box = box,
 				collision_box = box,
+				groups = {[str_groups.SAVED_STATE] = 1},
+				_str_state_family = "str_interior:" .. base .. "_" .. half,
 			}
 			if half == "bottom" then
 				local pick = open and {-16/32, -16/32, -16/32, -16/32 + LEAF, 48/32, 16/32}
@@ -114,13 +118,13 @@ local function register_door(skin, description)
 							{name = "str_interior:" .. names.top, param2 = core.get_node(pos).param2})
 					end
 				else
-					def.groups = {not_in_creative_inventory = 1}
+					def.groups.not_in_creative_inventory = 1
 				end
 			else
 				-- the top half is never pointed at; the bottom half's box covers it
 				def.pointable = false
 				def.drop = ""
-				def.groups = {not_in_creative_inventory = 1}
+				def.groups.not_in_creative_inventory = 1
 			end
 			register_node(name, def)
 		end
