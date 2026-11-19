@@ -40,7 +40,7 @@ local function engine_sound(session, player, control)
 		return
 	end
 	local sfx = str_audio.sfx
-	local climbing = control.up and not control.down
+	local climbing = session.thrusting
 	local has_fuel = not fuel.is_empty(player)
 	local engine = "engine_idle"
 	if has_fuel then
@@ -79,6 +79,9 @@ local THRUST_ACCEL = 65
 -- At the rated weight the net climb accel is 10% of the empty-hold one
 local RATED_DRAG = 2.25
 local MAX_FALL_SPEED = str_utils.constants.max_fall_speed
+-- Sneak hover: vertical speed (nodes/s) with up/down held, and its fuel burn multiplier
+local HOVER_SPEED = 2
+local HOVER_FUEL_MULT = 1.25
 local LIQUID = str_utils.constants.liquid
 -- Easing onto the dig row/column
 local ALIGN_SPEED = 3
@@ -516,6 +519,7 @@ local function control_step(session, player, pos, control, dtime)
 	local my_stats = stats.get(player)
 	local class_pos = dig and dig.anchor or pos
 	local on_ground = grounded(class_pos)
+	session.thrusting = control.up and not control.down
 	local free, digs, pass = false, {}, nil
 	for _, entry in ipairs(held_entries(control)) do
 		local kind, target = classify(class_pos, entry, on_ground, my_stats.can_dig_up, my_stats.drill_tier)
@@ -574,14 +578,27 @@ local function control_step(session, player, pos, control, dtime)
 	end
 	vel.x = approach(vel.x, target_vx, ACCEL * dtime)
 	local accel_y = -session.gravity
-	local climbing = control.up and not control.down
-	if climbing then
+	local hovering = control.sneak and not fuel.is_empty(player) and (control.up or not on_ground)
+	local climbing = not hovering and control.up and not control.down
+	session.thrusting = hovering or climbing
+	if hovering then
+		burn_fuel(player, HOVER_FUEL_MULT, dtime)
+	elseif climbing then
 		burn_fuel(player, FUEL.climb_mult, dtime)
 	elseif control.left ~= control.right then
 		burn_fuel(player, 1, dtime)
 	end
-	if climbing then
-		accel_y = THRUST_ACCEL / (1 + RATED_DRAG * cargo.weight(player) / my_stats.thrust_rating) - session.gravity
+	local thrust_accel = THRUST_ACCEL / (1 + RATED_DRAG * cargo.weight(player) / my_stats.thrust_rating)
+	if hovering then
+		local target_vy = ((control.up and 1 or 0) - (control.down and 1 or 0)) * HOVER_SPEED
+		-- Thrust pushes up, gravity alone pulls down; either stops exactly at the target speed
+		if vel.y <= target_vy then
+			accel_y = math.min(thrust_accel - session.gravity, (target_vy - vel.y) / dtime)
+		else
+			accel_y = math.max(-session.gravity, (target_vy - vel.y) / dtime)
+		end
+	elseif climbing then
+		accel_y = thrust_accel - session.gravity
 		if vel.y > top_thrust then
 			vel.y = approach(vel.y, top_thrust, ACCEL * dtime)
 			accel_y = 0
@@ -675,7 +692,7 @@ local function animate(session, player, control, dtime)
 	if session.destroyed then
 		return
 	end
-	if control.up and not session.liquid then
+	if session.thrusting and not session.liquid then
 		spawn_exhaust(session, player, dtime)
 	end
 

@@ -2,18 +2,29 @@ local function lines(...)
 	return table.concat({...}, "\n")
 end
 
+-- Hypertext keeps runs of spaces, so padding the mono key column lines up the descriptions
+local KEY_COLUMN = 18
+local function key(keys, text)
+	return ("<style color=#6b1f14><mono><b>%s</b></mono></style>%s"):format(
+		keys .. string.rep(" ", KEY_COLUMN - #keys), text)
+end
+
 str_manual.register_page("controls", "Controls", lines(
 	"<b>Driving the machine</b>",
-	"Left / right: drive sideways.",
-	"Forward (up): fire the thrusters and climb. Let go and you fall.",
-	"Back (down): dig downwards.",
+	key("Left / Right", "Drive left / right."),
+	key("Up", "Fire the thrusters and climb. Let go and you fall."),
+	key("Down", "Dig downwards."),
+	key("Sneak", "Hover: brake your fall and hold in place."),
+	key("Sneak + Up/Down", "Climb or sink slowly while hovering."),
+	"Hovering uses fuel and does not work with an empty tank.",
+	"",
+	"<b>Using things</b>",
+	key("E", "Use a pad or station you are next to (Aux1 on touch)."),
+	"The prompt appears on screen when something is in reach.",
 	"",
 	"<b>Digging</b>",
 	"Hold a direction against a node and the drill starts on it. Hold it until the node breaks; let go or turn away and the dig stops.",
-	"Digging uses fuel, twice as fast as driving.",
-	"",
-	"<b>Using things</b>",
-	"Stand on a pad, or next to a station, and press the interact key (default E, or Aux1 on touch). The prompt appears on screen when something is in reach."
+	"Digging uses fuel, twice as fast as driving."
 ))
 
 str_manual.register_page("upgrades", "Upgrades", lines(
@@ -26,7 +37,7 @@ str_manual.register_page("upgrades", "Upgrades", lines(
 
 str_manual.register_page("fuel_hull", "Fuel & Hull", lines(
 	"<b>Fuel</b>",
-	"The machine burns fuel whenever it drives, climbs or digs. Digging burns the most. Standing still or falling is free. A bigger tank holds more. A faster engine moves you faster, but also uses fuel faster.",
+	"The machine burns fuel whenever it drives, climbs or digs. Digging burns the most. Hovering burns a little less than climbing. Standing still or falling is free. A bigger tank holds more. A faster engine moves you faster, but also uses fuel faster.",
 	"",
 	"<b>At zero fuel</b>",
 	"You do not die. The drill stops working, and the machine crawls at about a tenth of its normal speed, sideways and upwards. You can still limp back to the shop.",
