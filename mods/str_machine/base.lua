@@ -134,6 +134,12 @@ str_hud.register_text(PAD_HUD, {
 
 local depth_listeners = {}
 local last_depth = {}
+local MAX_DEPTH_KEY = "str_machine:max_depth"
+
+-- Deepest whole-metre depth the machine has reached; 0 for saves from before it was tracked
+function str_machine.get_max_depth(player)
+	return math.max(player:get_meta():get_int(MAX_DEPTH_KEY), 0)
+end
 
 -- fn(player, depth, old_depth) on a whole-metre depth change; depth is below the start (negative above)
 function str_machine.register_on_depth_change(fn)
@@ -148,6 +154,9 @@ local function update_depth(player, pos)
 	local depth, old = -y, last_depth[name]
 	if depth ~= old then
 		last_depth[name] = depth
+		if depth > str_machine.get_max_depth(player) then
+			player:get_meta():set_int(MAX_DEPTH_KEY, depth)
+		end
 		local playing = str_audio.music.current(player)
 		if depth >= 10 then
 			if playing ~= "underground" then
@@ -163,6 +172,15 @@ local function update_depth(player, pos)
 		end
 	end
 end
+
+local TOOLS_MAIL_DEPTH = 1000
+local function check_tools_mail(player)
+	if str_machine.get_max_depth(player) >= TOOLS_MAIL_DEPTH then
+		str_mail.send_story(player:get_player_name(), "jim_tools")
+	end
+end
+str_machine.register_on_depth_change(check_tools_mail)
+core.register_on_joinplayer(check_tools_mail)
 
 local dig_listeners = {}
 

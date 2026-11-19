@@ -101,6 +101,21 @@ return {
 			"Jim",
 		}, "\n"),
 	},
+	jim_tools = {
+		from = "Jim Harlow",
+		subject = "Tools of the trade",
+		text = table.concat({
+			"Hey friend,",
+			"",
+			"A whole kilometre down already? Not bad. Your drill won't carry you forever, so here are a few tools worth knowing about. You make them all in the Create Items tab of your upgrade station, then put them in your hotbar.",
+			"",
+			"- Scanner: point it at the rock ahead and it tells you what's in there and whether your drill can take it. Saves a lot of wasted digging.",
+			"- Explosives: for rock your drill is too weak for. They blow it apart, ore and all, so don't set them off next to anything you want to keep.",
+			"- Lasers: same job, with reach. You'll need a blueprint from the Company Shop, a mounting point in your hull and a charged battery. Gems come through the beam in one piece.",
+			"",
+			"Jim",
+		}, "\n"),
+	},
 	welcome = {
 		from = "Accounts Receivable, Excelsior Deep Yield Group",
 		subject = "Welcome aboard! Your account summary (ACTION REQUIRED)",
