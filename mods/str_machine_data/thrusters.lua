@@ -14,7 +14,7 @@ local gold_per_volume = gold.weight / gold.volume
 local names = {"Stock propeller", "Copper-sheathed propeller", "Bronze propeller", "Steel propeller",
 	"Variable-pitch propeller", "Turbojet", "Turbofan", "Afterburning turbofan", "Chemical rocket", "Nuclear rocket"}
 local kinds = {"propeller", "propeller", "propeller", "propeller", "propeller", "jet", "jet", "jet", "rocket", "rocket"}
-local alloy_amounts = {10, 10, 10, 10, 13, 17, 22, 28, 37}
+local alloy_amounts = {10, 10, 10, 10, 8, 17, 22, 28, 37}
 -- Jets and rockets need more than the alloy, keyed by level index
 local extras = {
 	[6] = {graphite = 8},

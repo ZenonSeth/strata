@@ -58,12 +58,74 @@ local function levels_key(player)
 	return "upgrades:" .. player:get_player_name()
 end
 
+-- Save migrations, applied in order; the player's version is the number of steps already applied.
+-- Each step takes the parts data, changes it in place and returns whether it changed anything. Never edit a shipped step.
+local MIGRATIONS = {
+	-- 1: hull levels deep (880 -> 590 HP) and tungsten (590 -> 880) swapped places; keep each hull's share of its max
+	function(data)
+		local current = type(data.hull) == "table" and data.hull.current
+		if type(current) ~= "table" then
+			return false
+		end
+		local deep, tungsten = current.deep, current.tungsten
+		if type(deep) == "number" then
+			current.deep = deep * 590 / 880
+		end
+		if type(tungsten) == "number" then
+			current.tungsten = tungsten * 880 / 590
+		end
+		return type(deep) == "number" or type(tungsten) == "number"
+	end,
+}
+
+local function version_key(player)
+	return "upgrades_version:" .. player:get_player_name()
+end
+
+-- Drops malformed entries so readers can index built, current and equipped safely
+local function sanitize(data)
+	for id, entry in pairs(data) do
+		if type(entry) ~= "table" then
+			data[id] = nil
+		else
+			if type(entry.built) ~= "table" then
+				entry.built = nil
+			end
+			if type(entry.current) ~= "table" then
+				entry.current = nil
+			else
+				for name, value in pairs(entry.current) do
+					if type(value) ~= "number" then
+						entry.current[name] = nil
+					end
+				end
+			end
+			if type(entry.equipped) ~= "string" then
+				entry.equipped = nil
+			end
+		end
+	end
+	return data
+end
+
 local function built_levels(player)
 	local key = levels_key(player)
 	if not levels_cache[key] then
 		local raw = storage:get_string(key)
 		local data = raw ~= "" and core.parse_json(raw)
-		levels_cache[key] = type(data) == "table" and data or {}
+		data = sanitize(type(data) == "table" and data or {})
+		local version = math.max(0, math.floor(tonumber(storage:get_string(version_key(player))) or 0))
+		if version < #MIGRATIONS then
+			local changed = false
+			for step = version + 1, #MIGRATIONS do
+				changed = MIGRATIONS[step](data) or changed
+			end
+			if changed then
+				storage:set_string(key, core.write_json(data))
+			end
+			storage:set_string(version_key(player), tostring(#MIGRATIONS))
+		end
+		levels_cache[key] = data
 	end
 	return levels_cache[key]
 end
@@ -288,6 +350,7 @@ end
 -- Removes every part, built or equipped (debugging)
 function stats.reset_all_upgrades(player)
 	player:get_meta():set_string(META_KEY, "[]")
+	built_levels(player)
 	levels_cache[levels_key(player)] = {}
 	save_levels(player)
 end

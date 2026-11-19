@@ -131,9 +131,7 @@ local function discover(player, names)
 			new[#new + 1] = name
 		end
 	end
-	if #new == 0 then
-		return
-	end
+	-- Runs even with nothing new, so recipes changed since the last save are picked up
 	local changed = true
 	while changed do
 		changed = false
@@ -144,6 +142,9 @@ local function discover(player, names)
 				changed = true
 			end
 		end
+	end
+	if #new == 0 then
+		return
 	end
 	save("found", player_name)
 	for _, name in ipairs(new) do

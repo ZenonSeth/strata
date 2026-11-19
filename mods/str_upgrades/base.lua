@@ -300,7 +300,7 @@ local CRAFTABLES = {
 		from = {titanium_alloy = 1, oil = 1, sulphur = 2},
 		info = "Destroys nodes up to tier 9 in a circle of radius 5 around the machine\nGround content is destroyed\nCarry at most 50 in the hotbar"},
 	{name = "explosive_c4_shaped", item = "str_explosives:c4_shaped", description = "Shaped C4", count = 1,
-		from = {titanium_alloy = 2, oil = 1, sulphur = 2},
+		from = {titanium_alloy = 1, steel = 1, oil = 1, sulphur = 2},
 		info = "Horizontal: destroys nodes up to tier 9 in a row, 4 to each side of the machine\nGround content is destroyed\nCarry at most 50 in the hotbar"},
 }
 

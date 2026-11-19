@@ -115,7 +115,7 @@ return {
 	["str_materials_strange_7.png"] = {"#201b20", "#ad8d9d"},
 	["str_materials_strange_8.png"] = {"#201c24", "#a891b0"},
 	["str_materials_strange_9.png"] = {"#111316", "#7f799b"},
-	["str_materials_titanium_alloy.png"] = {"#8db3df", "#3c5375"},
+	["str_materials_titanium_alloy.png"] = {"#cf9c76", "#5b3258"},
 	["str_materials_topaz.png"] = {"#f1ab3e", "#7f3f0a"},
 	["str_materials_tourmaline.png"] = {"#579bea", "#3a1c7b"},
 	["str_materials_tungsten_carbide.png"] = {"#715b71", "#312631"},
