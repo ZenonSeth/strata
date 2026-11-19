@@ -43,7 +43,9 @@ core.register_craftitem(NODE, {
 		end
 		local pos = vector.new(math.floor(at.x + 0.5), math.floor(at.y + 0.5) - 1, SLICE_Z)
 		local current = core.get_node(pos).name
-		local free = current == "air" or ground[current]
+		local current_def = core.registered_nodes[current]
+		local liquid = current_def and (current_def.liquidtype or "none") ~= "none"
+		local free = current == "air" or ground[current] or liquid
 		if not (free and is_ground(vector.offset(pos, 0, 0, 1))) then
 			str_utils.show_popup(user:get_player_name(), "A platform can't be placed here.", 2, true)
 			return

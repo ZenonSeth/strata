@@ -215,12 +215,15 @@ local function build(player_name)
 	local st = open_at[player_name]
 	local net = str_elevators.get_network(st.x)
 	local title = st.kind == "surface" and "Elevator - Surface station" or "Elevator stop"
-	local fs = {str_gui.header(WIDTH, HEIGHT, title)}
+	local pickup = can_pick_up(st, net, player_name)
+	local pickup_h = pickup and ROW_H + 0.3 or 0
+	local height = HEIGHT + pickup_h
+	local fs = {str_gui.header(WIDTH, height, title)}
 	local y = str_gui.CONTENT_Y + 0.1
 	local live = is_live(st, net)
 	local owner = station_owner(st, net)
 	local owner_note = owner ~= player_name and owner ~= "" and " - Owner: " .. owner or ""
-	local buttons_y = HEIGHT - ROW_H - 0.4
+	local buttons_y = height - ROW_H - 0.4
 	local button_x = PAD
 	if not live then
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, y + 0.4, esc("This stop is not connected to a surface station."))
@@ -251,7 +254,7 @@ local function build(player_name)
 			end
 		end
 		fs[#fs + 1] = str_gui.list_table({
-			x = PAD, y = y + ROW_H + 0.3, w = WIDTH - 2 * PAD, h = TABLE_H, name = "dests",
+			x = PAD, y = y + ROW_H + 0.3 + pickup_h, w = WIDTH - 2 * PAD, h = TABLE_H, name = "dests",
 			columns = TABLE_COLUMNS, rows = rows, selected = selected,
 		})
 		if can_go then
@@ -259,8 +262,10 @@ local function build(player_name)
 		end
 		button_x = button_x + BUTTON_W + BUTTON_GAP
 	end
-	if can_pick_up(st, net, player_name) then
-		fs[#fs + 1] = ("button[%g,%g;%g,%g;pickup;Pick up]"):format(button_x, buttons_y, BUTTON_W, ROW_H)
+	if pickup then
+		local w = st.kind == "surface" and ACCESS_W or BUTTON_W
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;pickup;Pick up]"):format(
+			WIDTH - PAD - w, y + ROW_H + 0.3, w, ROW_H)
 	end
 	fs[#fs + 1] = ("button_exit[%g,%g;%g,%g;done;Done]"):format(
 		button_x + BUTTON_W + BUTTON_GAP, buttons_y, BUTTON_W, ROW_H)

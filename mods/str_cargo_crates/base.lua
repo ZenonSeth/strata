@@ -232,7 +232,10 @@ end
 
 -- Why a new crate can't go in the cell at pos, or nil if it can
 local function placement_problem(pos)
-	if core.get_node(pos).name ~= "air" and not str_piles.get(pos) then
+	local here = core.get_node(pos).name
+	local here_def = core.registered_nodes[here]
+	local liquid = here_def and (here_def.liquidtype or "none") ~= "none"
+	if here ~= "air" and not liquid and not str_piles.get(pos) then
 		return "No room for a crate here."
 	end
 	local below = core.get_node(vector.offset(pos, 0, -1, 0)).name
