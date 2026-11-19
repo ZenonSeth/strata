@@ -99,3 +99,10 @@ function str_utils.bar_fill(color, width, height)
 	local size = width .. "x" .. height
 	return "[fill:" .. size .. ":" .. color .. "^[combine:" .. size .. ":0,0=str_utils_bar_shade.png"
 end
+
+-- One decimal, no trailing zero, thousands separators: 100000 -> "100,000"
+function str_utils.format_number(value)
+	local sign, whole, frac = ("%.1f"):format(math.floor(value * 10 + 0.5) / 10):match("^(-?)(%d+)(%.%d)$")
+	whole = whole:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+	return sign .. whole .. (frac == ".0" and "" or frac)
+end

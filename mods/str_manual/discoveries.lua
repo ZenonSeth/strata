@@ -110,18 +110,14 @@ local function note(def)
 	return table.concat(parts, " ")
 end
 
-local function num(value)
-	return ("%g"):format(math.floor(value * 10 + 0.5) / 10)
-end
-
 local function stats_tip(def)
 	local function line(label, value)
 		return ("<style color=%s>%s:</style> %s"):format(TIP_LABEL_COLOR, label, value)
 	end
 	return table.concat({
 		line("Price", str_player_resources.format_credits(def.price) .. " each"),
-		line("Volume", num(def.volume) .. " " .. volume_unit),
-		line("Weight", num(def.weight) .. " " .. weight_unit),
+		line("Volume", str_utils.format_number(def.volume) .. " " .. volume_unit),
+		line("Weight", str_utils.format_number(def.weight) .. " " .. weight_unit),
 	}, "\n")
 end
 

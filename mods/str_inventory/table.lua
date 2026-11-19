@@ -12,10 +12,7 @@ local ICON_COLUMN = "image,align=center,padding=0.3,width=2"
 local HEADER_H = 0.7
 local TABLE_OPTIONS = "tableoptions[border=false;background=%s;highlight=%s;highlight_text=" .. str_gui.theme.text .. "]"
 
--- One decimal, no trailing zero
-function str_inventory.num(value)
-	return ("%g"):format(math.floor(value * 10 + 0.5) / 10)
-end
+str_inventory.num = str_utils.format_number
 
 -- Rows for a name -> count table, most valuable per unit first; row index matches the table
 function str_inventory.rows(contents)
@@ -73,7 +70,7 @@ function str_inventory.item_table(contents, spec)
 		cells[#cells + 1] = tostring(i)
 		cells[#cells + 1] = esc(def.description)
 		cells[#cells + 1] = tostring(row.count)
-		cells[#cells + 1] = str_inventory.num(row.count * def.weight)
+		cells[#cells + 1] = esc(str_inventory.num(row.count * def.weight))
 		cells[#cells + 1] = esc(format_credits(row.count * (spec.unit_price and spec.unit_price(def) or def.price)))
 		if def.name == spec.selected then
 			selected = i
