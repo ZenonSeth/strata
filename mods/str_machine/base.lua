@@ -97,6 +97,7 @@ local PUSH_DEPTH = 0.25
 local LOOK_PITCH = 0
 local LOOK_YAW = 0
 local LOOK_RANGE = math.rad(30)
+local LOOK_MARGIN = math.rad(0.5)
 local SURFACE_Y = str_utils.constants.surface_y
 local SLICE_Z = str_utils.constants.slice_z
 -- In front of the shop; the machine rests on the ground node, so its centre is one node above it
@@ -813,15 +814,15 @@ local function spawn_at(name, pos)
 		end)
 end
 
+-- Each look setter resends both angles (the other one stale), so only correct past a margin: resting on the edge sends nothing
 local function clamp_look(player)
-	local yaw = player:get_look_horizontal()
-	local dyaw = (yaw - LOOK_YAW + math.pi) % (2 * math.pi) - math.pi
-	if math.abs(dyaw) > LOOK_RANGE then
-		player:set_look_horizontal(LOOK_YAW + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, dyaw)))
+	local dyaw = (player:get_look_horizontal() - LOOK_YAW + math.pi) % (2 * math.pi) - math.pi
+	local dpitch = player:get_look_vertical() - LOOK_PITCH
+	if math.abs(dpitch) > LOOK_RANGE + LOOK_MARGIN then
+		player:set_look_vertical(LOOK_PITCH + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, dpitch)))
 	end
-	local pitch = player:get_look_vertical()
-	if math.abs(pitch - LOOK_PITCH) > LOOK_RANGE then
-		player:set_look_vertical(LOOK_PITCH + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, pitch - LOOK_PITCH)))
+	if math.abs(dyaw) > LOOK_RANGE + LOOK_MARGIN then
+		player:set_look_horizontal(LOOK_YAW + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, dyaw)))
 	end
 end
 
