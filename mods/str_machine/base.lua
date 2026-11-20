@@ -78,6 +78,9 @@ local CAM_DISTANCE = 12
 local CAM_START_DISTANCE = 4
 -- The camera starts CAM_START_DISTANCE away and backs off to CAM_DISTANCE at this speed (nodes/s)
 local CAM_PULLBACK_SPEED = 2
+-- Holding zoom pulls the camera in to CAM_ZOOM_DISTANCE at this speed (nodes/s)
+local CAM_ZOOM_DISTANCE = 3
+local CAM_ZOOM_SPEED = 8
 local VIEW_DISTANCE = 80
 -- Fraction of the view distance where fog starts
 local FOG_START = 0.4
@@ -784,7 +787,7 @@ end
 local function board(player, session)
 	player:set_attach(session.rig)
 	player:set_camera({mode = "first"})
-	-- player:set_properties({zoom_fov = 0})
+	player:set_properties({zoom_fov = 0})
 	reset_look(player)
 	player:hud_set_flags({wielditem = false, crosshair = false, hotbar = true})
 	fuel.refresh(player)
@@ -915,14 +918,19 @@ local function vehicle_step(player, dtime)
 	end
 	session.last_pos = pos
 
-	session.cam_offset.z = approach(
-		session.cam_offset.z, -CAM_DISTANCE, CAM_PULLBACK_SPEED * dtime)
+	local control = player:get_player_control()
+	if control.zoom then
+		session.cam_offset.z = approach(
+			session.cam_offset.z, -CAM_ZOOM_DISTANCE, CAM_ZOOM_SPEED * dtime)
+	else
+		session.cam_offset.z = approach(
+			session.cam_offset.z, -CAM_DISTANCE, CAM_PULLBACK_SPEED * dtime)
+	end
 	local cam_target = vector.add(pos, session.cam_offset)
 	local offset = vector.subtract(cam_target, rig_pos)
 	session.rig:set_velocity(vector.multiply(offset, math.min(FOLLOW_SPEED, 1 / dtime)))
 
 	clamp_look(player)
-	local control = player:get_player_control()
 	local light = stats.get(player)
 	local ratio = str_environment.update(
 		player, pos.y, light.light_fade_end, light.vignette_max, light.light_min)
