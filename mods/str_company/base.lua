@@ -42,6 +42,9 @@ local function play_register(player)
 end
 
 local selected_tab = {}
+-- Credits when the window was opened, for the change shown next to the credits
+local visit_start = {}
+local GAIN_COLOR = "#7ccf6a"
 local selected_item = {}
 local debt_message = {}
 
@@ -536,10 +539,17 @@ local function build(player)
 			title = def.title
 		end
 	end
+	local credits = resources.get_credits(player)
+	local change = math.floor((credits - (visit_start[name] or credits)) * 100 + 0.5) / 100
+	local change_text = ""
+	if change ~= 0 then
+		change_text = (" <style color=%s>(%s%s)</style>"):format(change > 0 and GAIN_COLOR or str_gui.theme.danger,
+			change > 0 and "+" or "-", esc(format_credits(math.abs(change))))
+	end
 	local fs = {
 		str_gui.header(WIDTH, HEIGHT, "Company Shop - " .. title),
-		("hypertext[%g,0.25;5,0.5;;<global halign=right color=%s>Credits: %s]"):format(
-			WIDTH - 5.4, str_gui.theme.text, esc(format_credits(resources.get_credits(player)))),
+		("hypertext[%g,0.25;7,0.5;;<global halign=right color=%s>Credits: %s%s]"):format(
+			WIDTH - 7.4, str_gui.theme.text, esc(format_credits(credits)), change_text),
 		str_gui.tab_bar({
 			x = TAB_X, y = TAB_Y, w = TAB_W, h = TAB_H, selected_scale = 1, spacing = 0,
 			tabs = tabs, selected = tab, prefix = "co_",
@@ -560,8 +570,13 @@ local function build(player)
 	return table.concat(fs)
 end
 
-function str_company.show(player)
+local function refresh(player)
 	core.show_formspec(player:get_player_name(), FORMNAME, build(player))
+end
+
+function str_company.show(player)
+	visit_start[player:get_player_name()] = resources.get_credits(player)
+	refresh(player)
 end
 
 -- Sells up to count units of an item at its list price
@@ -702,7 +717,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		buyback_message[name] = nil
 		selected_item[name] = row and row.def.name
 	end
-	str_company.show(player)
+	refresh(player)
 end)
 
 core.register_on_player_receive_fields(function(player, formname, fields)
@@ -730,11 +745,11 @@ end)
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	selected_tab[name], selected_item[name], debt_message[name], cons_message[name] = nil, nil, nil, nil
-	sell_source[name], buyback_cache[name], buyback_message[name] = nil, nil, nil
+	sell_source[name], buyback_cache[name], buyback_message[name], visit_start[name] = nil, nil, nil, nil
 end)
 
 str_consumables.register_on_sell_change(function(player)
 	if selected_tab[player:get_player_name()] == "consumables" then
-		str_company.show(player)
+		refresh(player)
 	end
 end)
