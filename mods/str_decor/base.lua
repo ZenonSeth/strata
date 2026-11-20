@@ -46,7 +46,7 @@ local CROWN_INSET = 4/32
 for _, def in ipairs(str_decor.shapes) do
 	local t = def.texture
 	local w = trunk[def.name:match("^tree_(%a+)_") or ""]
-	local holed = def.name:find("^tree_%a+_%d_top$") ~= nil and not def.name:find("cactus")
+	local holed = (def.name:find("^tree_%a+_%d_top$") ~= nil and not def.name:find("cactus")) or def.name:find("^bush_") ~= nil
 	local collision
 	if w then
 		-- A full-height trunk column in both nodes, so the machine cannot step up onto the trunk
