@@ -128,6 +128,7 @@ local strata, materials, gems = data.strata, data.materials, data.gems
 
 local MAX_OVERLAP = data.max_overlap
 local WORLD_SCALE = 8
+local TOP_SCALE = 4
 -- Rock with param2 128..255 (the backing wall) is tinted this colour; 0..127 is untinted
 local BACK_SHADE = "#d0d0d0"
 local ROCK_PALETTE = "[fill:2x1:#ffffff^[fill:1x1:1,0:" .. BACK_SHADE
@@ -184,8 +185,8 @@ local function name_color(name)
 	return hsv_color(h / 360, 0.6, 0.85)
 end
 
-local function world_tile(file)
-	return {name = file, align_style = "world", scale = WORLD_SCALE}
+local function world_tile(file, scale)
+	return {name = file, align_style = "world", scale = scale or WORLD_SCALE}
 end
 
 -- Rock: world-aligned texture if the file exists, else a flat colour that darkens with depth
@@ -260,14 +261,14 @@ for _, t in ipairs(SURFACE_TYPES) do
 	-- Backdrop cover (behind the slice): the top art world-aligned on every side
 	core.register_node("str_nodes:surface_" .. t.name .. "_back", {
 		description = t.description .. " (backdrop)",
-		tiles = {world_tile(top)},
+		tiles = {world_tile(top, TOP_SCALE)},
 		groups = str_utils.get_common_groups({not_in_creative_inventory = 1}),
 		str_tier = strata[1].tier,
 		str_hardness = tier_hardness(strata[1].tier),
 	})
 	core.register_node("str_nodes:surface_" .. t.name, {
 		description = t.description,
-		tiles = {top, rock_tile(1), side_tile, side_tile, side_tile, side_tile},
+		tiles = {world_tile(top, TOP_SCALE), rock_tile(1), side_tile, side_tile, side_tile, side_tile},
 		groups = str_utils.get_common_groups({not_in_creative_inventory = 1}),
 		str_tier = strata[1].tier,
 		str_hardness = tier_hardness(strata[1].tier),
