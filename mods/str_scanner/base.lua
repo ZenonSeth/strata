@@ -4,6 +4,7 @@ local POINT_RANGE = 24
 local INTERVAL = 0.1
 local HUD = "str_scanner:readout"
 local LIQUID_COLLECTION = "str_machine:hull_liquid_collection"
+local LAVA_PROTECTION = "str_machine:hull_lava_protection"
 local CROSSHAIR = "str_lasers_crosshair.png^[multiply:#a8ecff"
 local MINERAL, MUTED, GOOD, BAD = "#e8c46a", "#a0a0a0", "#55dd55", "#ff4500"
 
@@ -34,7 +35,7 @@ function str_scanner.describe(node_name)
 		elseif def and def.str_tier then
 			local host = def.str_host and core.registered_nodes[def.str_host]
 			info = {name = (host or def).description, material = def.str_material,
-				richness = def.str_richness, tier = def.str_tier}
+				richness = def.str_richness, tier = def.str_tier, hot = def.str_hot}
 		end
 		infos[node_name] = info
 	end
@@ -91,6 +92,10 @@ local function readout(player, machine_pos)
 	end
 	local lines = {info.name}
 	lines[#lines + 1] = mineral_line(player, info)
+	if info.hot then
+		lines[#lines + 1] = core.colorize(BAD, str_machine.hull_slots.has(player, LAVA_PROTECTION)
+			and "Hot - heats the hull when drilled" or "Hot - damages the hull when drilled")
+	end
 	lines[#lines + 1] = status_line(player, info)
 	return table.concat(lines, "\n")
 end

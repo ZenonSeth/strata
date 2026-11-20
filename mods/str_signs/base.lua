@@ -47,6 +47,9 @@ end
 local rock = {}
 for _, stratum in ipairs(str_nodes.data.strata) do
 	rock["str_nodes:" .. stratum.name] = true
+	if stratum.hot then
+		rock[str_nodes.data.hot_node(stratum.name)] = true
+	end
 end
 
 -- Plain backing rock; air, ores, liquids, the surface cover and other signs all fail

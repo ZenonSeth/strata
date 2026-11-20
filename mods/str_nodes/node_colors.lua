@@ -73,6 +73,7 @@ return {
 	["str_nodes_ore_uranium_poor.png"] = {"#5ac746"},
 	["str_nodes_ore_uranium_regular.png"] = {"#64d450"},
 	["str_nodes_ore_uranium_rich.png"] = {"#62ea48"},
+	["str_nodes_hot_vein.png"] = {"#d44811"},
 	["str_materials_alexandrite.png"] = {"#41b395", "#531630"},
 	["str_materials_aluminum_plate.png"] = {"#a2abab", "#525757"},
 	["str_materials_amazonite.png"] = {"#a7e4c9", "#378b6a"},

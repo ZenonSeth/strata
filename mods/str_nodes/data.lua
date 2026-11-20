@@ -31,6 +31,10 @@ function data.formation_node(formation, variant)
 	return "str_nodes:formation_" .. formation .. "_" .. variant
 end
 
+function data.hot_node(stratum)
+	return "str_nodes:" .. stratum .. "_hot"
+end
+
 local function scaled(depth)
 	return math.floor(depth * DEPTH_SCALE + 0.5)
 end
@@ -38,6 +42,18 @@ end
 for _, s in ipairs(data.strata) do
 	s.from = scaled(s.from)
 	s.to = s.to and scaled(s.to)
+end
+
+-- Hot rock starts at the top of its stratum; s.hot marks every stratum that reaches below that
+local hot_from = dofile(core.get_modpath("str_utils") .. "/constants.lua").hot_rock.from_stratum
+for _, s in ipairs(data.strata) do
+	if s.name == hot_from then
+		data.hot_start = s.from
+	end
+end
+assert(data.hot_start, "hot_rock: unknown stratum " .. hot_from)
+for _, s in ipairs(data.strata) do
+	s.hot = not s.to or s.to > data.hot_start
 end
 
 for _, m in ipairs(data.materials) do

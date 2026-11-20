@@ -44,6 +44,9 @@ local ITEMS = {surface = "str_elevators:surface_station", stop = "str_elevators:
 local rock, cover = {}, {}
 for _, stratum in ipairs(str_nodes.data.strata) do
 	rock["str_nodes:" .. stratum.name] = true
+	if stratum.hot then
+		rock[str_nodes.data.hot_node(stratum.name)] = true
+	end
 end
 for _, biome in ipairs(str_utils.constants.biomes) do
 	cover["str_nodes:surface_" .. biome.name] = true

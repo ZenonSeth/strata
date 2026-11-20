@@ -93,17 +93,29 @@ local c_surface_back = {grass = c_grass_back, snow = c_snow_back, sand = c_sand_
 local c_stratum = {}
 -- rock content id -> {[mask] = {content ids}}, mask 0 being the rock itself
 local c_shaped = {}
-for i, s in ipairs(strata) do
-	local base = "str_nodes:" .. s.name
-	c_stratum[i] = core.get_content_id(base)
-	local ids = {[0] = {c_stratum[i]}}
+local function add_shaped(base)
+	local id = core.get_content_id(base)
+	local ids = {[0] = {id}}
 	for mask = 1, shapes.COUNT - 1 do
 		ids[mask] = {}
 		for n = 1, shapes.VARIANTS do
 			ids[mask][n] = core.get_content_id(shapes.variant_name(base, mask, n))
 		end
 	end
-	c_shaped[c_stratum[i]] = ids
+	c_shaped[id] = ids
+	return id
+end
+-- Hot rock ids, shapes included
+local is_hot = {}
+for i, s in ipairs(strata) do
+	c_stratum[i] = add_shaped("str_nodes:" .. s.name)
+	if s.hot then
+		for _, ids in pairs(c_shaped[add_shaped(world.hot_node(s.name))]) do
+			for _, id in ipairs(ids) do
+				is_hot[id] = true
+			end
+		end
+	end
 end
 
 -- Air and liquids leave a rock side exposed; same rule as str_nodes.refresh_shapes
@@ -130,6 +142,7 @@ end
 
 local place_deposits = dofile(core.get_modpath("str_worldgen") .. "/deposits.lua")(world)
 local carve_caverns = dofile(core.get_modpath("str_worldgen") .. "/caverns.lua")(world)
+local place_hot_veins = dofile(core.get_modpath("str_worldgen") .. "/hot_veins.lua")(world, constants)
 
 local function terrain(data, param2, area, minp, maxp, salt)
 	local z_min = math.max(minp.z, slice_z)
@@ -228,12 +241,14 @@ local function terrain(data, param2, area, minp, maxp, salt)
 
 	-- Caverns reach back into the backing wall; the slice itself is carved after the deposits
 	carve_caverns(data, area, x_min, x_max, minp.y, y_max, math.max(z_min, slice_z + 1), z_max, salt)
+	place_hot_veins(data, area, x_min, x_max, minp.y, y_max, math.max(z_min, slice_z + 1), z_max, salt)
 
 	-- Ore, gems and liquids only in the diggable slice; the backing wall stays plain rock
 	if z_min == slice_z then
 		place_deposits(data, area, {x = px0, y = py0, z = minp.z}, {x = px1, y = py1, z = maxp.z},
 			py1, slice_z, slice_z, salt)
 		carve_caverns(data, area, px0, px1, py0, py1, slice_z, slice_z, salt)
+		place_hot_veins(data, area, x_min, x_max, minp.y, y_max, slice_z, slice_z, salt)
 
 		-- Rock picks its shape from the four neighbours in the slice
 		local ystride = area.ystride
@@ -299,8 +314,10 @@ local function barrier(data, area, minp, maxp)
 end
 
 -- One layer in front of the slice, under the surface, so liquids stay in the slice. The node at
--- each mapblock's lowest x and y corner carries the reset cycle (mod 256) in param2.
+-- each mapblock's lowest x and y corner carries the reset cycle (mod 256) in param2. In front of
+-- hot rock it is the glowing variant, kept after the rock is dug as the backing wall has the vein too.
 local c_liquid_stop = core.get_content_id("str_nodes:liquid_stop")
+local c_liquid_stop_hot = core.get_content_id("str_nodes:liquid_stop_hot")
 local BLOCK = 16
 local function liquid_stop(data, param2, area, minp, maxp, mark)
 	local z = slice_z - 1
@@ -316,7 +333,7 @@ local function liquid_stop(data, param2, area, minp, maxp, mark)
 		local vi = area:index(x0, y, z)
 		local corner_row = y % BLOCK == 0
 		for x = x0, x1 do
-			data[vi] = c_liquid_stop
+			data[vi] = is_hot[data[vi + area.zstride]] and c_liquid_stop_hot or c_liquid_stop
 			param2[vi] = (corner_row and x % BLOCK == 0) and mark or 0
 			vi = vi + 1
 		end

@@ -47,7 +47,7 @@ end
 core.register_lbm({
 	name = "str_sleep:regenerate",
 	label = "Regenerate the ground after a world reset",
-	nodenames = {"str_nodes:liquid_stop"},
+	nodenames = {"group:" .. str_groups.LIQUID_STOP},
 	run_at_every_load = true,
 	bulk_action = function(pos_list)
 		local bp = vector.floor(vector.divide(pos_list[1], BLOCK))

@@ -17,7 +17,7 @@ end
 -- The cycle mark (mod 256) of slice mapblock bp, or nil if it has no liquid stop corner
 function str_worldgen.block_mark(bp)
 	local node = core.get_node(vector.new(bp.x * BLOCK, bp.y * BLOCK, MARK_Z))
-	return node.name == "str_nodes:liquid_stop" and node.param2 or nil
+	return core.get_item_group(node.name, str_groups.LIQUID_STOP) > 0 and node.param2 or nil
 end
 
 function str_worldgen.current_mark(z)

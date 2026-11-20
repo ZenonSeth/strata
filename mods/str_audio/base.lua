@@ -300,6 +300,9 @@ core.register_on_leaveplayer(function(player)
 	sfx.stop_all_loops(player)
 end)
 
+-- Shared effects any mod can play by name; variants .1-.4 are picked at random by the engine
+sfx.register("sizzle", {sound = "str_audio_sizzle"})
+
 music.register_track("foot", {sound = "str_audio_music_foot", gain = 1.0})
 
 music.register_track("ending", {sound = "str_audio_music_ending", gain = 1.0})

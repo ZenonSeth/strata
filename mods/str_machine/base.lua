@@ -6,6 +6,16 @@ local hull = str_machine.hull
 local ENGINE_GAIN = 0.8
 local MIN_IMPACT_SPEED = str_utils.constants.min_impact_speed
 local IMPACT_GAIN_MIN, IMPACT_GAIN_MAX = 0.8, 1.0
+-- Lava damage lands every step: one sizzle clip per this many seconds overlaps them without stacking
+local LAVA_SIZZLE_INTERVAL = 0.6
+
+local function sizzle(session, player)
+	local now = core.get_us_time() / 1e6
+	if now >= (session.sizzle_at or 0) then
+		session.sizzle_at = now + LAVA_SIZZLE_INTERVAL
+		str_audio.sfx.play("sizzle", {player = player})
+	end
+end
 str_audio.sfx.register("vehicle_tire_impact", {
 	sound = "str_machine_vehicle_tire_impact", category = "vehicle", max_hear_distance = 32,
 })
@@ -496,6 +506,15 @@ local function collect_liquid(session, player, cell, def)
 	session.liquid_full_cell = nil
 	core.remove_node(cell)
 	cargo.announce(player, def.str_material, cargo.add(player, def.str_material, yield))
+	local dps = def.damage_per_second or 0
+	if dps > 0 then
+		local seconds = LIQUID.collect_exposure
+		local share = str_machine.heat.absorb(player, seconds)
+		if share > 0 then
+			hull.damage(player, seconds * dps * share)
+			sizzle(session, player)
+		end
+	end
 end
 
 -- Destroys a solid, diggable node up to max_tier regardless of the drill; returns whether it did
@@ -948,10 +967,14 @@ local function vehicle_step(player, dtime)
 		if session.destroyed then
 			return
 		end
+		sizzle(session, player)
 	end
 	local cell = vector.round(pos)
 	if session.liquid then
 		collect_liquid(session, player, cell, session.liquid)
+		if session.destroyed then
+			return
+		end
 	end
 	if not session.pile_cell or not vector.equals(cell, session.pile_cell) then
 		session.pile_cell = cell

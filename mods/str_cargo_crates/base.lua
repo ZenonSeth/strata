@@ -330,7 +330,7 @@ end)
 core.register_lbm({
 	name = "str_cargo_crates:restore",
 	label = "Put back cargo crates missing from their cell",
-	nodenames = {"str_nodes:liquid_stop"},
+	nodenames = {"group:" .. str_groups.LIQUID_STOP},
 	run_at_every_load = true,
 	bulk_action = function(pos_list)
 		local bp = vector.floor(vector.divide(pos_list[1], core.MAP_BLOCKSIZE))

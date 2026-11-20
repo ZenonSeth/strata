@@ -206,6 +206,22 @@ for i, s in ipairs(strata) do
 	})
 end
 
+local HOT = str_utils.constants.hot_rock
+for i, s in ipairs(strata) do
+	if s.hot then
+		str_nodes.register_shaped_node(data.hot_node(s.name), {
+			description = "Hot " .. s.description:lower(),
+			tiles = {rock_tile(i)},
+			overlay_tiles = {world_tile("str_nodes_hot_vein.png")},
+			paramtype2 = "color",
+			palette = ROCK_PALETTE,
+			str_tier = s.tier - 1,
+			str_hardness = tier_hardness(s.tier - 1),
+			str_hot = true,
+		})
+	end
+end
+
 -- Surface row: topsoil with a top and side overlay; snow and sand reuse the grass art, recoloured
 local SIDE_STRIP_W, SIDE_STRIP_H = 256, 32
 
@@ -437,14 +453,20 @@ core.register_node("str_nodes:barrier", {
 })
 
 -- Invisible, non-walkable layer in front of the slice so liquids cannot flow forward
-core.register_node("str_nodes:liquid_stop", {
-	description = "Liquid Stop",
-	drawtype = "airlike",
-	paramtype = "light",
-	sunlight_propagates = true,
-	walkable = false,
-	pointable = false,
-	diggable = false,
-	buildable_to = false,
-	groups = {not_in_creative_inventory = 1},
-})
+local function register_liquid_stop(name, description, light)
+	core.register_node(name, {
+		description = description,
+		drawtype = "airlike",
+		paramtype = "light",
+		sunlight_propagates = true,
+		light_source = light,
+		walkable = false,
+		pointable = false,
+		diggable = false,
+		buildable_to = false,
+		groups = {not_in_creative_inventory = 1, [str_groups.LIQUID_STOP] = 1},
+	})
+end
+register_liquid_stop("str_nodes:liquid_stop", "Liquid Stop", 0)
+-- In front of hot rock: a self-lit rock face would show as a bright square, light from here spreads softly
+register_liquid_stop("str_nodes:liquid_stop_hot", "Hot Liquid Stop", HOT.light)
