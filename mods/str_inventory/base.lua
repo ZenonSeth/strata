@@ -54,9 +54,40 @@ function str_inventory.set_drop_handler(fn)
 end
 -- Players who clicked Self Destruct and have not confirmed yet
 local armed = {}
+local CITY_W, CITY_H = 3.2, 0.9
 
 local function tab_visible(player, def)
 	return not def.visible or def.visible(player)
+end
+
+-- Place City for a selected strange object, else Build City, once the transmissions ask for cities
+local function city_button(player, name, def, y)
+	local cities = str_transmissions.cities
+	local owed = cities.owed(name)
+	if not owed or str_mode.get(player) ~= "vehicle" then
+		return ""
+	end
+	local rect = ("%g,%g;%g,%g"):format(TABLE_X, y, CITY_W, CITY_H)
+	local owed_line = ("\nCities still owed: %d"):format(owed)
+	if def and def.kind == "relic" then
+		return ("button[%s;place_city;Place City]tooltip[place_city;%s]"):format(rect,
+			esc("Place this object in the stone behind the digger." .. owed_line))
+	elseif cities.can_build(name) then
+		local needs = {}
+		for _, cost in ipairs(cities.build_cost()) do
+			local item = str_materials.get(cost.item)
+			needs[#needs + 1] = ("%d %s"):format(cost.count, item and item.description or cost.item)
+		end
+		local fs = {}
+		if not cities.has_build_cost(player) then
+			fs[#fs + 1] = ("style[build_city;textcolor=%s]"):format(muted)
+		end
+		fs[#fs + 1] = ("button[%s;build_city;Build City]tooltip[build_city;%s]"):format(rect,
+			esc("Build a new city in the stone behind the digger.\nNeeds " .. table.concat(needs, ", ")
+				.. " in the hold." .. owed_line))
+		return table.concat(fs)
+	end
+	return ""
 end
 
 local function inventory_tab(player, name)
@@ -65,11 +96,13 @@ local function inventory_tab(player, name)
 	})
 	local detail = core.colorize(muted, "Select an item to see its per-unit values.")
 	local total_price, total_weight = 0, 0
+	local selected_def
 	for i, row in ipairs(list) do
 		total_price = total_price + row.count * row.def.price
 		total_weight = total_weight + row.count * row.def.weight
 		if i == selected then
 			local def = row.def
+			selected_def = def
 			detail = ("%s%s %s%s %s%s %s%s"):format(
 				def.description, core.colorize(muted, ": weight"), num(def.weight) .. " " .. weight_unit,
 				core.colorize(muted, ", volume"), num(def.volume) .. " " .. volume_unit,
@@ -85,6 +118,7 @@ local function inventory_tab(player, name)
 			esc(("Hold: %s / %s %s"):format(num(volume), num(stats.cargo_capacity), volume_unit))),
 		"style_type[label;font_size=*1;halign=left;valign=top]",
 		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 1.4, esc(message[name] or detail)),
+		city_button(player, name, selected_def, TABLE_Y + TABLE_H + 0.1),
 	}
 	if selected > 0 then
 		local group_w = #AMOUNTS * AMOUNT_W + (#AMOUNTS - 1) * AMOUNT_GAP
@@ -191,6 +225,12 @@ local signal_row = {}
 local decode_input, decode_result = {}, {}
 local ROW_Y, ROW_H = HEIGHT - 1.4, 0.9
 local REPLY_GAP = 0.2
+-- Tooltip of a reply option that cannot be sent, by reason
+local REPLY_LOCKED = {
+	decode = "Decode this signal first",
+	hold = "Nothing keeps you on Strata but the debt",
+	gone = "You still hold enough of their cities to place back",
+}
 
 local function decoded_line(revealed)
 	local words = {}
@@ -213,10 +253,10 @@ local function signal_controls(name, items)
 				local x = TABLE_X + (i - 1) * (w + REPLY_GAP)
 				if not option.enabled then
 					fs[#fs + 1] = ("style[%s;textcolor=%s]"):format(button, muted)
-					fs[#fs + 1] = ("tooltip[%s;Decode this signal first]"):format(button)
+					fs[#fs + 1] = ("tooltip[%s;%s]"):format(button, esc(REPLY_LOCKED[option.reason]))
 				end
 				fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;%s]"):format(x, ROW_Y, w, ROW_H, button,
-					option.enabled and esc(option.label) or "???")
+					option.reason == "decode" and "???" or esc(option.label))
 			end
 			return table.concat(fs)
 		end
@@ -525,6 +565,19 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		end
 	end
 	local item = selected_item[name]
+	if fields.place_city or fields.build_city then
+		local result
+		if fields.place_city then
+			result = item and str_transmissions.cities.place(player, item)
+		else
+			result = str_transmissions.cities.build(player)
+		end
+		if result then
+			message[name] = result
+			refresh(player)
+		end
+		return
+	end
 	for _, amount in ipairs(AMOUNTS) do
 		if item and fields["discard_" .. amount] then
 			message[name] = nil

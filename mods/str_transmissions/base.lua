@@ -3,8 +3,10 @@ local transmissions = str_transmissions
 str_audio.sfx.register("transmission_ping", {sound = "str_transmissions_ping"})
 
 local mod_storage = core.get_mod_storage()
+transmissions.mod_storage = mod_storage
 local cache = {}
 local listeners = {}
+local receive_listeners, relic_listeners = {}, {}
 
 local function key(name)
 	return "transmissions:" .. name
@@ -18,17 +20,18 @@ local function data(name)
 		d.items = d.items or {}
 		-- Story progress: sequence entries done, relic count at the last story signal (nil before the first),
 		-- signal waiting for its delay (pending), reply chosen per point (option index), points whose answer
-		-- step has passed, late answers waiting, and pending watches
+		-- step has passed, late answers waiting, pending watches, and signals due after `pending` (send_soon)
 		d.step = d.step or 0
 		d.replies, d.answered = d.replies or {}, d.answered or {}
 		d.queue, d.watch = d.queue or {}, d.watch or {}
+		d.soon = d.soon or {}
 		cache[name] = d
 	end
 	return cache[name]
 end
 
-local function save(name)
-	mod_storage:set_string(key(name), core.write_json(data(name)))
+-- Runs the change listeners; also called by cities.lua
+function transmissions.notify_change(name)
 	local player = core.get_player_by_name(name)
 	if player then
 		for _, fn in ipairs(listeners) do
@@ -37,9 +40,24 @@ local function save(name)
 	end
 end
 
+local function save(name)
+	mod_storage:set_string(key(name), core.write_json(data(name)))
+	transmissions.notify_change(name)
+end
+
 -- fn(player) runs after a player's transmissions change
 function transmissions.register_on_change(fn)
 	listeners[#listeners + 1] = fn
+end
+
+-- fn(name, id) runs after a message from messages.lua is received
+function transmissions.register_on_receive(fn)
+	receive_listeners[#receive_listeners + 1] = fn
+end
+
+-- fn(name, kind, amount) runs after a strange object is counted (see count_relic)
+function transmissions.register_on_relic(fn)
+	relic_listeners[#relic_listeners + 1] = fn
 end
 
 function transmissions.is_unlocked(player)
@@ -96,6 +114,9 @@ function transmissions.send(name, id)
 	end
 	local text = message.text or transmissions.cipher.to_string(transmissions.cipher.noise(message.noise))
 	transmissions.add(name, text, message.analysis, id)
+	for _, fn in ipairs(receive_listeners) do
+		fn(name, id)
+	end
 	return true
 end
 
@@ -180,6 +201,7 @@ end
 -- Story: signals arrive one per relic step, in story.lua order, and replies pick the answers
 
 local story = dofile(transmissions.modpath .. "/story.lua")
+transmissions.story = story
 local points = {}
 local watch_of = {}
 for _, point in ipairs(story.replies) do
@@ -206,12 +228,18 @@ local function relics_found(name)
 	return (r.dug or 0) + (r.destroyed or 0)
 end
 
--- Debug: clears the log, story progress and relic counters
+-- Debug: clears the log, story progress, relic counters and cities owed
 function transmissions.reset(name)
 	cache[name], relic_cache[name] = nil, nil
 	mod_storage:set_string(key(name), "")
 	mod_storage:set_string("relics:" .. name, "")
+	transmissions.cities.reset(name)
 	save(name)
+end
+
+local function has_hold(name)
+	local player = core.get_player_by_name(name)
+	return player ~= nil and str_story.get_departure_hold(player)
 end
 
 -- Relics before the first signal, rolled once per player on join
@@ -252,6 +280,8 @@ local function next_message(name, d)
 		elseif entry.fate then
 			local r = relic_data(name)
 			id = (r.destroyed or 0) > (r.dug or 0) and entry.fate.destroyed or entry.fate.dug
+		elseif entry.hold then
+			id = has_hold(name) and entry.hold.yes or entry.hold.no
 		end
 		if not transmissions.has_received(name, id) then
 			return id
@@ -262,13 +292,15 @@ end
 -- Seconds between the relic that triggers a signal and its arrival
 local DELAY_MIN, DELAY_MAX = 5, 10
 
+local schedule
+
 local function deliver_pending(name)
 	local d = data(name)
 	local id = d.pending
 	if not id then
 		return
 	end
-	d.pending = nil
+	d.pending = table.remove(d.soon, 1)
 	local watch = watch_of[id]
 	if watch then
 		d.watch[#d.watch + 1] = {at = relics_found(name) + watch.relics, id = watch.id}
@@ -276,11 +308,27 @@ local function deliver_pending(name)
 	if not transmissions.send(name, id) then
 		save(name)
 	end
+	if d.pending then
+		schedule(name)
+	end
 end
 
 -- Kept in storage while waiting, so a signal cut off by a shutdown arrives on the next join
-local function schedule(name)
+function schedule(name)
 	core.after(math.random(DELAY_MIN, DELAY_MAX), deliver_pending, name)
+end
+
+-- Sends id after the usual short delay, behind any signal already waiting
+function transmissions.send_soon(name, id)
+	local d = data(name)
+	if d.pending then
+		d.soon[#d.soon + 1] = id
+		save(name)
+		return
+	end
+	d.pending = id
+	save(name)
+	schedule(name)
 end
 
 local function check_triggers(name)
@@ -326,16 +374,28 @@ local function open_point(name, index)
 	end
 end
 
--- Reply options for log entry index, or nil if it has no open reply point: {{label =, enabled =}, ...}
+-- Whether an option can be sent, and if not why: "decode", "hold" or "gone"
+local function option_state(name, index, option)
+	if option.decode and not transmissions.is_decoded(name, index) then
+		return false, "decode"
+	elseif option.hold and not has_hold(name) then
+		return false, "hold"
+	elseif option.gone and not transmissions.cities.is_gone(name) then
+		return false, "gone"
+	end
+	return true
+end
+
+-- Reply options for log entry index, or nil if it has no open reply point: {{label =, enabled =, reason =}, ...}
 function transmissions.reply_options(name, index)
 	local point = open_point(name, index)
 	if not point then
 		return nil
 	end
-	local decoded = transmissions.is_decoded(name, index)
 	local out = {}
 	for i, option in ipairs(point.options) do
-		out[i] = {label = option.label, enabled = decoded or not option.decode}
+		local enabled, reason = option_state(name, index, option)
+		out[i] = {label = option.label, enabled = enabled, reason = reason}
 	end
 	return out
 end
@@ -373,16 +433,19 @@ str_mode.register_on_change(send_notices)
 function transmissions.reply(name, index, n)
 	local point = open_point(name, index)
 	local option = point and point.options[n]
-	if not option or (option.decode and not transmissions.is_decoded(name, index)) then
+	if not option or not option_state(name, index, option) then
 		return false
 	end
 	local d = data(name)
 	d.replies[point.id] = n
-	if d.answered[point.id] then
+	if not point.instant and d.answered[point.id] then
 		d.queue[#d.queue + 1] = option.answer
 	end
 	d.items[#d.items + 1] = {sent = option.label, time = os.time()}
 	save(name)
+	if point.instant then
+		transmissions.send_soon(name, option.answer)
+	end
 	local player = core.get_player_by_name(name)
 	if player then
 		send_notices(player)
@@ -390,7 +453,7 @@ function transmissions.reply(name, index, n)
 	return true
 end
 
--- kind is "dug", "discarded", "sold" or "destroyed"; does nothing unless item_name is a strange object
+-- kind is "dug", "discarded", "sold", "destroyed" or "placed"; does nothing unless item_name is a strange object
 function transmissions.count_relic(name, item_name, kind, amount)
 	local def = item_name and str_materials.get(item_name)
 	if not def or def.kind ~= "relic" then
@@ -399,6 +462,9 @@ function transmissions.count_relic(name, item_name, kind, amount)
 	local d = relic_data(name)
 	d[kind] = (d[kind] or 0) + (amount or 1)
 	mod_storage:set_string("relics:" .. name, core.write_json(d))
+	for _, fn in ipairs(relic_listeners) do
+		fn(name, kind, amount or 1)
+	end
 	check_triggers(name)
 end
 

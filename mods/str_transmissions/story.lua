@@ -15,10 +15,15 @@ return {
 		{fate = {destroyed = "sig_8a", dug = "sig_8b"}},
 		{answer = "reply_3"},
 		{id = "sig_10"},
+		{hold = {yes = "sig_11h", no = "sig_11"}},
+		{id = "sig_12"},
+		{answer = "reply_4"},
 	},
 	-- A point opens when a signal in `after` arrives; `decode` options need that signal fully decoded.
 	-- With no reply by its step `silent` is sent; a later reply gets its answer at the next step.
 	-- `watch` sends `id` once `relics` more are dug or destroyed after the answer arrives.
+	-- `hold` options need the Company's departure hold, `gone` ones fewer relics in hold and storage than cities owed.
+	-- An `instant` point's answer arrives a few seconds after the reply, not at a relic step.
 	replies = {
 		{id = "reply_1", after = {"primes_1"}, silent = "sig_4x", options = {
 			{label = "Who is this?", answer = "sig_4b"},
@@ -35,5 +40,19 @@ return {
 			{label = "This is Company land", answer = "sig_9b", decode = true},
 			{label = "We will stop", answer = "sig_9c", decode = true, watch = {relics = 5, id = "sig_9y"}},
 		}},
+		{id = "reply_4", after = {"sig_12"}, silent = "sig_13x", instant = true, options = {
+			{label = "Help me leave", answer = "sig_13", decode = true, hold = true},
+		}},
+		{id = "reply_5", after = {"sig_13"}, instant = true, options = {
+			{label = "I cannot, they are gone", answer = "sig_14", decode = true, gone = true},
+		}},
+	},
+	-- Placing relics back: `start` sets the cities owed, each relic dug or destroyed after it adds to them,
+	-- `warning` is sent on the first; `build` allows building cities; `done` is sent when none are owed
+	cities = {
+		start = "sig_13", warning = "sig_13y", build = "sig_14", done = "sig_15",
+		owed = 5, add = {dug = 1, destroyed = 2},
+		build_cost = {tungsten_carbide = 5},
+		build_variants = {"strange_2", "strange_3", "strange_4", "strange_5"},
 	},
 }

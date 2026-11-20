@@ -331,8 +331,11 @@ for host, s in ipairs(strata) do
 	end
 
 	for _, g in ipairs(gems) do
+		-- Strange objects placed back in the backing wall take its darker tint (param2 255)
 		register_embedded(data.gem_node(g.name, s.name), str_materials.get(g.name).description .. " (" .. s.name .. ")",
 			"str_materials_" .. g.name .. ".png", name_color(g.name), 6, host, {
+				paramtype2 = g.relic and "color" or nil,
+				palette = g.relic and ROCK_PALETTE or nil,
 				str_material = g.name,
 				str_host = "str_nodes:" .. s.name,
 				str_tier = g.tier,
