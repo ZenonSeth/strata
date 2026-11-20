@@ -61,6 +61,10 @@ local function current_source(name)
 	return source_by_id[sell_source[name]] or SOURCES[1]
 end
 
+local function has_no_uses(def)
+	return def.kind ~= "relic" and not str_upgrades.has_uses(def.name)
+end
+
 local function sell_tab(player, name)
 	local src = current_source(name)
 	local store = src.store()
@@ -71,13 +75,15 @@ local function sell_tab(player, name)
 			if def.kind == "relic" then
 				return " (relic)"
 			end
-			return not str_upgrades.has_uses(def.name) and " (no uses)" or ""
+			return has_no_uses(def) and " (no uses)" or ""
 		end,
 	})
 	local detail = "Select an item to sell it."
 	local total_value = 0
+	local any_no_uses = false
 	for i, row in ipairs(list) do
 		total_value = total_value + row.count * row.def.price
+		any_no_uses = any_no_uses or has_no_uses(row.def)
 		if i == selected then
 			detail = ("%s: %s credits each, %d held"):format(row.def.description, format_credits(row.def.price), row.count)
 		end
@@ -96,8 +102,11 @@ local function sell_tab(player, name)
 		fs[#fs + 1] = ("button[%g,%g;3,%g;sell_one;Sell 1]"):format(x, BUTTON_Y, BUTTON_H)
 		fs[#fs + 1] = ("button[%g,%g;3,%g;sell_stack;Sell Stack]"):format(x + 3.2, BUTTON_Y, BUTTON_H)
 	end
+	if any_no_uses then
+		fs[#fs + 1] = ("button[%g,%g;4,%g;sell_no_uses;Sell (no uses)]"):format(TABLE_X + TABLE_W - 4, BUTTON_Y, BUTTON_H)
+	end
 	if #list > 0 then
-		fs[#fs + 1] = ("button[%g,%g;4,%g;sell_all;Sell Everything]"):format(x + 6.4, BUTTON_Y, BUTTON_H)
+		fs[#fs + 1] = ("button[%g,%g;4,%g;sell_all;Sell Everything]"):format(TABLE_X + TABLE_W - 4, TABLE_Y + 0.7 - SUB_H, SUB_H)
 	end
 	fs[#fs + 1] = ("label[%g,%g;%s]"):format(TABLE_X, HEIGHT - 0.45,
 		esc(("%s value: %s credits"):format(src.label, format_credits(total_value))))
@@ -625,11 +634,14 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		if sell(player, selected_item[name], store.get(player)[selected_item[name]] or 0, store) > 0 then
 			play_register(player)
 		end
-	elseif fields.sell_all then
+	elseif fields.sell_all or fields.sell_no_uses then
 		local store = current_source(name).store()
 		local sold = 0
 		for item, count in pairs(store.get(player)) do
-			sold = sold + sell(player, item, count, store)
+			local def = str_materials.get(item)
+			if fields.sell_all or def and has_no_uses(def) then
+				sold = sold + sell(player, item, count, store)
+			end
 		end
 		if sold > 0 then
 			play_register(player)
