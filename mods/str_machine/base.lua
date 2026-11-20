@@ -29,16 +29,19 @@ local DUG_SOUND = {
 	eclogite = "hardrock", peridotite = "hardrock", core = "hardrock",
 	formation = "hardrock",
 }
-for _, kind in ipairs({"soil", "gravel", "rock", "hardrock"}) do
+for _, kind in ipairs({"soil", "gravel", "rock", "hardrock", "wood"}) do
 	str_audio.sfx.register("dug_" .. kind, {
 		sound = "str_machine_dug_" .. kind, max_hear_distance = 32, pitch = kind == "gravel" and 0.5 or nil,
 	})
 end
 
 local function dug_sound(node_name)
+	local def = core.registered_nodes[node_name]
+	if def and def.str_dug_sound then
+		return def.str_dug_sound
+	end
 	local host = node_name:match("_in_(%a+)$")
 	if not host then
-		local def = core.registered_nodes[node_name]
 		host = ((def and def.str_base) or node_name):match("^str_nodes:(%a+)")
 	end
 	return DUG_SOUND[host or ""]
@@ -436,11 +439,8 @@ local function classify(pos, entry, on_ground, can_dig_up, drill_tier)
 	return "dig", target
 end
 
-local function start_dig(session, pick, pos, align_x)
-	session.dig = {
-		entry = pick.entry, target = pick.target, time = 0,
-		anchor = vector.new(align_x or pos.x, pos.y, pos.z),
-	}
+local function start_dig(session, pick, anchor, cut)
+	session.dig = {entry = pick.entry, target = pick.target, time = 0, anchor = anchor, cut = cut}
 	session.obj:set_properties({physical = false})
 	session.obj:set_velocity(vector.zero())
 	session.obj:set_acceleration(vector.zero())
@@ -563,6 +563,18 @@ function str_machine.destroy_node(player, pos, max_tier)
 	return take_node(pos, player, true)
 end
 
+-- Cuts down the tree whose base node is at pos, leaving its stump
+local function fell_tree(pos, player)
+	local kind = dug_sound(core.get_node(pos).name)
+	if not str_decor.fell(pos) then
+		return false
+	end
+	if kind then
+		str_audio.sfx.play("dug_" .. kind, {player = player})
+	end
+	return true
+end
+
 -- Downward speed given right after digging the node below
 local DIG_DOWN_SPEED = 1.5
 
@@ -573,6 +585,10 @@ local function dig_step(session, player, pick, dtime)
 		/ stats.get(player).dig_speed
 	if dig.time >= hardness then
 		local entry = dig.entry
+		if dig.cut then
+			end_dig(session, fell_tree(pick.target, player))
+			return
+		end
 		end_dig(session, take_node(pick.target, player))
 		if entry.dir.y < 0 then
 			session.obj:set_velocity(vector.new(0, -DIG_DOWN_SPEED, 0))
@@ -629,7 +645,7 @@ local function control_step(session, player, pos, control, dtime)
 		align_x = math.floor(pos.x + 0.5)
 	end
 	if pick and (not align_x or math.abs(pos.x - align_x) <= ALIGN_TOLERANCE) then
-		start_dig(session, pick, pos, align_x)
+		start_dig(session, pick, vector.new(align_x or pos.x, pos.y, pos.z))
 		return
 	end
 	if pass and not free and not pick then
@@ -809,8 +825,102 @@ local function slide_trunks(pos, vel, dtime)
 	end
 end
 
+-- Trunks (str_trunk_radius) as square boxes: each axis stops at the face, as against a node
+local function block_trunks(pos, vel, dtime)
+	local reach = HALF_WIDTH + 0.5 + math.sqrt(vel.x ^ 2 + vel.z ^ 2) * dtime
+	local y0 = math.floor(pos.y + BOX_BOTTOM + 0.51)
+	local y1 = math.floor(pos.y + BOX_TOP + 0.49)
+	local trunks = {}
+	for x = math.floor(pos.x - reach + 0.5), math.floor(pos.x + reach + 0.5) do
+		for z = math.floor(pos.z - reach + 0.5), math.floor(pos.z + reach + 0.5) do
+			for y = y0, y1 do
+				local def = node_def(vector.new(x, y, z))
+				if def and def.str_trunk_radius then
+					trunks[#trunks + 1] = {x = x, z = z, r = def.str_trunk_radius + HALF_WIDTH}
+					break
+				end
+			end
+		end
+	end
+	-- Already inside a trunk (a step overshot its face): only the shallower axis is blocked
+	for _, t in ipairs(trunks) do
+		local gx, gz = math.abs(t.x - pos.x) - t.r, math.abs(t.z - pos.z) - t.r
+		if gx < 0 and gz < 0 then
+			t.inside = true
+			if gx >= gz then
+				vel.x = t.x > pos.x and math.min(vel.x, 0) or math.max(vel.x, 0)
+			else
+				vel.z = t.z > pos.z and math.min(vel.z, 0) or math.max(vel.z, 0)
+			end
+		end
+	end
+	-- x is checked at the z the machine reaches this step, then z at the x it reaches
+	local next_z = pos.z + vel.z * dtime
+	for _, t in ipairs(trunks) do
+		if not t.inside and math.abs(next_z - t.z) < t.r - 1e-3 then
+			local o = t.x - pos.x
+			local gap = math.max(math.abs(o) - t.r, 0) / dtime
+			vel.x = o > 0 and math.min(vel.x, gap) or math.max(vel.x, -gap)
+		end
+	end
+	local next_x = pos.x + vel.x * dtime
+	for _, t in ipairs(trunks) do
+		if not t.inside and math.abs(next_x - t.x) < t.r - 1e-3 then
+			local o = t.z - pos.z
+			local gap = math.max(math.abs(o) - t.r, 0) / dtime
+			vel.z = o > 0 and math.min(vel.z, gap) or math.max(vel.z, -gap)
+		end
+	end
+end
+
+-- The tree base node touching the machine's face in direction (dx, dz), if its trunk overlaps that face
+local function trunk_ahead(pos, dx, dz)
+	local y0 = math.floor(pos.y + BOX_BOTTOM + 0.51)
+	local y1 = math.floor(pos.y + BOX_TOP + 0.49)
+	local fx = math.floor(pos.x + dx * (HALF_WIDTH + 0.5) + 0.5)
+	local fz = math.floor(pos.z + dz * (HALF_WIDTH + 0.5) + 0.5)
+	for side = -1, 1 do
+		for y = y0, y1 do
+			local p = vector.new(fx + side * math.abs(dz), y, fz + side * math.abs(dx))
+			local def = node_def(p)
+			local r = def and def.str_tree == "base" and def.str_trunk_radius
+			if r then
+				local ahead = dx * (p.x - pos.x) + dz * (p.z - pos.z)
+				local lateral = math.abs(dz) * (p.x - pos.x) + math.abs(dx) * (p.z - pos.z)
+				if ahead - HALF_WIDTH - r <= TOUCH_DISTANCE and math.abs(lateral) < HALF_WIDTH + r - 1e-3 then
+					return p
+				end
+			end
+		end
+	end
+end
+
+-- A straight push cuts a trunk centred within this of the machine (nodes) and slides round one further off
+local CUT_RANGE = 0.25
+
+local function cut_dir(control)
+	local ix = (control.right and 1 or 0) - (control.left and 1 or 0)
+	local iz = (control.up and 1 or 0) - (control.down and 1 or 0)
+	if (ix == 0) ~= (iz == 0) then
+		return vector.new(ix, 0, iz)
+	end
+end
+
 -- WASD drives on the ground plane, Space climbs, Sneak hovers; S in the row behind the slice drives back into it
 local function surface_step(session, player, pos, control, dtime)
+	local my_stats = stats.get(player)
+	local dig = session.dig
+	if dig then
+		local dir = cut_dir(control)
+		local def = node_def(dig.target)
+		if dir and vector.equals(dir, dig.entry.dir) and def and def.str_tree == "base"
+				and not fuel.is_empty(player) and grounded(dig.anchor) then
+			burn_fuel(player, FUEL.dig_mult, dtime)
+			dig_step(session, player, {entry = dig.entry, target = dig.target}, dtime)
+			return
+		end
+		end_dig(session, false)
+	end
 	if control.down and not control.up and pos.z <= SURFACE_MIN_Z + 0.05 and box_clear(pos, SLICE_Z) then
 		session.jump_lock = control.jump or nil
 		session.down_lock = true
@@ -822,7 +932,6 @@ local function surface_step(session, player, pos, control, dtime)
 		session.jump_lock = nil
 	end
 	local jump = control.jump and not session.jump_lock
-	local my_stats = stats.get(player)
 	local on_ground = grounded(pos)
 	-- Steps up only from the ground, so a hovering machine cannot climb walls
 	set_step_height(session, on_ground and SURFACE_STEP_HEIGHT or 0)
@@ -839,7 +948,34 @@ local function surface_step(session, player, pos, control, dtime)
 	local speed = my_stats.move_speed * speed_mult / ((ix ~= 0 and iz ~= 0) and math.sqrt(2) or 1)
 	vel.x = approach(vel.x, ix * speed, ACCEL * dtime)
 	vel.z = approach(vel.z, iz * speed, ACCEL * dtime)
-	slide_trunks(pos, vel, dtime)
+	local dir = my_stats.can_cut_trees and cut_dir(control)
+	local target = dir and trunk_ahead(pos, dir.x, dir.z)
+	local off = target and (dir.x ~= 0 and target.z - pos.z or target.x - pos.x)
+	if off and math.abs(off) > CUT_RANGE then
+		local side = off > 0 and -speed or speed
+		if dir.x ~= 0 then
+			vel.z = approach(vel.z, side, ACCEL * dtime)
+		else
+			vel.x = approach(vel.x, side, ACCEL * dtime)
+		end
+	elseif off and on_ground and not empty and not jump then
+		if math.abs(off) <= ALIGN_TOLERANCE then
+			local anchor = dir.x ~= 0 and vector.new(pos.x, pos.y, target.z) or vector.new(target.x, pos.y, pos.z)
+			start_dig(session, {entry = {dir = dir}, target = target}, anchor, true)
+			return
+		end
+		local glide = math.max(-ALIGN_SPEED, math.min(ALIGN_SPEED, off * ALIGN_RATE))
+		if dir.x ~= 0 then
+			vel.z = approach(vel.z, glide, ACCEL * dtime)
+		else
+			vel.x = approach(vel.x, glide, ACCEL * dtime)
+		end
+	end
+	if my_stats.can_cut_trees then
+		block_trunks(pos, vel, dtime)
+	else
+		slide_trunks(pos, vel, dtime)
+	end
 	vel.x = bound(vel.x, pos.x, -WORLD_HALF_WIDTH, WORLD_HALF_WIDTH, dtime)
 	vel.z = bound(vel.z, pos.z, SURFACE_MIN_Z, SURFACE_MAX_Z, dtime)
 	local accel_y = -session.gravity

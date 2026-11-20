@@ -95,6 +95,13 @@ Third-party assets, with their licenses and authors, are listed below.
 - Files: `mods/str_refuel/sounds/str_refuel_charge.ogg` (sped up from the original)
 - License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
 
+### "old fallen tree stepping.wav" (tree cutting sounds)
+
+- Author: KrystianPawlowski (freesound.org)
+- Source: https://freesound.org/people/KrystianPawlowski/sounds/584893/
+- Files: `mods/str_machine/sounds/str_machine_dug_wood.1.ogg`, `.2.ogg`, `.3.ogg`, `.4.ogg` (short clips cut from the original)
+- License (SPDX): CC0-1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+
 ## Original work
 
 Everything not listed under Credits above is original work by Zenon Seth, licensed CC BY-SA 3.0 (media) and LGPL-3.0-only (code). This includes:
@@ -105,7 +112,7 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
   - `mods/str_explosives/sounds/`
   - `mods/str_interior/sounds/`
   - `mods/str_lasers/sounds/`
-  - `mods/str_machine/sounds/` (except `str_machine_vehicle_tire_impact.*.ogg`, see Credits)
+  - `mods/str_machine/sounds/` (except `str_machine_vehicle_tire_impact.*.ogg` and `str_machine_dug_wood.*.ogg`, see Credits)
   - `mods/str_transmissions/sounds/`
   - `mods/str_upgrades/sounds/` (including the colour spray hiss, `str_upgrades_spray_hiss.ogg`)
 - Textures:

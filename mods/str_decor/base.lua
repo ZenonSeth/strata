@@ -109,6 +109,9 @@ for _, def in ipairs(str_decor.shapes) do
 		collision_box = collision and {type = "fixed", fixed = collision},
 		walkable = collision ~= nil,
 		str_trunk_radius = w,
+		str_tree = w and (def.name:find("_base$") and "base" or "top") or nil,
+		str_stump = w and def.name:find("_base$") and "str_decor:stump_" .. def.name:match("^tree_(%a+)_") or nil,
+		str_dug_sound = w and "wood" or nil,
 		pointable = false,
 		diggable = false,
 		buildable_to = true,
@@ -116,3 +119,123 @@ for _, def in ipairs(str_decor.shapes) do
 		groups = {not_in_creative_inventory = 1},
 	})
 end
+
+-- Stumps are the bottom of the base node's boxes, left where a tree was cut down
+local STUMP_TOP = -8/32
+local shape_boxes = {}
+local tops = {}
+for _, def in ipairs(str_decor.shapes) do
+	shape_boxes[def.name] = def.boxes
+	local kind = def.name:match("^tree_(%a+)_%d_top$")
+	if kind then
+		tops[kind] = tops[kind] or {}
+		table.insert(tops[kind], "str_decor:" .. def.name)
+	end
+end
+
+local stumps = {}
+for kind in pairs(trunk) do
+	local base = "tree_" .. kind .. "_base"
+	local boxes = {}
+	for _, b in ipairs(shape_boxes[base]) do
+		if b[2] < STUMP_TOP then
+			boxes[#boxes + 1] = {b[1], b[2], b[3], b[4], math.min(b[5], STUMP_TOP), b[6]}
+		end
+	end
+	local t = "str_decor_" .. base
+	local name = "str_decor:stump_" .. kind
+	stumps[#stumps + 1] = name
+	core.register_node(name, {
+		description = kind .. " stump",
+		drawtype = "nodebox",
+		paramtype = "light",
+		paramtype2 = "facedir",
+		sunlight_propagates = true,
+		tiles = {t .. "_top.png", t .. "_bottom.png", t .. "_left.png", t .. "_right.png", t .. "_back.png", t .. "_front.png"},
+		node_box = {type = "fixed", fixed = boxes},
+		walkable = false,
+		str_regrow = "str_decor:" .. base,
+		str_regrow_tops = tops[kind],
+		pointable = false,
+		diggable = false,
+		buildable_to = true,
+		is_ground_content = false,
+		groups = {not_in_creative_inventory = 1},
+	})
+end
+
+-- Sawdust flakes per cubic node of tree volume
+local FELL_DENSITY = 250
+local FELL_MIN_PER_BOX = 3
+local SAWDUST = {"#b89b6c", "#a8885a", "#957447", "#c2a77c", "#85663e"}
+
+-- Facedir 0-3 turns the node's +z towards core.facedir_to_dir(param2)
+local function rotate(x, z, param2)
+	for _ = 1, param2 % 4 do
+		x, z = z, -x
+	end
+	return x, z
+end
+
+local function fell_particles(pos, node)
+	local boxes = shape_boxes[node.name:match("^str_decor:(.+)$") or ""]
+	if not boxes then
+		return
+	end
+	for _, b in ipairs(boxes) do
+		local volume = (b[4] - b[1]) * (b[5] - b[2]) * (b[6] - b[3])
+		for _ = 1, math.max(FELL_MIN_PER_BOX, math.floor(volume * FELL_DENSITY + 0.5)) do
+			local x, z = rotate(b[1] + math.random() * (b[4] - b[1]), b[3] + math.random() * (b[6] - b[3]), node.param2)
+			core.add_particle({
+				pos = vector.offset(pos, x, b[2] + math.random() * (b[5] - b[2]), z),
+				velocity = vector.new((math.random() - 0.5) * 1.6, math.random() * 0.8, (math.random() - 0.5) * 1.6),
+				acceleration = vector.new(0, -1.5, 0),
+				expirationtime = 0.8 + math.random() * 0.8,
+				size = 1.5 + math.random() * 2,
+				texture = {name = "str_machine_puff.png^[multiply:" .. SAWDUST[math.random(#SAWDUST)], blend = "alpha",
+					alpha_tween = {1, 0}},
+			})
+		end
+	end
+end
+
+-- Removes the tree whose base node is at pos, with its top, and leaves a stump; returns whether there was one
+function str_decor.fell(pos)
+	local node = core.get_node(pos)
+	local def = core.registered_nodes[node.name]
+	if not def or def.str_tree ~= "base" then
+		return false
+	end
+	local above = vector.offset(pos, 0, 1, 0)
+	local top = core.get_node(above)
+	local top_def = core.registered_nodes[top.name]
+	if top_def and top_def.str_tree == "top" then
+		core.remove_node(above)
+		fell_particles(above, top)
+	end
+	core.set_node(pos, {name = def.str_stump, param2 = node.param2})
+	fell_particles(pos, node)
+	return true
+end
+
+-- Average seconds for a stump to grow back is about interval * chance
+local REGROW_INTERVAL = 30
+local REGROW_CHANCE = 20
+
+core.register_abm({
+	label = "Stumps grow back into trees",
+	nodenames = stumps,
+	interval = REGROW_INTERVAL,
+	chance = REGROW_CHANCE,
+	action = function(pos, node)
+		local above = vector.offset(pos, 0, 1, 0)
+		local name = core.get_node(above).name
+		if name ~= "air" and not name:find("^str_decor:") then
+			return
+		end
+		local def = core.registered_nodes[node.name]
+		local top_names = def.str_regrow_tops
+		core.set_node(pos, {name = def.str_regrow, param2 = node.param2})
+		core.set_node(above, {name = top_names[math.random(#top_names)], param2 = node.param2})
+	end,
+})

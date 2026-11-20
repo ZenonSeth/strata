@@ -15,6 +15,8 @@ stats.base = {
 	thrust_rating = str_machine_data.get_upgrade("thrusters").levels[1].stats.thrust_rating,
 	-- Set by the thrusters: only jets and rockets dig upwards
 	can_dig_up = str_machine_data.get_upgrade("thrusters").levels[1].stats.can_dig_up,
+	-- Surface mode: trunks are square walls the drill cuts down, instead of cylinders to slide round
+	can_cut_trees = true,
 	-- Highest node tier (str_tier) the drill bit digs; harder nodes are solid walls
 	drill_tier = str_machine_data.get_upgrade("drill").levels[1].stats.drill_tier,
 	-- Total cargo volume the hold can take
