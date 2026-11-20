@@ -226,7 +226,7 @@ local last_shot = {}
 
 local function fire(player, def, target)
 	local pos = str_machine.get_pos(player)
-	if not pos or str_mode.get(player) ~= "vehicle" or str_machine.is_dead(player) then
+	if not pos or str_mode.get(player) ~= "vehicle" or str_machine.is_dead(player) or str_machine.is_surface(player) then
 		return
 	end
 	local from = vector.new(pos.x, pos.y, math.floor(pos.z + 0.5))
@@ -276,7 +276,7 @@ end
 local function update_crosshair(player)
 	local name = player:get_player_name()
 	local def = str_mode.get(player) == "vehicle" and not str_machine.is_dead(player)
-		and lasers[player:get_wielded_item():get_name()]
+		and not str_machine.is_surface(player) and lasers[player:get_wielded_item():get_name()]
 	local shown = crosshairs[name]
 	if shown and shown.item == (def and def.item) then
 		return

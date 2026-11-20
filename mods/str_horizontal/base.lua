@@ -257,7 +257,7 @@ core.register_craftitem(ITEM, {
 	inventory_image = "str_horizontal_waypoint.png",
 	on_use = function(itemstack, user)
 		if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user)
-				or str_elevators.is_traveling(user:get_player_name()) then
+				or str_elevators.is_traveling(user:get_player_name()) or str_machine.blocked_on_surface(user) then
 			return
 		end
 		local pos = target_pos(user)

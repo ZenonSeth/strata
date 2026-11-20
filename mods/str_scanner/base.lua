@@ -105,7 +105,7 @@ local labels, crosshairs = {}, {}
 
 local function update(player)
 	local name = player:get_player_name()
-	local pos = str_mode.get(player) == "vehicle" and not str_machine.is_dead(player)
+	local pos = str_mode.get(player) == "vehicle" and not str_machine.is_dead(player) and not str_machine.is_surface(player)
 		and player:get_wielded_item():get_name() == ITEM and str_machine.get_pos(player)
 	if pos and not crosshairs[name] then
 		crosshairs[name] = player:hud_add({

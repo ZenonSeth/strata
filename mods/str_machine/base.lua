@@ -56,7 +56,7 @@ local function engine_sound(session, player, control)
 	if has_fuel then
 		if session.dig then
 			engine = "engine_rev"
-		elseif climbing or control.left ~= control.right then
+		elseif climbing or control.left ~= control.right or (session.surface and control.up ~= control.down) then
 			engine = "engine_mid"
 		end
 	end
@@ -106,13 +106,27 @@ local DEFAULT_GRAVITY = 15
 local DEFAULT_HARDNESS = 1
 -- How far (in nodes) the machine bites into the node by the time the dig finishes
 local PUSH_DEPTH = 0.25
--- Look north (+z), level, so +x (east) is on the right of the screen
-local LOOK_PITCH = 0
+-- Look north (+z), so +x (east) is on the right of the screen; level in the slice, down at the machine in surface mode
 local LOOK_YAW = 0
 local LOOK_RANGE = math.rad(30)
 local LOOK_MARGIN = math.rad(0.5)
 local SURFACE_Y = str_utils.constants.surface_y
 local SLICE_Z = str_utils.constants.slice_z
+-- Surface mode: the machine drives the rows behind the slice, up to the end of the terrain
+local SURFACE_MIN_Z = SLICE_Z + 1
+local SURFACE_MAX_Z = SLICE_Z + str_utils.constants.back_depth
+local WORLD_HALF_WIDTH = str_utils.constants.world_half_width
+-- Seconds Space is held in the slice, above ground, before the machine moves behind it
+local SURFACE_HOLD = 0.4
+-- Glide speed (nodes/s) between the slice and the row behind it, and how long a blocked glide may take
+local SHIFT_SPEED = 4
+local SHIFT_TIMEOUT = 1
+-- Surface camera: height over distance behind the machine, and how fast that ratio eases on a mode change (per s)
+local SURFACE_CAM_DISTANCE = 9
+local SURFACE_CAM_RATIO = 6 / SURFACE_CAM_DISTANCE
+local CAM_RATIO_SPEED = 1.5
+-- Climbs one-node steps on its own while driving the surface
+local SURFACE_STEP_HEIGHT = 1.1
 -- In front of the shop; the machine rests on the ground node, so its centre is one node above it
 local START_POS = vector.new(str_utils.constants.shop_x, SURFACE_Y + 1, SLICE_Z)
 -- Machine glow in full daylight; it scales down with the world light level
@@ -162,7 +176,12 @@ end
 local function update_depth(player, pos)
 	local y = math.floor(pos.y + 0.5) - START_POS.y
 	local label = y > 0 and "Altitude" or "Depth"
-	str_hud.set_text(player, DEPTH_HUD, string.format("%s: %dm  |  X: %d", label, math.abs(y), math.floor(pos.x + 0.5)))
+	local text = string.format("%s: %dm  |  X: %d", label, math.abs(y), math.floor(pos.x + 0.5))
+	local behind = math.floor(pos.z + 0.5) - SLICE_Z
+	if behind > 0 then
+		text = text .. string.format("  |  Z: %d", behind)
+	end
+	str_hud.set_text(player, DEPTH_HUD, text)
 	local name = player:get_player_name()
 	local depth, old = -y, last_depth[name]
 	if depth ~= old then
@@ -349,6 +368,21 @@ local function approach(value, target, step)
 		return math.min(value + step, target)
 	end
 	return math.max(value - step, target)
+end
+
+local function wrap_angle(a)
+	a = a % (2 * math.pi)
+	return a > math.pi and a - 2 * math.pi or a
+end
+
+-- Turns the shortest way, in (-pi, pi]; a half turn between 0 and pi swings the way it always did
+local function turn(yaw, target, step)
+	target = wrap_angle(target)
+	local diff = (target - yaw + math.pi) % (2 * math.pi) - math.pi
+	if math.abs(diff) > math.pi - 1e-6 then
+		diff = target - yaw
+	end
+	return wrap_angle(yaw + math.max(-step, math.min(step, diff)))
 end
 
 local function held_entries(control)
@@ -654,6 +688,151 @@ local function control_step(session, player, pos, control, dtime)
 	session.obj:set_acceleration(vector.new(0, accel_y, 0))
 end
 
+-- Whether the machine's box would fit at its x and y in row z
+local function box_clear(pos, z)
+	for _, x in ipairs({pos.x - HALF_WIDTH + 0.01, pos.x + HALF_WIDTH - 0.01}) do
+		for _, y in ipairs({pos.y + BOX_BOTTOM + 0.01, pos.y + BOX_TOP - 0.01}) do
+			local def = node_def(vector.round(vector.new(x, y, z)))
+			if not def or def.walkable then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+local function set_step_height(session, height)
+	if session.stepheight ~= height then
+		session.stepheight = height
+		session.obj:set_properties({stepheight = height})
+	end
+end
+
+local function set_surface(session, surface)
+	session.surface = surface or nil
+	session.obj:set_properties({step_up_mode = surface and "floaty" or "legacy"})
+	set_step_height(session, 0)
+end
+
+-- Glides the machine to row z, controls ignored; surface mode follows the row it ends in
+local function start_shift(session, pos, z)
+	if session.surface then
+		set_surface(session, false)
+	end
+	session.shift = {from_z = pos.z, to_z = z, t = 0}
+	session.thrusting = false
+end
+
+local function shift_step(session, player, pos, dtime)
+	local shift = session.shift
+	shift.t = shift.t + dtime
+	local dz = shift.to_z - pos.z
+	local blocked = shift.t > SHIFT_TIMEOUT
+	if math.abs(dz) > 1e-3 and not blocked then
+		local speed = math.min(SHIFT_SPEED, math.abs(dz) / dtime)
+		session.obj:set_velocity(vector.new(0, 0, dz > 0 and speed or -speed))
+		session.obj:set_acceleration(vector.zero())
+		return
+	end
+	local z = blocked and shift.from_z or shift.to_z
+	session.obj:set_pos(vector.new(pos.x, pos.y, z))
+	session.obj:set_velocity(vector.zero())
+	session.shift = nil
+	local surface = z > SLICE_Z + 0.5
+	if surface then
+		set_surface(session, true)
+	else
+		session.target_yaw = math.cos(session.yaw) >= 0 and 0 or math.pi
+	end
+	if not blocked then
+		str_utils.show_popup(player:get_player_name(), surface and "Surface mode" or "Digger mode", 1.5, false)
+	end
+end
+
+-- Holding Space above ground in the slice, with room behind, moves the machine onto the surface behind it
+local function check_surface_entry(session, pos, control, dtime)
+	if not control.jump then
+		session.jump_time, session.jump_lock = 0, nil
+		return false
+	end
+	session.jump_time = (session.jump_time or 0) + dtime
+	if session.jump_lock or session.dig or session.jump_time < SURFACE_HOLD
+			or math.floor(pos.y + 0.5) <= SURFACE_Y or not box_clear(pos, SURFACE_MIN_Z) then
+		return false
+	end
+	session.jump_lock = true
+	start_shift(session, pos, SURFACE_MIN_Z)
+	return true
+end
+
+-- Velocity component v, cut so one step does not carry p past lo or hi
+local function bound(v, p, lo, hi, dtime)
+	return math.max((lo - p) / dtime, math.min((hi - p) / dtime, v))
+end
+
+-- WASD drives on the ground plane, Space climbs, Sneak hovers; S in the row behind the slice drives back into it
+local function surface_step(session, player, pos, control, dtime)
+	if control.down and not control.up and pos.z <= SURFACE_MIN_Z + 0.05 and box_clear(pos, SLICE_Z) then
+		session.jump_lock = control.jump or nil
+		session.down_lock = true
+		start_shift(session, pos, SLICE_Z)
+		return
+	end
+	-- Space still held from entering only thrusts once let go
+	if not control.jump then
+		session.jump_lock = nil
+	end
+	local jump = control.jump and not session.jump_lock
+	local my_stats = stats.get(player)
+	local on_ground = grounded(pos)
+	-- Steps up only from the ground, so a hovering machine cannot climb walls
+	set_step_height(session, on_ground and SURFACE_STEP_HEIGHT or 0)
+	local empty = fuel.is_empty(player)
+	local vel = session.obj:get_velocity()
+	local speed_mult = empty and FUEL.empty_speed_mult or 1
+	local top_thrust = my_stats.thrust * speed_mult
+	if session.liquid then
+		top_thrust = my_stats.thrust * math.min(speed_mult, LIQUID.climb_speed_mult)
+		speed_mult = speed_mult * LIQUID.speed_mult
+	end
+	local ix = (control.right and 1 or 0) - (control.left and 1 or 0)
+	local iz = (control.up and 1 or 0) - (control.down and 1 or 0)
+	local speed = my_stats.move_speed * speed_mult / ((ix ~= 0 and iz ~= 0) and math.sqrt(2) or 1)
+	vel.x = bound(approach(vel.x, ix * speed, ACCEL * dtime), pos.x, -WORLD_HALF_WIDTH, WORLD_HALF_WIDTH, dtime)
+	vel.z = bound(approach(vel.z, iz * speed, ACCEL * dtime), pos.z, SURFACE_MIN_Z, SURFACE_MAX_Z, dtime)
+	local accel_y = -session.gravity
+	local hovering = control.sneak and not empty and (jump or not on_ground)
+	local climbing = not hovering and jump
+	session.thrusting = hovering or climbing
+	if hovering then
+		burn_fuel(player, HOVER_FUEL_MULT, dtime)
+	elseif climbing then
+		burn_fuel(player, FUEL.climb_mult, dtime)
+	elseif ix ~= 0 or iz ~= 0 then
+		burn_fuel(player, 1, dtime)
+	end
+	local thrust_accel = THRUST_ACCEL / (1 + RATED_DRAG * cargo.weight(player) / my_stats.thrust_rating)
+	if hovering then
+		local target_vy = jump and HOVER_SPEED or 0
+		if vel.y <= target_vy then
+			accel_y = math.min(thrust_accel - session.gravity, (target_vy - vel.y) / dtime)
+		else
+			accel_y = math.max(-session.gravity, (target_vy - vel.y) / dtime)
+		end
+	elseif climbing then
+		accel_y = thrust_accel - session.gravity
+		if vel.y > top_thrust then
+			vel.y = approach(vel.y, top_thrust, ACCEL * dtime)
+			accel_y = 0
+		else
+			accel_y = math.min(accel_y, (top_thrust - vel.y) / dtime)
+		end
+	end
+	vel.y = math.max(vel.y, -(session.liquid and LIQUID.max_fall_speed or MAX_FALL_SPEED))
+	session.obj:set_velocity(vel)
+	session.obj:set_acceleration(vector.new(0, accel_y, 0))
+end
+
 local EXHAUST_INTERVAL = 0.1
 -- Per thruster kind (see thrusters.lua): particles per nozzle per burst (full tank, empty tank), downward speed, size and lifetime
 -- as {minimum, random extra}; spread is the random sideways offset (nodes) of the spawn point; static = a single-frame texture
@@ -737,24 +916,27 @@ local function animate(session, player, control, dtime)
 		spawn_exhaust(session, player, dtime)
 	end
 
-	if control.right and not control.left then
-		session.target_yaw = math.pi
-	elseif control.left and not control.right then
-		session.target_yaw = 0
+	local ix = (control.right and 1 or 0) - (control.left and 1 or 0)
+	local iz = session.surface and (control.up and 1 or 0) - (control.down and 1 or 0) or 0
+	if ix ~= 0 or iz ~= 0 then
+		session.target_yaw = core.dir_to_yaw(vector.new(ix, 0, iz)) - math.pi / 2
 	end
-	session.yaw = approach(session.yaw, session.target_yaw, TURN_SPEED * dtime)
+	session.yaw = turn(session.yaw, session.target_yaw, TURN_SPEED * dtime)
 	obj:set_yaw(session.yaw)
 
-	local x = obj:get_pos().x
-	local moved = session.last_x and x - session.last_x or 0
-	session.last_x = x
-	local driving = control.left ~= control.right and grounded(obj:get_pos())
-	if driving and math.abs(moved) < MAX_ROLL_STEP then
-		local forward = moved * -math.cos(session.yaw)
+	local pos = obj:get_pos()
+	local dx = session.last_x and pos.x - session.last_x or 0
+	local dz = session.last_z and pos.z - session.last_z or 0
+	session.last_x, session.last_z = pos.x, pos.z
+	local driving = (ix ~= 0 or iz ~= 0) and grounded(pos)
+	if driving and math.abs(dx) + math.abs(dz) < MAX_ROLL_STEP then
+		local forward = -(dx * math.cos(session.yaw) + dz * math.sin(session.yaw))
 		session.wheel_angle = (session.wheel_angle + forward / WHEEL_RADIUS) % (2 * math.pi)
 	end
 	local drill_target = 0
-	if control.down and not control.up then
+	if session.surface or session.shift then
+		drill_target = 0
+	elseif control.down and not control.up then
 		drill_target = math.pi / 2
 	elseif control.up and not control.down and stats.get(player).can_dig_up then
 		drill_target = -math.pi / 2
@@ -778,9 +960,19 @@ local function animate(session, player, control, dtime)
 	end
 end
 
-local function reset_look(player)
-	player:set_look_vertical(LOOK_PITCH)
+-- Pitch that centres the view on the machine: level in the slice, down onto it in surface mode
+local function look_pitch(session)
+	return math.atan(session.cam_ratio)
+end
+
+local function reset_look(player, session)
+	player:set_look_vertical(look_pitch(session))
 	player:set_look_horizontal(LOOK_YAW)
+end
+
+-- Camera height follows its distance, so zooming keeps the angle
+local function place_camera(session, distance)
+	session.cam_offset = vector.new(0, session.cam_ratio * distance - session.eye_height, -distance)
 end
 
 -- Put the player in the camera rig and apply the vehicle view
@@ -788,7 +980,8 @@ local function board(player, session)
 	player:set_attach(session.rig)
 	player:set_camera({mode = "first"})
 	player:set_properties({zoom_fov = 0})
-	reset_look(player)
+	reset_look(player, session)
+	session.look_pitch = look_pitch(session)
 	player:hud_set_flags({wielditem = false, crosshair = false, hotbar = true})
 	fuel.refresh(player)
 	hull.refresh(player)
@@ -798,25 +991,29 @@ local function board(player, session)
 end
 
 local function start(player, pos)
+	-- Behind the slice is surface mode; a position saved mid-glide goes to the nearer row
+	local surface = pos.z > SLICE_Z + 0.5
+	pos = vector.new(pos.x, pos.y, surface and math.max(pos.z, SURFACE_MIN_Z) or SLICE_Z)
 	local obj = core.add_entity(pos, "str_machine:machine")
 	if not obj then
 		return
 	end
 	obj:set_properties({textures = str_machine.model_textures(player)})
-	-- Lift the camera by the eye height so the view is centered on the machine
-	local eye_height = player:get_properties().eye_height
-	local cam_offset = vector.new(0, -eye_height, -CAM_START_DISTANCE)
+	local session = {
+		obj = obj, gravity = DEFAULT_GRAVITY, dig = nil, depth_timer = 0, save_timer = 0,
+		yaw = 0, target_yaw = 0, wheel_angle = 0, last_pos = pos,
+		-- Lift the camera by the eye height so the view is centered on the machine
+		eye_height = player:get_properties().eye_height, cam_ratio = surface and SURFACE_CAM_RATIO or 0,
+	}
+	place_camera(session, CAM_START_DISTANCE)
 	-- The client camera ignores the attach offset, so attach to a separate rig
-	local rig = core.add_entity(vector.add(pos, cam_offset), "str_machine:rig")
+	local rig = core.add_entity(vector.add(pos, session.cam_offset), "str_machine:rig")
 	if not rig then
 		obj:remove()
 		return
 	end
-	local session = {
-		obj = obj, rig = rig, cam_offset = cam_offset,
-		gravity = DEFAULT_GRAVITY, dig = nil, depth_timer = 0, save_timer = 0,
-		yaw = 0, target_yaw = 0, wheel_angle = 0, last_pos = pos,
-	}
+	session.rig = rig
+	set_surface(session, surface)
 	sessions[player:get_player_name()] = session
 	board(player, session)
 end
@@ -855,31 +1052,43 @@ local function spawn_at(name, pos)
 end
 
 -- Each look setter resends both angles (the other one stale), so only correct past a margin: resting on the edge sends nothing
-local function clamp_look(player)
+local function clamp_look(player, pitch)
 	local dyaw = (player:get_look_horizontal() - LOOK_YAW + math.pi) % (2 * math.pi) - math.pi
-	local dpitch = player:get_look_vertical() - LOOK_PITCH
+	local dpitch = player:get_look_vertical() - pitch
 	if math.abs(dpitch) > LOOK_RANGE + LOOK_MARGIN then
-		player:set_look_vertical(LOOK_PITCH + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, dpitch)))
+		player:set_look_vertical(pitch + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, dpitch)))
 	end
 	if math.abs(dyaw) > LOOK_RANGE + LOOK_MARGIN then
 		player:set_look_horizontal(LOOK_YAW + math.max(-LOOK_RANGE, math.min(LOOK_RANGE, dyaw)))
 	end
 end
 
+local NEIGHBOURS = {vector.new(1, 0, 0), vector.new(-1, 0, 0), vector.new(0, 0, 1), vector.new(0, 0, -1)}
+
 -- Shows the prompt of the pad under the machine, else of an interactable node in its cell or behind it; a fresh Aux1
--- press uses it. Returns true if that left vehicle mode.
+-- press uses it. In surface mode a building next to the machine counts as its pad instead. Returns true if that left
+-- vehicle mode.
 local function pad_step(session, player, pos, control)
 	local target, use_pos
-	if not session.dig then
+	if not session.dig and not session.shift then
 		use_pos = vector.round(vector.new(pos.x, pos.y + BOX_BOTTOM - TOUCH_DISTANCE, pos.z))
 		target = str_pads.get(use_pos)
-		if not target then
+		if session.surface then
+			local cell = vector.round(pos)
+			for _, dir in ipairs(NEIGHBOURS) do
+				if target then
+					break
+				end
+				use_pos = vector.add(cell, dir)
+				target = str_pads.get(use_pos)
+			end
+		elseif not target then
 			use_pos = vector.round(pos)
 			target = str_interact.get(use_pos)
-		end
-		if not target then
-			use_pos = vector.round(vector.new(pos.x, pos.y, SLICE_Z + 1))
-			target = str_interact.get(use_pos)
+			if not target then
+				use_pos = vector.round(vector.new(pos.x, pos.y, SLICE_Z + 1))
+				target = str_interact.get(use_pos)
+			end
 		end
 	end
 	local label = target and ("[" .. str_utils.interact_key_name(player) .. "] " .. target.label) or ""
@@ -919,18 +1128,27 @@ local function vehicle_step(player, dtime)
 	session.last_pos = pos
 
 	local control = player:get_player_control()
+	local surface_view = session.surface or (session.shift and session.shift.to_z > SLICE_Z + 0.5)
+	session.cam_ratio = approach(session.cam_ratio, surface_view and SURFACE_CAM_RATIO or 0, CAM_RATIO_SPEED * dtime)
+	local distance = -session.cam_offset.z
 	if control.zoom then
-		session.cam_offset.z = approach(
-			session.cam_offset.z, -CAM_ZOOM_DISTANCE, CAM_ZOOM_SPEED * dtime)
+		distance = approach(distance, CAM_ZOOM_DISTANCE, CAM_ZOOM_SPEED * dtime)
 	else
-		session.cam_offset.z = approach(
-			session.cam_offset.z, -CAM_DISTANCE, CAM_PULLBACK_SPEED * dtime)
+		distance = approach(distance, surface_view and SURFACE_CAM_DISTANCE or CAM_DISTANCE, CAM_PULLBACK_SPEED * dtime)
 	end
+	place_camera(session, distance)
 	local cam_target = vector.add(pos, session.cam_offset)
 	local offset = vector.subtract(cam_target, rig_pos)
 	session.rig:set_velocity(vector.multiply(offset, math.min(FOLLOW_SPEED, 1 / dtime)))
 
-	clamp_look(player)
+	-- The view tilts with the camera while it moves between the slice and surface views
+	local pitch = look_pitch(session)
+	if pitch ~= session.look_pitch then
+		session.look_pitch = pitch
+		reset_look(player, session)
+	else
+		clamp_look(player, pitch)
+	end
 	local light = stats.get(player)
 	local ratio = str_environment.update(
 		player, pos.y, light.light_fade_end, light.vignette_max, light.light_min)
@@ -992,7 +1210,23 @@ local function vehicle_step(player, dtime)
 			return added
 		end)
 	end
-	control_step(session, player, pos, control, dtime)
+	if not session.shift and not session.surface then
+		-- S held from driving back into the slice does not dig until let go
+		if session.down_lock and control.down then
+			control.down = false
+		else
+			session.down_lock = nil
+		end
+		check_surface_entry(session, pos, control, dtime)
+	end
+	if session.shift then
+		shift_step(session, player, pos, dtime)
+		control = {}
+	elseif session.surface then
+		surface_step(session, player, pos, control, dtime)
+	else
+		control_step(session, player, pos, control, dtime)
+	end
 	animate(session, player, control, dtime)
 end
 
@@ -1048,9 +1282,26 @@ function str_machine.teleport(player, pos)
 	session.rig:set_pos(vector.add(pos, session.cam_offset))
 	session.rig:set_velocity(vector.zero())
 	session.last_pos = pos
-	session.last_x = nil
+	session.last_x, session.last_z = nil, nil
 	session.was_grounded = nil
 	session.prev_vel_y = 0
+	session.shift = nil
+	set_surface(session, pos.z > SLICE_Z + 0.5)
+end
+
+-- True while the machine drives the surface behind the slice (or glides between the two), where slice tools do nothing
+function str_machine.is_surface(player)
+	local session = sessions[player:get_player_name()]
+	return session ~= nil and (session.surface or session.shift) ~= nil
+end
+
+-- For slice tools: in surface mode, tells the player and returns true
+function str_machine.blocked_on_surface(player)
+	if not str_machine.is_surface(player) then
+		return false
+	end
+	str_utils.show_popup(player:get_player_name(), "Not available in surface mode.", 2, true)
+	return true
 end
 
 function str_machine.is_dead(player)
@@ -1133,13 +1384,14 @@ str_mode.register_mode("vehicle", {
 		local name = player:get_player_name()
 		local session = sessions[name]
 		if session and not session.destroyed and session.obj:get_pos() and session.rig:get_pos() then
-			session.cam_offset.z = -CAM_START_DISTANCE
+			place_camera(session, CAM_START_DISTANCE)
 			session.rig:set_pos(vector.add(session.obj:get_pos(), session.cam_offset))
 			board(player, session)
 			-- Again next step: the client's own look can overwrite the first one when boarding mid-click
 			core.after(0, function()
-				if player:is_valid() and str_mode.get(player) == "vehicle" then
-					reset_look(player)
+				local current = player:is_valid() and str_mode.get(player) == "vehicle" and sessions[name]
+				if current then
+					reset_look(player, current)
 				end
 			end)
 			return

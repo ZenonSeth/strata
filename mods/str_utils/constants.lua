@@ -2,8 +2,9 @@
 return {
 	-- y of the topmost ground node (the sand row)
 	surface_y = 0,
-	-- z of the gameplay slice; terrain exists only at and behind it
+	-- z of the gameplay slice; terrain exists only at and behind it, up to back_depth behind
 	slice_z = 2,
+	back_depth = 100,
 	-- The playable world: x runs from -world_half_width to world_half_width, and y from the height
 	-- above the surface down to the depth below it (both in unscaled metres, times DEPTH_SCALE)
 	world_half_width = 2000,

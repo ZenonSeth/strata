@@ -22,10 +22,34 @@ for _, biome in ipairs(BIOMES) do
 	end
 end
 
+-- Widest x/z extent of each tree kind's base node
+local trunk = {}
+for _, def in ipairs(str_decor.shapes) do
+	local kind = def.name:match("^tree_(%a+)_base$")
+	if kind then
+		local w = 0
+		for _, b in ipairs(def.boxes) do
+			w = math.max(w, -b[1], b[4], -b[3], b[6])
+		end
+		trunk[kind] = w
+	end
+end
+
 -- Bushes and trees are nodeboxes (art/decor_*.nbx); trees are a base node
 -- with a top node above it. Facedir rotates the off-centre shapes
 for _, def in ipairs(str_decor.shapes) do
 	local t = def.texture
+	local w = trunk[def.name:match("^tree_(%a+)_") or ""]
+	local collision
+	if w then
+		-- A full-height trunk column in both nodes, so the machine cannot step up onto the trunk
+		collision = {{-w, -0.5, -w, w, 0.5, w}}
+		if not def.name:find("_base$") then
+			for _, b in ipairs(def.boxes) do
+				collision[#collision + 1] = b
+			end
+		end
+	end
 	core.register_node("str_decor:" .. def.name, {
 		description = def.name:gsub("_", " "),
 		drawtype = "nodebox",
@@ -34,7 +58,8 @@ for _, def in ipairs(str_decor.shapes) do
 		sunlight_propagates = true,
 		tiles = {t .. "_top.png", t .. "_bottom.png", t .. "_left.png", t .. "_right.png", t .. "_back.png", t .. "_front.png"},
 		node_box = {type = "fixed", fixed = def.boxes},
-		walkable = false,
+		collision_box = collision and {type = "fixed", fixed = collision},
+		walkable = collision ~= nil,
 		pointable = false,
 		diggable = false,
 		buildable_to = true,

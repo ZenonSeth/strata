@@ -27,7 +27,7 @@ function str_pads.register(id, def)
 	register_node("str_pads:pad_" .. id, "Pad (" .. id .. ")", {str_pad = id})
 end
 
--- Pad definition of the node at pos, or nil if it is not an active pad
+-- Pad definition of the node at pos (an active pad, or any node whose str_pad names one), or nil
 function str_pads.get(pos)
 	local def = core.registered_nodes[core.get_node(pos).name]
 	return def and def.str_pad and pads[def.str_pad]

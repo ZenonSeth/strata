@@ -70,7 +70,8 @@ for _, def in ipairs(str_explosives.items) do
 		inventory_image = def.image,
 		stack_max = MAX_CARRIED,
 		on_use = function(itemstack, user)
-			if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user) then
+			if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user)
+					or str_machine.blocked_on_surface(user) then
 				return
 			end
 			if detonate(user, def) then

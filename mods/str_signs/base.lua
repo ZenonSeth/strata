@@ -169,7 +169,8 @@ core.register_craftitem(ITEM, {
 	inventory_image = "str_signs_up.png",
 	stack_max = 200,
 	on_use = function(itemstack, user)
-		if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user) then
+		if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user)
+				or str_machine.blocked_on_surface(user) then
 			return
 		end
 		local pos = target_pos(user)

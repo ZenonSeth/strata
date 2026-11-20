@@ -259,6 +259,8 @@ function crates.drop(player, name, count)
 	local machine_pos = str_mode.get(player) == "vehicle" and str_machine.get_pos(player)
 	if not machine_pos then
 		return 0, "Only the machine can drop crates."
+	elseif str_machine.is_surface(player) then
+		return 0, "Crates can't be dropped in surface mode."
 	end
 	local cargo = str_machine.cargo
 	count = math.min(count, cargo.get(player)[name] or 0)

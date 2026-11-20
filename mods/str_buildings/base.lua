@@ -1,6 +1,14 @@
+-- Pad id per building part: in surface mode the machine uses the building from beside or behind it
+local PADS = {
+	main = "shop", annex = "shop", main_ext = "shop",
+	refinery_ll = "refinery", refinery_lr = "refinery", refinery_ul = "refinery", refinery_ur = "refinery",
+	contact_office = "contact", contact_storage = "contact",
+}
+
 -- Shapes and textures come from art/building_*.nbx (nodebox editor); one node per part
 local function register(name, description, texture, boxes)
 	core.register_node("str_buildings:" .. name, {
+		str_pad = PADS[name],
 		description = description,
 		drawtype = "nodebox",
 		paramtype = "light",

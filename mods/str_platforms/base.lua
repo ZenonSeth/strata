@@ -37,7 +37,8 @@ core.register_craftitem(NODE, {
 	short_description = "Platform",
 	inventory_image = TEXTURE,
 	on_use = function(itemstack, user)
-		if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user) then
+		if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user)
+				or str_machine.blocked_on_surface(user) then
 			return
 		end
 		local at = str_machine.get_pos(user)

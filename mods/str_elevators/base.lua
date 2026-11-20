@@ -484,7 +484,7 @@ local function register_item(kind, description, image, place)
 		inventory_image = image,
 		on_use = function(itemstack, user)
 			if not user or str_mode.get(user) ~= "vehicle" or str_machine.is_dead(user)
-					or str_elevators.is_traveling(user:get_player_name()) then
+					or str_elevators.is_traveling(user:get_player_name()) or str_machine.blocked_on_surface(user) then
 				return
 			end
 			local pos = target_pos(user)

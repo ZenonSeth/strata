@@ -5,8 +5,7 @@ local constants = dofile(core.get_modpath("str_utils") .. "/constants.lua")
 local surface_y = constants.surface_y
 local slice_z = constants.slice_z
 local half_width = constants.world_half_width
--- Terrain exists only at and behind the gameplay slice, up to BACK_DEPTH behind it
-local BACK_DEPTH = 100
+local BACK_DEPTH = constants.back_depth
 -- param2 that picks the darker palette entry of the rock nodes
 local BACK_PARAM2 = 255
 -- Surface biome ranges are in constants; the edge between two wanders by up to this many nodes
