@@ -47,11 +47,11 @@ end
 
 -- Takes kj from the first hotbar battery that holds enough; false if none does
 function str_lasers.draw(player, kj)
-	local inv = player:get_inventory()
-	for i, stack in ipairs(inv:get_list("main") or {}) do
+	local inv, hotbar = player:get_inventory(), str_hotbar.list(player, "vehicle")
+	for i, stack in ipairs(inv:get_list(hotbar) or {}) do
 		if str_lasers.is_battery(stack) and str_lasers.get_charge(stack) >= kj then
 			str_lasers.set_charge(stack, str_lasers.get_charge(stack) - kj)
-			inv:set_stack("main", i, stack)
+			inv:set_stack(hotbar, i, stack)
 			return true
 		end
 	end
@@ -63,10 +63,10 @@ function str_lasers.capacity(stack)
 	return def and def.capacity_kj or 0
 end
 
--- Hotbar indices that hold a battery
+-- Machine hotbar indices that hold a battery
 function str_lasers.battery_slots(player)
 	local slots = {}
-	for i, stack in ipairs(player:get_inventory():get_list("main") or {}) do
+	for i, stack in ipairs(player:get_inventory():get_list(str_hotbar.list(player, "vehicle")) or {}) do
 		if str_lasers.is_battery(stack) then
 			slots[#slots + 1] = i
 		end
@@ -88,7 +88,7 @@ for _, def in ipairs(data.batteries) do
 end
 
 local function has_battery(player)
-	for _, stack in ipairs(player:get_inventory():get_list("main") or {}) do
+	for _, stack in ipairs(player:get_inventory():get_list(str_hotbar.list(player, "vehicle")) or {}) do
 		if str_lasers.is_battery(stack) then
 			return true
 		end

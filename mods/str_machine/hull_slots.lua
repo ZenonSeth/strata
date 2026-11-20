@@ -97,7 +97,7 @@ core.register_allow_player_inventory_action(function(_, action, inv, info)
 		return
 	end
 	local upgrade = hull_slots.is_upgrade(stack:get_name())
-	if to_list == "main" and upgrade then
+	if str_hotbar.is_list(to_list) and upgrade then
 		return 0
 	end
 	if to_list == LIST and from_list ~= LIST then

@@ -147,14 +147,13 @@ local function pick_up(player, st)
 		return
 	end
 	local stack = ItemStack(ITEM)
-	local inv = player:get_inventory()
-	if not inv:room_for_item("main", stack) then
+	if not str_hotbar.room_for(player, stack) then
 		show(name, "Your inventory is full.")
 		return
 	end
 	str_elevators.restore(node_pos(st.x, st.y))
 	str_horizontal.save(st.x, nil)
-	inv:add_item("main", stack)
+	str_hotbar.give(player, stack)
 	open_at[name] = nil
 	core.close_formspec(name, FORMNAME)
 end

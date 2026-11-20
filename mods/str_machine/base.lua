@@ -294,6 +294,7 @@ function str_machine.get_colors(player)
 	if player then
 		chosen.thruster_kind = stats.get_level(player, "thrusters").kind
 		chosen.drill = stats.get_level(player, "drill").name
+		chosen.hull = stats.get_level(player, "hull").name
 	end
 	return chosen
 end

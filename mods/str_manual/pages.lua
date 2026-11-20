@@ -108,3 +108,12 @@ str_manual.register_page("demolition", "Demolition", lines(
 	"<b>Batteries</b>",
 	"Each shot takes energy from the first battery in your hotbar that has enough. The bar under a battery shows how much charge is left. A battery that is too low for a shot stays in the hotbar; carry a bigger one, or several. Recharge batteries at the refuel station for credits per MJ; the battery section shows while one is in your hotbar, and the > button picks the next one. Bigger batteries need their own blueprints."
 ))
+
+str_manual.register_page("workshop", "Workshop", lines(
+	"<b>Hand hotbar</b>",
+	"On foot you carry a hand hotbar of your own. It holds things for your workshop; the machine's hotbar waits for you in the machine. In the Create Items tab of the upgrade station, the Hand and Machine buttons switch which hotbar is shown.",
+	"",
+	"<b>Furnishing your workshop</b>",
+	"Buy a blueprint such as the table saw at the company shop, make it in the Create Items tab and move it to your hand hotbar. Hold it and point at the floor or at a row of counters: a preview shows where it goes, red where it does not fit. Right click to place it. Punch it to pick it up again.",
+	"Everything you place stays in your workshop between visits."
+))

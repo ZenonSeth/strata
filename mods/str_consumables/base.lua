@@ -1,5 +1,3 @@
-local SLOTS = 8
-
 local stats = str_machine.stats
 local hulls = str_machine_data.get_upgrade("hull")
 
@@ -86,8 +84,3 @@ end
 -- Tier 4 items were named after the tungsten level before it swapped places with deep
 core.register_alias("str_consumables:fuel_tungsten", "str_consumables:fuel_deep")
 core.register_alias("str_consumables:repair_tungsten", "str_consumables:repair_deep")
-
-core.register_on_joinplayer(function(player)
-	player:get_inventory():set_size("main", SLOTS)
-	player:hud_set_hotbar_itemcount(SLOTS)
-end)

@@ -5,7 +5,8 @@ local GROUP = str_groups.SAVED_STATE
 local MIGRATIONS = {}
 local VERSION = #MIGRATIONS + 1
 
--- Mod storage "nodes:<player name>": JSON {v = layout version, nodes = {"x,y,z" (relative to the origin) -> {name}}}
+-- Mod storage "nodes:<player name>": JSON {v = layout version, nodes = {"x,y,z" (relative to the origin) -> entry}};
+-- an entry is {name}, or {name, param2, placed = true} for a piece placed by the player
 local function storage_key(player_name)
 	return "nodes:" .. player_name
 end
@@ -67,15 +68,48 @@ local function family(name)
 	end
 end
 
+-- Placed pieces (node def _str_placed) save name and param2; a node outside the group (air) deletes the entry
 str_interior.register_on_state_change(function(pos, node)
 	local owner, origin = str_start.owner_at(pos)
 	if not owner then
 		return
 	end
 	local nodes = load_saved(owner)
-	nodes[pos_key(vector.subtract(vector.round(pos), origin))] = {name = node.name}
+	local key = pos_key(vector.subtract(vector.round(pos), origin))
+	local def = core.registered_nodes[node.name]
+	if def and def._str_placed then
+		nodes[key] = {name = node.name, param2 = node.param2, placed = true}
+	elseif family(node.name) then
+		nodes[key] = {name = node.name}
+	else
+		nodes[key] = nil
+	end
 	store(owner, nodes)
 end)
+
+-- The node's _str_on_state_dropped(player_name, entry) can give back what a dropped entry held
+local function dropped(player_name, entry)
+	local def = type(entry) == "table" and type(entry.name) == "string" and core.registered_nodes[entry.name]
+	if def and def._str_on_state_dropped then
+		def._str_on_state_dropped(player_name, entry)
+	end
+end
+
+-- A placed entry goes back onto air or buildable_to through the node's _str_restore(pos, node), which returns
+-- false when the piece no longer fits
+local function restore_placed(pos, entry)
+	local def = type(entry.name) == "string" and core.registered_nodes[entry.name]
+	local current = core.registered_nodes[core.get_node(pos).name]
+	if not (def and def._str_placed and current and current.buildable_to) then
+		return false
+	end
+	local node = {name = entry.name, param2 = math.floor(tonumber(entry.param2) or 0) % 256}
+	if def._str_restore then
+		return def._str_restore(pos, node) ~= false
+	end
+	core.set_node(pos, node)
+	return true
+end
 
 -- The rotation stays as the schematic places it; entries whose spot no longer holds their family are dropped
 str_start.register_on_interior_placed(function(player_name, origin)
@@ -86,12 +120,18 @@ str_start.register_on_interior_placed(function(player_name, origin)
 		local pos = x and vector.offset(origin, tonumber(x), tonumber(y), tonumber(z))
 		local current = pos and core.get_node(pos)
 		local saved_family = family(name)
-		if current and saved_family and saved_family == family(current.name) then
+		if pos and type(entry) == "table" and entry.placed == true then
+			if not restore_placed(pos, entry) then
+				nodes[key], changed = nil, true
+				dropped(player_name, entry)
+			end
+		elseif current and saved_family and saved_family == family(current.name) then
 			if current.name ~= name then
 				core.swap_node(pos, {name = name, param2 = current.param2})
 			end
 		else
 			nodes[key], changed = nil, true
+			dropped(player_name, entry)
 		end
 	end
 	if changed then

@@ -26,13 +26,13 @@ local format_credits = resources.format_credits
 
 str_audio.sfx.register("shop_register", {sound = "str_company_register"})
 
--- Crafted items sell like consumables, valued at their material cost per item
+-- Crafted machine items sell like consumables, valued at their material cost per item
 for _, def in ipairs(str_upgrades.craftables) do
 	local cost = 0
 	for material, amount in pairs(def.from or {}) do
 		cost = cost + str_materials.get(material).price * amount
 	end
-	if cost > 0 then
+	if cost > 0 and str_hotbar.kind(def.item) == "vehicle" then
 		str_consumables.register_sellable(def.item, cost / def.count)
 	end
 end
@@ -385,8 +385,9 @@ local function consumables_tab(player, name)
 	fs[#fs + 1] = ("list[detached:%s;sell;%g,%g;%d,1;0.25]"):format(inv, TABLE_X, CONS_SLOTS_Y, SELL_SLOTS)
 	fs[#fs + 1] = ("label[%g,%g;%g,0.5;Your hotbar]"):format(TABLE_X, INV_Y - 0.7, TABLE_W)
 	fs[#fs + 1] = ("label[%g,%g;%g,0.5;%s]"):format(TABLE_X + 5.8, INV_Y - 0.7, TABLE_W - 5.8, esc(cons_message[name] or ""))
-	fs[#fs + 1] = ("list[current_player;main;%g,%g;8,1;0.25]"):format(TABLE_X, INV_Y)
-	fs[#fs + 1] = ("listring[detached:%s;sell]listring[current_player;main]"):format(inv)
+	local hotbar = str_hotbar.list(player, "vehicle")
+	fs[#fs + 1] = ("list[current_player;%s;%g,%g;8,1;0.25]"):format(hotbar, TABLE_X, INV_Y)
+	fs[#fs + 1] = ("listring[detached:%s;sell]listring[current_player;%s]"):format(inv, hotbar)
 	if str_consumables.sell_count(player) > 0 then
 		local x = TABLE_X + SELL_SLOTS * SLOT_PITCH + 0.3
 		fs[#fs + 1] = ("button[%g,%g;3.2,1;sell_cons;Sell]"):format(x, CONS_SLOTS_Y)

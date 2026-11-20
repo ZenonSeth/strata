@@ -68,7 +68,7 @@ local function stranded(player)
 end
 
 local function charge_section(player, slot, slots)
-	local stack = player:get_inventory():get_stack("main", slot)
+	local stack = player:get_inventory():get_stack(str_hotbar.list(player, "vehicle"), slot)
 	local fs = {
 		("image[%g,%g;%g,%g;%s]"):format(MARGIN, CHARGE_Y, SLOT_W, SLOT_W, fill(BAR_BG)),
 		("item_image[%g,%g;%g,%g;%s 1 %d]"):format(MARGIN, CHARGE_Y, SLOT_W, SLOT_W, stack:get_name(), stack:get_wear()),
@@ -157,10 +157,10 @@ local function fill_to(player, fraction)
 	return buy(player, wanted)
 end
 
--- Charges the battery in a hotbar slot up to target_kj, or as far as the credits go; returns the result line
+-- Charges the battery in a machine hotbar slot up to target_kj, or as far as the credits go; returns the result line
 local function charge_to(player, slot, target_kj, full_text)
 	local inv = player:get_inventory()
-	local stack = inv:get_stack("main", slot)
+	local stack = inv:get_stack(str_hotbar.list(player, "vehicle"), slot)
 	local have = str_lasers.get_charge(stack)
 	local wanted = math.min(target_kj, str_lasers.capacity(stack)) - have
 	if wanted <= 1e-6 then
@@ -174,7 +174,7 @@ local function charge_to(player, slot, target_kj, full_text)
 	local cost = math.min(math.ceil(kj / 1000 * charge_price * 100 - 1e-6) / 100, credits)
 	resources.spend_credits(player, cost)
 	str_lasers.set_charge(stack, have + kj)
-	inv:set_stack("main", slot, stack)
+	inv:set_stack(str_hotbar.list(player, "vehicle"), slot, stack)
 	str_audio.sfx.play("charge", {player = player})
 	return ("Charged %s for %s credits."):format(format_energy(kj), format_credits(cost))
 end
@@ -193,9 +193,9 @@ local function handle_charge(player, fields)
 		end
 		return messages[name]
 	end
-	local cap = str_lasers.capacity(player:get_inventory():get_stack("main", slot))
+	local cap = str_lasers.capacity(player:get_inventory():get_stack(str_hotbar.list(player, "vehicle"), slot))
 	if fields.charge_step then
-		local have = str_lasers.get_charge(player:get_inventory():get_stack("main", slot))
+		local have = str_lasers.get_charge(player:get_inventory():get_stack(str_hotbar.list(player, "vehicle"), slot))
 		return charge_to(player, slot, have + cap * 0.05, "The battery is full.")
 	elseif fields.charge_half then
 		return charge_to(player, slot, cap * 0.5, "The battery is already at 50% or more.")

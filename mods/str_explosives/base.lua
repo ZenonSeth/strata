@@ -83,9 +83,9 @@ for _, def in ipairs(str_explosives.items) do
 	})
 end
 
-local function held(inv, name)
+local function held(inv, listname, name)
 	local total = 0
-	for _, stack in ipairs(inv:get_list("main") or {}) do
+	for _, stack in ipairs(inv:get_list(listname) or {}) do
 		if stack:get_name() == name then
 			total = total + stack:get_count()
 		end
@@ -94,14 +94,15 @@ local function held(inv, name)
 end
 
 -- Moves within the hotbar change nothing; anything arriving from elsewhere must stay under the cap
-core.register_allow_player_inventory_action(function(_, action, inv, info)
+core.register_allow_player_inventory_action(function(player, action, inv, info)
+	local hotbar = str_hotbar.list(player, "vehicle")
 	local stack, amount
-	if action == "move" and info.to_list == "main" and info.from_list ~= "main" then
+	if action == "move" and info.to_list == hotbar and info.from_list ~= hotbar then
 		stack, amount = inv:get_stack(info.from_list, info.from_index), info.count
-	elseif action == "put" and info.listname == "main" then
+	elseif action == "put" and info.listname == hotbar then
 		stack, amount = info.stack, info.stack:get_count()
 	end
-	if stack and by_name[stack:get_name()] and held(inv, stack:get_name()) + amount > MAX_CARRIED then
+	if stack and by_name[stack:get_name()] and held(inv, hotbar, stack:get_name()) + amount > MAX_CARRIED then
 		return 0
 	end
 end)

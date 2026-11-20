@@ -30,7 +30,7 @@ local KIND_NAMES = {fuel = "fuel canisters", repair = "repair kits", teleport = 
 local function held(player, kind)
 	local count = 0
 	local lists = {
-		player:get_inventory():get_list("main") or {},
+		player:get_inventory():get_list(str_hotbar.list(player, "vehicle")) or {},
 		core.get_inventory({type = "detached", name = str_consumables.sell_inventory_name(player)}):get_list(SELL_LIST) or {},
 	}
 	for _, list in ipairs(lists) do
@@ -59,7 +59,7 @@ function str_consumables.buy(player, name, count)
 	if wanted <= 0 then
 		return 0, "Not enough credits."
 	end
-	local left = player:get_inventory():add_item("main", ItemStack(name .. " " .. wanted))
+	local left = player:get_inventory():add_item(str_hotbar.list(player, "vehicle"), ItemStack(name .. " " .. wanted))
 	local bought = wanted - left:get_count()
 	if bought <= 0 then
 		return 0, "Your inventory is full."
@@ -121,10 +121,10 @@ end
 
 -- Puts whatever is in the sell area back in the player's inventory; leftovers stay in the area
 function str_consumables.return_items(player)
-	local inv, main = sell_inv(player), player:get_inventory()
+	local inv = sell_inv(player)
 	for i, stack in ipairs(inv:get_list(SELL_LIST)) do
 		if not stack:is_empty() then
-			inv:set_stack(SELL_LIST, i, main:add_item("main", stack))
+			inv:set_stack(SELL_LIST, i, str_hotbar.give(player, stack))
 		end
 	end
 end

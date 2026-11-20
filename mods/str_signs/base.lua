@@ -104,8 +104,7 @@ str_interact.register("sign", {label = "Sign", on_use = open})
 
 local function pick_up(player, pos)
 	local name = player:get_player_name()
-	local inv = player:get_inventory()
-	if not inv:room_for_item("main", ItemStack(ITEM)) then
+	if not str_hotbar.room_for(player, ItemStack(ITEM)) then
 		show(name, "Your inventory is full.")
 		return
 	end
@@ -115,7 +114,7 @@ local function pick_up(player, pos)
 		backing = "str_nodes:" .. str_nodes.data.strata[1].name
 	end
 	local param2 = meta:get_int(META_PARAM2)
-	inv:add_item("main", ItemStack(ITEM))
+	str_hotbar.give(player, ItemStack(ITEM))
 	core.set_node(pos, {name = backing, param2 = param2})
 	open_at[name] = nil
 	core.close_formspec(name, FORMNAME)

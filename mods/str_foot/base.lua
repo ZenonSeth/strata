@@ -40,7 +40,7 @@ str_mode.register_on_change(update_body)
 str_mode.register_mode("foot", {
 	on_enter = function(player)
 		player:set_camera({mode = "first"})
-		player:hud_set_flags({wielditem = false, crosshair = true, hotbar = false})
+		player:hud_set_flags({wielditem = false, crosshair = true, hotbar = true})
 		str_audio.music.play(player, "foot")
 	end,
 })

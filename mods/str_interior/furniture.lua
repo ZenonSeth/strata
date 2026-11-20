@@ -9,7 +9,7 @@ register_box("shop_counter", "Shop counter", "str_interior_shop_counter", {
 	{-16/32, -16/32, -5/32, 16/32, -13/32, 16/32},
 	{-4/32, 2/32, -10/32, -2/32, 8/32, -8/32},
 	{2/32, 2/32, -10/32, 4/32, 8/32, -8/32},
-})
+}, {groups = {[str_groups.COUNTER] = 1}})
 
 -- L of two counter arms: back run along +X, side run toward -Z on the left; the front right is open
 register_box("shop_counter_corner", "Shop counter (corner)", "str_interior_shop_counter_corner", {
@@ -19,7 +19,7 @@ register_box("shop_counter_corner", "Shop counter (corner)", "str_interior_shop_
 	{-16/32, -13/32, -16/32, 8/32, 13/32, 16/32},
 	{-16/32, -16/32, -5/32, 16/32, -13/32, 16/32},
 	{-16/32, -16/32, -16/32, 5/32, -13/32, 16/32},
-})
+}, {groups = {[str_groups.COUNTER] = 1}})
 
 -- Counter with a stainless basin sunk 8/32 into the worktop
 register_box("shop_sink", "Shop sink", "str_interior_shop_sink", {

@@ -68,11 +68,15 @@ end
 local lasers = str_machine_data.lasers
 str_recipes.laser_recipes = {}
 local function add_item(def)
+	local name = str_recipes.item_recipe(def.name)
 	add({
-		name = str_recipes.item_recipe(def.name), description = def.description, kind = "item",
+		name = name, description = def.description, kind = "item",
 		from = def.from, price = round2(build_cost(def.from) * constants.upgrade_recipe_mult),
 	})
+	return name
 end
+-- Adds a Create Items blueprint {name, description, from} at load time; returns the recipe name
+str_recipes.add_item_recipe = add_item
 for _, def in ipairs(lasers.lasers) do
 	add_item(def)
 	str_recipes.laser_recipes[#str_recipes.laser_recipes + 1] = str_recipes.item_recipe(def.name)

@@ -11,13 +11,18 @@ local DRILL_TEXTURES = {}
 for _, level in ipairs(str_machine_data.get_upgrade("drill").levels) do
 	DRILL_TEXTURES[level.name] = "str_machine_drill_" .. level.name .. ".png"
 end
+local HULL_LEVELS = {}
+for _, level in ipairs(str_machine_data.get_upgrade("hull").levels) do
+	HULL_LEVELS[level.name] = true
+end
 
 -- Near-white noise tinted by a fixed color
 local function noise(hex)
 	return {texture = "str_machine_noise.png", tint = hex}
 end
 
--- Keyed by glb texture name: a color, a colors.defaults key, {texture, tint = key or color}, {texture, thruster_kind} or {drill}
+-- Keyed by glb texture name: a color, a colors.defaults key, {texture, tint = key or color}, {texture, thruster_kind},
+-- {drill} or {hull = texture prefix, tint}
 local MODEL_COLORS = {
 	rear_drive_shaft = noise("#393c3e"),
 	rear_differential = noise("#505152"),
@@ -27,9 +32,9 @@ local MODEL_COLORS = {
 	metal_front_support = noise("#64686e"),
 	gas_strut_front_bottom = noise("#676b6f"),
 	gas_strut_front_top = noise("#505152"),
-	chassis_front_top = {texture = "str_machine_chassis_front_top.png", tint = "panel"},
-	chassis_rear = {texture = "str_machine_chassis_rear.png", tint = "panel"},
-	chassis_front_bottom = {texture = "str_machine_chassis_front_bottom.png", tint = "panel"},
+	chassis_front_top = {hull = "str_machine_chassis_front_top_", tint = "panel"},
+	chassis_rear = {hull = "str_machine_chassis_rear_", tint = "panel"},
+	chassis_front_bottom = {hull = "str_machine_chassis_front_bottom_", tint = "panel"},
 	drill_metal_beam_for_rotating = noise("#505152"),
 	gearbox_misc_under_carrige = noise("#434951"),
 	metal_cylinder_gearbox = noise("#434951"),
@@ -115,6 +120,9 @@ local function slot_texture(spec, chosen)
 		return "[fill:16x16:" .. (chosen[spec] or colors.defaults[spec] or spec)
 	elseif spec.drill then
 		return spec.drill[chosen.drill] or spec.drill.stock
+	elseif spec.hull then
+		return spec.hull .. (HULL_LEVELS[chosen.hull] and chosen.hull or "stock") .. ".png^[multiply:"
+			.. (chosen[spec.tint] or colors.defaults[spec.tint])
 	elseif spec.thruster_kind then
 		return spec.texture .. "^[multiply:" .. (spec.thruster_kind[chosen.thruster_kind] or spec.thruster_kind.propeller)
 	elseif spec.tint then
@@ -123,7 +131,7 @@ local function slot_texture(spec, chosen)
 	return spec.texture
 end
 
--- Entity texture list for the given colors plus thruster_kind and drill (defaults when nil or missing)
+-- Entity texture list for the given colors plus thruster_kind, drill and hull (defaults when nil or missing)
 function colors.textures(chosen)
 	chosen = chosen or {}
 	local textures = {}

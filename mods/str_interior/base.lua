@@ -27,6 +27,8 @@ local function register_node(name, def)
 	def.is_ground_content = false
 	if def.pointable == nil and not def.on_rightclick then
 		def.pointable = "blocking"
+		def.groups = table.copy(def.groups or {})
+		def.groups[str_groups.BLOCKING] = 1
 	end
 	local material = FOOTSTEP_MATERIAL[name]
 	if material then
@@ -60,7 +62,8 @@ local function world_aligned(name, description, texture, extra)
 	register_node(name, def)
 end
 
-world_aligned("shop_floor", "Shop floor (concrete)", "str_interior_shop_floor")
+local FLOOR = {groups = {[str_groups.FLOOR] = 1}}
+world_aligned("shop_floor", "Shop floor (concrete)", "str_interior_shop_floor", FLOOR)
 -- Marks where the player arrives; facing in param2 (schematics keep it, not metadata)
 world_aligned("shop_floor_spawn", "Shop floor (player spawn)", "str_interior_shop_floor", {paramtype2 = "4dir"})
 -- Grate: dark inner cube 1/16 in, a 1/16 deep shell of bars around it with 4x4 holes per face.
@@ -115,6 +118,7 @@ register_node("shop_floor_grate", {
 	drawtype = "nodebox",
 	tiles = {"str_interior_shop_floor_grate.png"},
 	node_box = {type = "fixed", fixed = grate_boxes()},
+	groups = {[str_groups.FLOOR] = 1},
 	collision_box = {type = "regular"},
 	selection_box = {type = "regular"},
 })
@@ -125,7 +129,7 @@ register("shop_ceiling", "Shop ceiling (sheet metal, beams)",
 	"str_interior_shop_ceiling_plain", "str_interior_shop_ceiling", "str_interior_shop_ceiling_plain")
 
 simple("shop_ceiling_plain", "Shop ceiling (sheet metal, plain)", "str_interior_shop_ceiling_plain")
-world_aligned("home_floor", "Home floor (wide planks)", "str_interior_home_floor")
+world_aligned("home_floor", "Home floor (wide planks)", "str_interior_home_floor", FLOOR)
 world_aligned("home_wall", "Home wall (painted)", "str_interior_home_wall")
 world_aligned("home_ceiling", "Home ceiling (dark boards)", "str_interior_home_ceiling")
 

@@ -3,6 +3,13 @@ str_groups.CARGO_CRATE = "cargo_crate"
 str_groups.SAVED_STATE = "str_saved_state"
 -- The invisible layer in front of the slice that keeps liquids in it, plain or glowing
 str_groups.LIQUID_STOP = "str_liquid_stop"
+-- Items carried in the hand hotbar (on foot); items without it belong to the machine hotbar
+str_groups.FOOT_ITEM = "str_foot_item"
+-- Interior nodes that block pointing; items that place on them make this group pointable
+str_groups.BLOCKING = "str_blocking"
+-- Interior floors and counters that placed decoration can stand on
+str_groups.FLOOR = "str_floor"
+str_groups.COUNTER = "str_counter"
 
 -- Whether the node at pos is in group
 function str_groups.at(pos, group)

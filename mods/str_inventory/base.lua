@@ -204,8 +204,8 @@ local function equipment_tab(player)
 		end
 	end
 	local hotbar_y = HEIGHT - 1.4
-	fs[#fs + 1] = ("label[%g,%g;%g,0.5;Hotbar]"):format(TABLE_X, hotbar_y - 0.7, TABLE_W)
-	fs[#fs + 1] = ("list[current_player;main;%g,%g;8,1;0.25]"):format(TABLE_X, hotbar_y)
+	fs[#fs + 1] = ("label[%g,%g;%g,0.5;Machine hotbar]"):format(TABLE_X, hotbar_y - 0.7, TABLE_W)
+	fs[#fs + 1] = ("list[current_player;%s;%g,%g;8,1;0.25]"):format(str_hotbar.list(player, "vehicle"), TABLE_X, hotbar_y)
 	return table.concat(fs)
 end
 
