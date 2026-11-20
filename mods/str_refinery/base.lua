@@ -1,23 +1,28 @@
 local FORMNAME = "str_refinery:main"
-local WIDTH, HEIGHT = 15.5, 11
+local WIDTH, HEIGHT = 15, 11.85
 local MARGIN = 0.4
-local LIST_W = 6.2
-local PANEL_X = MARGIN + LIST_W + 0.4
-local PANEL_W = WIDTH - PANEL_X - MARGIN
 local TOP = str_gui.CONTENT_Y
-local BUTTON_H, GAP = 0.9, 0.1
-local DROPDOWN_W = 0.7 * (PANEL_W - 2 * (1.85 + GAP))
-local BUTTON_W = (PANEL_W - DROPDOWN_W - 2 * GAP) / 2
 local BATCH = 10
 local BATCH_FUEL = 0.8
-local TEXT_H = 0.8
-local BUTTON_Y = HEIGHT - MARGIN - TEXT_H - BUTTON_H
 local BUFFER_KEY = "str_refinery:buffer"
 local EPS = 1e-6
-local SHORT_COLOR = "#d06a5a"
 local MADE_COLOR = "#b4e8a8"
 
+-- Tile grid on the left, detail panel on the right (as in the company shop)
+local GRID_NAME = "recipes"
+local GRID_Y, GRID_W, GRID_COLUMNS, NAME_LINES = TOP, 8.2, 4, 2
+local GRID_H = HEIGHT - 1 - GRID_Y
+local INFO_X = MARGIN + GRID_W + 0.25
+local INFO_W = WIDTH - MARGIN - INFO_X
+local INFO_PAD = 0.25
+local MESSAGE_H = 0.8
+local FUEL_TILE_H, FUEL_ICON, FUEL_GAP = 0.9, 0.55, 0.12
+
 local esc = core.formspec_escape
+local num = str_inventory.num
+local DIM = "#141517a0"
+local CLEAR = esc("[fill:1x1:#00000000")
+local HOVER = esc("[fill:1x1:#ffffff14")
 local cargo, storage = str_machine.cargo, str_storage
 local theme = str_gui.theme
 
@@ -33,7 +38,7 @@ table.sort(fuels, function(a, b)
 	return a.name < b.name
 end)
 
-local selected_recipe, selected_fuel, messages = {}, {}, {}
+local selected_recipe, selected_fuel, messages, grid_scroll = {}, {}, {}, {}
 
 -- Engine picks one of str_refinery_craft.N.ogg at random
 str_audio.sfx.register("refinery_craft", {sound = "str_refinery_craft"})
@@ -44,6 +49,15 @@ end
 
 local function total(hold, store, name)
 	return (hold[name] or 0) + (store[name] or 0)
+end
+
+-- Units the ingredients allow (fuel not counted)
+local function can_make_count(recipe, hold, store)
+	local count = math.huge
+	for input, amount in pairs(recipe.from) do
+		count = math.min(count, math.floor(total(hold, store, input) / amount + EPS))
+	end
+	return count
 end
 
 -- Fuel units already drawn from a material but not yet burned: {fuel = name, units = n}
@@ -146,113 +160,148 @@ local function refine(player, recipe, fuel_name, count, fuel_mult)
 	return ("Made %d %s.%s"):format(made, recipe.description, reason and (" Stopped: " .. reason) or "")
 end
 
-local function recipe_list(player, list, hold, store)
-	local rows, selected = {}, 0
+local function recipe_entries(list, hold, store)
+	local entries = {}
 	for i, recipe in ipairs(list) do
-		-- Counts ingredients only, not fuel
-		local can_make = math.huge
-		for input, amount in pairs(recipe.from) do
-			can_make = math.min(can_make, math.floor(total(hold, store, input) / amount + EPS))
-		end
-		rows[i] = {
-			color = can_make > 0 and theme.text or theme.muted,
-			cells = {recipe.description, tostring(total(hold, store, recipe.name)), tostring(can_make)},
+		local have, can_make = total(hold, store, recipe.name), can_make_count(recipe, hold, store)
+		entries[i] = {
+			id = recipe.name, image = str_materials.get(recipe.name).icon, label = recipe.description,
+			tooltip = recipe.description, badge = num(have), dim = can_make == 0,
+			status = "Can make " .. num(can_make), status_color = can_make == 0 and theme.muted or nil,
 		}
-		if recipe.name == selected_recipe[player:get_player_name()] then
-			selected = i
-		end
 	end
-	return str_gui.list_table({
-		x = MARGIN, y = TOP, w = LIST_W, h = HEIGHT - TOP - MARGIN, name = "recipes",
-		columns = {
-			{title = "Recipe", spec = "text,width=9,padding=0.3"},
-			{title = "Have", spec = "text,width=3,padding=0.3,tooltip=Units in the hold and storage"},
-			{title = "Can make", spec = "text,width=4,padding=0.3,tooltip=Units the ingredients allow (fuel not counted)"},
-		},
-		rows = rows, selected = selected,
-	})
+	return entries
 end
 
-local function ingredient_table(recipe, hold, store)
+local function info_line(x, y, w, label, value)
+	return str_gui.info_text(x, y, w, str_gui.ICON_ROW_H,
+		("<style color=%s>%s:</style> %s"):format(theme.muted, esc(label), esc(value)))
+end
+
+-- Needs/Have rows with the hold and storage split in a tooltip; returns the formspec and its bottom
+local function ingredient_rows(x, y, w, recipe, hold, store)
 	local names = {}
 	for input in pairs(recipe.from) do
 		names[#names + 1] = input
 	end
-	table.sort(names)
-	local rows = {}
+	table.sort(names, function(a, b) return desc(a) < desc(b) end)
+	local rows, tips = {}, {}
+	local row_h = str_gui.ICON_ROW_H
 	for i, input in ipairs(names) do
-		local need = recipe.from[input]
-		rows[i] = {
-			color = total(hold, store, input) >= need and theme.text or SHORT_COLOR,
-			cells = {desc(input), tostring(need), tostring(hold[input] or 0), tostring(store[input] or 0)},
-		}
+		local need, have = recipe.from[input], total(hold, store, input)
+		rows[i] = {icon = str_materials.get(input).icon, text = ("%d %s"):format(need, desc(input)), right = num(have),
+			right_color = have < need and theme.danger or nil}
+		tips[i] = ("tooltip[%g,%g;%g,%g;%s]"):format(x, y + i * row_h, w, row_h,
+			esc(("Hold: %s, Storage: %s"):format(num(hold[input] or 0), num(store[input] or 0))))
 	end
-	return str_gui.list_table({
-		x = PANEL_X, y = TOP + 1.2, w = PANEL_W, h = 3.2, name = "ingredients",
-		columns = {
-			{title = "Ingredient", spec = "text,width=9,padding=0.3"},
-			{title = "Need", spec = "text,width=3,padding=0.3"},
-			{title = "Hold", spec = "text,width=3,padding=0.3"},
-			{title = "Storage", spec = "text,width=4,padding=0.3"},
-		},
-		rows = rows, selected = 0,
-	})
+	return str_gui.icon_rows(x, y, w, {"Needs", "Have"}, rows) .. table.concat(tips), y + (#names + 1) * row_h
 end
 
-local function fuel_dropdown(player, hold, store)
-	local items, index = {}, 1
+-- The Fuel header with the buffered fuel on its right, then one toggle tile per fuel
+local function fuel_tiles(player, x, y, w, hold, store)
+	local buffer = get_buffer(player)
+	local fs = {str_gui.info_text(x, y, w, str_gui.ICON_ROW_H, "Fuel", theme.muted)}
+	if buffer.fuel then
+		fs[#fs + 1] = str_gui.info_text(x, y, w, str_gui.ICON_ROW_H, esc(("Buffered: %s %s"):format(
+			str_inventory.num(buffer.units), desc(buffer.fuel))), theme.muted, "right")
+	end
 	local chosen = selected_fuel[player:get_player_name()] or fuels[1].name
+	local tile_y = y + str_gui.ICON_ROW_H + 0.05
+	local tile_w = (w - (#fuels - 1) * FUEL_GAP) / #fuels
+	local names = {}
 	for i, fuel in ipairs(fuels) do
-		items[i] = esc(("%s (%d)"):format(desc(fuel.name), total(hold, store, fuel.name)))
-		if fuel.name == chosen then
-			index = i
+		local tile_x = x + (i - 1) * (tile_w + FUEL_GAP)
+		local icon_x, icon_y = tile_x + 0.12, tile_y + (FUEL_TILE_H - FUEL_ICON) / 2
+		local count = total(hold, store, fuel.name)
+		local btn = "fuel_" .. i
+		names[i] = btn
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s;1]"):format(tile_x, tile_y, tile_w, FUEL_TILE_H,
+			fuel.name == chosen and "str_gui_slot_hover.png" or "str_gui_slot.png")
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(icon_x, icon_y, FUEL_ICON, FUEL_ICON,
+			esc(str_materials.get(fuel.name).icon))
+		if count == 0 then
+			fs[#fs + 1] = ("box[%g,%g;%g,%g;%s]"):format(icon_x, icon_y, FUEL_ICON, FUEL_ICON, DIM)
+		end
+		local text_x = icon_x + FUEL_ICON + 0.12
+		fs[#fs + 1] = str_gui.info_text(text_x, tile_y + 0.05, tile_x + tile_w - text_x - 0.05, (FUEL_TILE_H - 0.1) / 2,
+			esc(desc(fuel.name)), count == 0 and theme.muted or nil)
+		fs[#fs + 1] = str_gui.info_text(text_x, tile_y + FUEL_TILE_H / 2, tile_x + tile_w - text_x - 0.05,
+			(FUEL_TILE_H - 0.1) / 2, "<b>" .. num(count) .. "</b>", count == 0 and theme.muted or nil)
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;]tooltip[%s;%s]"):format(tile_x, tile_y, tile_w, FUEL_TILE_H, btn, btn,
+			esc(("%s: %g fuel unit%s each"):format(desc(fuel.name), fuel.units, fuel.units == 1 and "" or "s")))
+	end
+	local list = table.concat(names, ",")
+	table.insert(fs, 1, ("style[%s;border=false;bgimg=%s;bgimg_middle=0;padding=0]style[%s;bgimg=%s]"):format(
+		list, CLEAR, list:gsub(",", ":hovered,") .. ":hovered", HOVER))
+	return table.concat(fs)
+end
+
+-- The detail panel: image, name, counts, the ingredients, the fuel picker, the last result and the Refine buttons
+local function recipe_info(player, recipe, hold, store)
+	local name = player:get_player_name()
+	local x, y, w = INFO_X + INFO_PAD, GRID_Y + INFO_PAD, INFO_W - 2 * INFO_PAD
+	local bottom = GRID_Y + GRID_H - INFO_PAD
+	local row_h = str_gui.ICON_ROW_H
+	local fs = {
+		str_gui.info_title(x, y, w, {image = str_materials.get(recipe.name).icon},
+			("<b><style size=18>%s</style></b>\n<style color=%s>Smelting recipe</style>"):format(
+			esc(recipe.description), theme.muted)),
+	}
+	local top = y + str_gui.INFO_IMAGE + 0.25
+	fs[#fs + 1] = info_line(x, top, w, "Have", num(total(hold, store, recipe.name)))
+	fs[#fs + 1] = info_line(x, top + row_h, w, "Can make", num(can_make_count(recipe, hold, store)))
+	fs[#fs + 1] = info_line(x, top + 2 * row_h, w, "Fuel cost",
+		("%g unit%s each"):format(recipe.fuel_cost, recipe.fuel_cost == 1 and "" or "s"))
+	fs[#fs + 1] = ingredient_rows(x, top + 3 * row_h + 0.3, w, recipe, hold, store)
+
+	local buttons_y = bottom - str_gui.ACTION_H
+	local message_y = buttons_y - 0.1 - MESSAGE_H
+	local message = messages[name]
+	if message then
+		local made = message:sub(1, 5) == "Made "
+		fs[#fs + 1] = str_gui.info_text(x, message_y, w, MESSAGE_H, esc(message), made and MADE_COLOR or theme.danger)
+	end
+	fs[#fs + 1] = fuel_tiles(player, x, message_y - 0.15 - FUEL_TILE_H - 0.05 - row_h, w, hold, store)
+	local button_w = (w - 0.1) / 2
+	fs[#fs + 1] = str_gui.action_row(x, bottom, w, nil, nil,
+		{{"refine_one", "Refine 1", button_w}, {"refine_ten", ("Refine %d"):format(BATCH), button_w}})
+	fs[#fs + 1] = ("tooltip[refine_ten;%s]"):format(esc(("Refining %d at once burns only %g%% of the fuel."):format(
+		BATCH, math.floor(BATCH_FUEL * 100 + 0.5))))
+	return table.concat(fs)
+end
+
+-- Known recipes and the selected one (the first if the selection is not known)
+local function current_recipe(player)
+	local name = player:get_player_name()
+	local list = known_recipes(player)
+	for _, recipe in ipairs(list) do
+		if recipe.name == selected_recipe[name] then
+			return list, recipe
 		end
 	end
-	return ("dropdown[%g,%g;%g,%g;fuel;%s;%d;true]"):format(
-		PANEL_X, BUTTON_Y, DROPDOWN_W, BUTTON_H, table.concat(items, ","), index)
+	selected_recipe[name] = list[1] and list[1].name
+	return list, list[1]
 end
 
 local function build(player)
 	local name = player:get_player_name()
 	local fs = {str_gui.header(WIDTH, HEIGHT, "Ore Refinery")}
-	local list = known_recipes(player)
-	if #list == 0 then
+	local list, recipe = current_recipe(player)
+	if not recipe then
 		fs[#fs + 1] = ("label[%g,%g;%s]"):format(MARGIN, TOP + 0.5,
 			esc("You do not know any recipes yet. Buy them from the company shop."))
 		return table.concat(fs)
 	end
 	local hold, store = cargo.get(player), storage.get(player)
-	local recipe = str_recipes.get(selected_recipe[name] or "")
-	if not recipe or not str_recipes.has(player, recipe.name) then
-		recipe = list[1]
-		selected_recipe[name] = recipe.name
-	end
-	local buffer = get_buffer(player)
-	fs[#fs + 1] = recipe_list(player, list, hold, store)
-	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, TOP + 0.3, esc(recipe.description))
-	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, TOP + 0.8, esc(("Fuel cost: %g units"):format(recipe.fuel_cost)))
-	fs[#fs + 1] = ingredient_table(recipe, hold, store)
-	local y = TOP + 4.6
-	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y, esc("Refined items go straight to your mechanic shop storage."))
-	y = y + 0.5
-	if buffer.fuel then
-		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y, esc(
-			("Buffered: %s units of %s"):format(str_inventory.num(buffer.units), desc(buffer.fuel))))
-	end
-	local message = esc(messages[name] or "")
-	if message:sub(1, 5) == "Made " then
-		message = core.colorize(MADE_COLOR, message)
-	end
-	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, y + 0.5, message)
-	fs[#fs + 1] = ("label[%g,%g;Fuel:]"):format(PANEL_X, BUTTON_Y - 0.3)
-	fs[#fs + 1] = fuel_dropdown(player, hold, store)
-	local x = PANEL_X + PANEL_W - 2 * BUTTON_W - GAP
-	fs[#fs + 1] = ("button[%g,%g;%g,%g;refine_one;Refine 1]"):format(x, BUTTON_Y, BUTTON_W, BUTTON_H)
-	fs[#fs + 1] = ("button[%g,%g;%g,%g;refine_ten;Refine %d]"):format(
-		x + BUTTON_W + GAP, BUTTON_Y, BUTTON_W, BUTTON_H, BATCH)
-	local text_y = BUTTON_Y + BUTTON_H + 0.3
-	fs[#fs + 1] = ("label[%g,%g;%s]"):format(PANEL_X, text_y, esc(
-		("Refining %d at once burns only %g%% of the fuel."):format(BATCH, math.floor(BATCH_FUEL * 100 + 0.5))))
+	fs[#fs + 1] = str_gui.tile_grid({
+		x = MARGIN, y = GRID_Y, w = GRID_W, h = GRID_H, name = GRID_NAME, columns = GRID_COLUMNS,
+		name_lines = NAME_LINES, scroll = grid_scroll[name], entries = recipe_entries(list, hold, store),
+		selected = recipe.name,
+	})
+	fs[#fs + 1] = str_gui.input_bg(INFO_X, GRID_Y, INFO_W, GRID_H)
+	fs[#fs + 1] = recipe_info(player, recipe, hold, store)
+	fs[#fs + 1] = ("label[%g,%g;%s]"):format(MARGIN, HEIGHT - 0.45,
+		esc("Refined items go straight to your mechanic shop storage."))
 	return table.concat(fs)
 end
 
@@ -261,33 +310,35 @@ function str_refinery.show(player)
 end
 
 core.register_on_player_receive_fields(function(player, formname, fields)
-	if formname ~= FORMNAME or fields.quit then
+	if formname ~= FORMNAME then
 		return
 	end
 	local name = player:get_player_name()
-	local fuel = fuels[tonumber(fields.fuel) or 0]
-	if fuel then
-		selected_fuel[name] = fuel.name
+	local scroll = str_gui.tile_scroll(fields, GRID_NAME)
+	if scroll then
+		grid_scroll[name] = scroll
 	end
-	local recipe = str_recipes.get(selected_recipe[name] or "")
-	if fields.refine_one or fields.refine_ten then
-		if recipe and str_recipes.has(player, recipe.name) then
-			local fuel_name = selected_fuel[name] or fuels[1].name
-			local batch = fields.refine_ten and can_batch(player, recipe, fuel_name)
-			messages[name] = refine(player, recipe, fuel_name, fields.refine_ten and BATCH or 1, batch and BATCH_FUEL or 1)
+	if fields.quit then
+		return
+	end
+	for i, fuel in ipairs(fuels) do
+		if fields["fuel_" .. i] then
+			selected_fuel[name] = fuel.name
 		end
-	elseif fields.recipes then
-		local event = core.explode_table_event(fields.recipes)
-		if event.type ~= "CHG" and event.type ~= "DCL" then
-			return
-		end
-		local picked = known_recipes(player)[event.row]
-		selected_recipe[name], messages[name] = picked and picked.name, nil
+	end
+	local list, recipe = current_recipe(player)
+	local clicked = str_gui.tile_clicked(fields, GRID_NAME, recipe_entries(list, cargo.get(player), storage.get(player)))
+	if clicked and clicked ~= selected_recipe[name] then
+		selected_recipe[name], messages[name] = clicked, nil
+	elseif recipe and (fields.refine_one or fields.refine_ten) then
+		local fuel_name = selected_fuel[name] or fuels[1].name
+		local batch = fields.refine_ten and can_batch(player, recipe, fuel_name)
+		messages[name] = refine(player, recipe, fuel_name, fields.refine_ten and BATCH or 1, batch and BATCH_FUEL or 1)
 	end
 	str_refinery.show(player)
 end)
 
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
-	selected_recipe[name], selected_fuel[name], messages[name] = nil, nil, nil
+	selected_recipe[name], selected_fuel[name], messages[name], grid_scroll[name] = nil, nil, nil, nil
 end)
