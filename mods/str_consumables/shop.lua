@@ -27,7 +27,7 @@ end
 local KIND_NAMES = {fuel = "fuel canisters", repair = "repair kits", teleport = "teleporters"}
 
 -- How many of a kind the player holds, hotbar and sell area together
-local function held(player, kind)
+function str_consumables.held(player, kind)
 	local count = 0
 	local lists = {
 		player:get_inventory():get_list(str_hotbar.list(player, "vehicle")) or {},
@@ -50,7 +50,7 @@ function str_consumables.buy(player, name, count)
 	if not def then
 		return 0, ""
 	end
-	local room = str_consumables.MAX_PER_KIND - held(player, def.kind)
+	local room = str_consumables.MAX_PER_KIND - str_consumables.held(player, def.kind)
 	if room <= 0 then
 		return 0, ("You can carry at most %d %s."):format(str_consumables.MAX_PER_KIND, KIND_NAMES[def.kind])
 	end

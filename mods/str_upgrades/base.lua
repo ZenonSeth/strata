@@ -62,6 +62,16 @@ local PART_ICONS = {}
 for _, file in ipairs(core.get_dir_list(str_upgrades.modpath .. "/textures", false)) do
 	PART_ICONS[file] = true
 end
+local CATEGORY_TAB = {}
+for tab, category in pairs(TAB_CATEGORY) do
+	CATEGORY_TAB[category] = tab
+end
+
+-- The part's own icon, or its category's tab icon
+function str_upgrades.part_icon(category_id, level_name)
+	local file = ("str_upgrades_part_%s_%s.png"):format(category_id, level_name)
+	return PART_ICONS[file] and file or "str_upgrades_tab_" .. (CATEGORY_TAB[category_id] or category_id) .. ".png"
+end
 
 local selected_tab = {}
 -- player name -> index into COLOR_PARTS
@@ -285,11 +295,10 @@ local GRID_Y, GRID_W, GRID_H, GRID_COLUMNS = 1.2, 7.6, 6.9, 4
 local INFO_X = PART_X + GRID_W + 0.25
 local INFO_W = PART_X + PART_W - INFO_X
 local INFO_PAD = 0.25
-local BIG_IMAGE = 1.1
-local NEED_ROW_H, NEED_ICON = 0.42, 0.36
-local CREATE_W, CREATE_H = 1.9, 0.75
+local BIG_IMAGE = str_gui.INFO_IMAGE
 local TEXT_SIZE = 15
 local INFO_SIZE = 14
+local info_text, info_title = str_gui.info_text, str_gui.info_title
 
 local selected_item = {}
 -- player name -> tab id -> scroll value of its grid
@@ -359,54 +368,26 @@ local function item_entries(player)
 	return entries
 end
 
--- One line of hypertext, centered vertically in its box; text is markup
-local function info_text(x, y, w, h, text, color, halign)
-	return ("hypertext[%g,%g;%g,%g;;<global margin=0 valign=middle halign=%s color=%s size=%d>%s]"):format(x, y, w, h,
-		halign or "left", color or str_gui.theme.text, TEXT_SIZE, text)
-end
-
--- The big image and the name beside it; image is {item = name} or {image = texture}
-local function info_title(x, y, w, image, text)
-	local fs = image.item and ("item_image[%g,%g;%g,%g;%s]"):format(x, y, BIG_IMAGE, BIG_IMAGE, image.item)
-		or ("image[%g,%g;%g,%g;%s]"):format(x, y, BIG_IMAGE, BIG_IMAGE, esc(image.image))
-	return fs .. info_text(x + BIG_IMAGE + 0.2, y, w - BIG_IMAGE - 0.2, BIG_IMAGE, text)
-end
-
 -- y of the "Needs" header so that it and the rows for `from` end just above the action row
 local function needs_y(bottom, from)
-	return bottom - CREATE_H - 0.2 - (#sorted_materials(from) + 1) * NEED_ROW_H
+	return bottom - str_gui.ACTION_H - 0.2 - (#sorted_materials(from) + 1) * str_gui.ICON_ROW_H
 end
 
 -- A "Needs"/"Have" header at y, then one row per material: icon, amount needed, and the held amount (red if short)
 local function need_rows(x, y, w, from, held)
-	local theme = str_gui.theme
-	local fs = {
-		info_text(x, y, w, NEED_ROW_H, "Needs", theme.muted),
-		info_text(x, y, w, NEED_ROW_H, "Have", theme.muted, "right"),
-	}
+	local rows = {}
 	for i, material in ipairs(sorted_materials(from)) do
 		local need, have = from[material], held[material] or 0
-		local row_y = y + i * NEED_ROW_H
-		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(x, row_y + (NEED_ROW_H - NEED_ICON) / 2, NEED_ICON, NEED_ICON,
-			esc(str_materials.get(material).icon))
-		fs[#fs + 1] = info_text(x + NEED_ICON + 0.15, row_y, w - NEED_ICON - 1.15, NEED_ROW_H,
-			esc(("%d %s"):format(need, str_materials.get(material).description)))
-		fs[#fs + 1] = info_text(x + w - 1, row_y, 1, NEED_ROW_H, tostring(have),
-			have < need and theme.danger or theme.text, "right")
+		local def = str_materials.get(material)
+		rows[i] = {icon = def.icon, text = ("%d %s"):format(need, def.description), right = tostring(have),
+			right_color = have < need and str_gui.theme.danger or nil}
 	end
-	return table.concat(fs)
+	return str_gui.icon_rows(x, y, w, {"Needs", "Have"}, rows)
 end
 
 -- The status line ending at bottom, with an optional {field, label} button on its right
 local function action_row(x, bottom, w, status, color, button)
-	local fs = ""
-	local status_w = w
-	if button then
-		fs = ("button[%g,%g;%g,%g;%s;%s]"):format(x + w - CREATE_W, bottom - CREATE_H, CREATE_W, CREATE_H,
-			button[1], button[2])
-		status_w = w - CREATE_W - 0.1
-	end
-	return fs .. info_text(x, bottom - CREATE_H, status_w, CREATE_H, esc(status), color)
+	return str_gui.action_row(x, bottom, w, status, color, button and {button})
 end
 
 -- The detail panel: image, name, info, each material needed against what is held, and Create
@@ -491,12 +472,11 @@ local function stat_lines(player, category, level, built)
 	return lines
 end
 
-local function part_icon(category, level, tab_icon)
-	local file = ("str_upgrades_part_%s_%s.png"):format(category.id, level.name)
-	return PART_ICONS[file] and file or tab_icon
+local function part_icon(category, level)
+	return str_upgrades.part_icon(category.id, level.name)
 end
 
-local function part_entries(player, category, icon)
+local function part_entries(player, category)
 	local held = held_materials(player)
 	local theme = str_gui.theme
 	local entries = {}
@@ -504,7 +484,7 @@ local function part_entries(player, category, icon)
 		local state = part_state(player, category, level)
 		local affordable = state ~= "empty" or (level.from and craft_count(level, held) > 0)
 		entries[#entries + 1] = {
-			id = level.name, image = part_icon(category, level, icon), label = level.description, tooltip = level.description, dim = not affordable,
+			id = level.name, image = part_icon(category, level), label = level.description, tooltip = level.description, dim = not affordable,
 			status = state == "equipped" and "Equipped" or state == "built" and "Built" or "",
 			status_color = state == "equipped" and theme.equipped or theme.text,
 		}
@@ -513,7 +493,7 @@ local function part_entries(player, category, icon)
 end
 
 -- The equipped part across the top: icon, name and stats
-local function equipped_strip(player, category, icon)
+local function equipped_strip(player, category)
 	local theme = str_gui.theme
 	local equipped = stats.get_level(player, category.id)
 	local parts = {}
@@ -522,19 +502,19 @@ local function equipped_strip(player, category, icon)
 	end
 	local x, w = PART_X + INFO_PAD, PART_W - 2 * INFO_PAD
 	return str_gui.input_bg(PART_X, GRID_Y, PART_W, PART_HEAD_H)
-		.. info_title(x, GRID_Y + (PART_HEAD_H - BIG_IMAGE) / 2, w, {image = part_icon(category, equipped, icon)},
+		.. info_title(x, GRID_Y + (PART_HEAD_H - BIG_IMAGE) / 2, w, {image = part_icon(category, equipped)},
 			("<b><style size=18 color=%s>%s</style></b>\n%s"):format(theme.equipped, esc(equipped.description),
 			table.concat(parts, "     ")))
 		.. info_text(x, GRID_Y, w, PART_HEAD_H, "Equipped", theme.muted, "right")
 end
 
 -- The detail panel: image, name, stats, the materials to build it, and Build or Equip
-local function part_info(player, category, level, icon)
+local function part_info(player, category, level)
 	local theme = str_gui.theme
 	local x, y, w = INFO_X + INFO_PAD, PART_GRID_Y + INFO_PAD, INFO_W - 2 * INFO_PAD
 	local bottom = PART_GRID_Y + PART_GRID_H - INFO_PAD
 	local state = part_state(player, category, level)
-	local fs = {info_title(x, y, w, {image = part_icon(category, level, icon)}, ("<b><style size=18>%s</style></b>"):format(esc(level.description)))}
+	local fs = {info_title(x, y, w, {image = part_icon(category, level)}, ("<b><style size=18>%s</style></b>"):format(esc(level.description)))}
 	local lines = {}
 	for _, line in ipairs(stat_lines(player, category, level, state ~= "empty")) do
 		lines[#lines + 1] = ("<style color=%s>%s:</style> %s"):format(theme.muted, esc(line[1]), esc(line[2]))
@@ -564,18 +544,17 @@ local function part_info(player, category, level, icon)
 end
 
 local function category_tab(player, category, tab)
-	local icon = "str_upgrades_tab_" .. tab .. ".png"
 	local picked = picked_level(player, category)
 	local scroll = grid_scroll[player:get_player_name()]
 	return table.concat({
-		equipped_strip(player, category, icon),
+		equipped_strip(player, category),
 		str_gui.tile_grid({
 			x = PART_X, y = PART_GRID_Y, w = GRID_W, h = PART_GRID_H, name = GRID_NAME, columns = PART_COLUMNS,
 			name_lines = PART_NAME_LINES,
-			scroll = scroll and scroll[tab], entries = part_entries(player, category, icon), selected = picked.name,
+			scroll = scroll and scroll[tab], entries = part_entries(player, category), selected = picked.name,
 		}),
 		str_gui.input_bg(INFO_X, PART_GRID_Y, INFO_W, PART_GRID_H),
-		part_info(player, category, picked, icon),
+		part_info(player, category, picked),
 	})
 end
 

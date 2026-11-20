@@ -10,6 +10,8 @@ local HEADER_H = 0.6
 local HEADER_ICON = 0.45
 local NAME_SIZE = 13
 local BADGE_SIZE = 15
+-- Rough count of name characters that fit in one unit of tile width
+local NAME_CHARS_PER_UNIT = 7.5
 local DIM = "#141517a0"
 local CLEAR = esc("[fill:1x1:#00000000")
 local HOVER = esc("[fill:1x1:#ffffff14")
@@ -17,6 +19,14 @@ local PRESSED = esc("[fill:1x1:#00000030")
 
 local function button_name(spec, i)
 	return ("%s_%d"):format(spec.name, i)
+end
+
+-- Hypertext wraps only at spaces, and a centered word wider than its line is drawn off to the side
+-- (engine underflow), so long hyphenated words get a space after the hyphen
+local function wrap_hyphens(text, max_chars)
+	return (text:gsub("%S+", function(word)
+		return #word > max_chars and word:gsub("%-", "- ") or word
+	end))
 end
 
 -- A scrollable grid of clickable tiles (an image with a name below), split by optional section headers.
@@ -69,7 +79,7 @@ function str_gui.tile_grid(spec)
 			end
 			tiles[#tiles + 1] = ("hypertext[%g,%g;%g,%g;;<global margin=0 halign=center color=%s size=%d>%s]"):format(
 				x + 0.05, image_y + image, tile_w - 0.1, name_h, entry.dim and theme.muted or theme.text, NAME_SIZE,
-				esc(entry.label))
+				esc(wrap_hyphens(entry.label, math.floor((tile_w - 0.1) * NAME_CHARS_PER_UNIT))))
 			if entry.status then
 				tiles[#tiles + 1] = ("hypertext[%g,%g;%g,%g;;<global margin=0 halign=center color=%s size=%d><b>%s</b>]")
 					:format(x + 0.05, image_y + image + name_h, tile_w - 0.1, STATUS_H, entry.status_color or theme.text,
@@ -132,4 +142,61 @@ end
 -- The grid's scroll value in `fields`, or nil
 function str_gui.tile_scroll(fields, name)
 	return fields[name] and core.explode_scrollbar_event(fields[name]).value
+end
+
+-- Detail panel pieces shown beside a tile grid
+str_gui.INFO_IMAGE = 1.1
+str_gui.ICON_ROW_H = 0.42
+str_gui.ACTION_W, str_gui.ACTION_H = 1.9, 0.75
+local INFO_TEXT_SIZE = 15
+local ROW_ICON = 0.36
+
+-- Hypertext centered vertically in its box; text is markup
+function str_gui.info_text(x, y, w, h, text, color, halign)
+	return ("hypertext[%g,%g;%g,%g;;<global margin=0 valign=middle halign=%s color=%s size=%d>%s]"):format(x, y, w, h,
+		halign or "left", color or theme.text, INFO_TEXT_SIZE, text)
+end
+
+-- The big image and the markup text beside it; image is {item = name} or {image = texture}
+function str_gui.info_title(x, y, w, image, text)
+	local size = str_gui.INFO_IMAGE
+	local fs = image.item and ("item_image[%g,%g;%g,%g;%s]"):format(x, y, size, size, image.item)
+		or ("image[%g,%g;%g,%g;%s]"):format(x, y, size, size, esc(image.image))
+	return fs .. str_gui.info_text(x + size + 0.2, y, w - size - 0.2, size, text)
+end
+
+-- A {left, right} header at y, then rows {icon =, text =, right =, right_color =} of ICON_ROW_H each (text is plain)
+function str_gui.icon_rows(x, y, w, header, rows)
+	local row_h = str_gui.ICON_ROW_H
+	local fs = {
+		str_gui.info_text(x, y, w, row_h, esc(header[1]), theme.muted),
+		str_gui.info_text(x, y, w, row_h, esc(header[2] or ""), theme.muted, "right"),
+	}
+	for i, row in ipairs(rows) do
+		local row_y = y + i * row_h
+		if row.icon then
+			fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(x, row_y + (row_h - ROW_ICON) / 2, ROW_ICON, ROW_ICON, esc(row.icon))
+		end
+		fs[#fs + 1] = str_gui.info_text(x + ROW_ICON + 0.15, row_y, w - ROW_ICON - 1.15, row_h, esc(row.text))
+		if row.right then
+			fs[#fs + 1] = str_gui.info_text(x + w - 1, row_y, 1, row_h, esc(row.right), row.right_color, "right")
+		end
+	end
+	return table.concat(fs)
+end
+
+-- The status line ending at bottom, with buttons {{field, label, w}, ...} on its right (last one rightmost)
+function str_gui.action_row(x, bottom, w, status, color, buttons)
+	local fs = {}
+	local right = x + w
+	local y, h = bottom - str_gui.ACTION_H, str_gui.ACTION_H
+	for i = #(buttons or {}), 1, -1 do
+		local button = buttons[i]
+		local button_w = button[3] or str_gui.ACTION_W
+		right = right - button_w
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;%s]"):format(right, y, button_w, h, button[1], esc(button[2]))
+		right = right - 0.1
+	end
+	fs[#fs + 1] = str_gui.info_text(x, y, right - x, h, esc(status or ""), color)
+	return table.concat(fs)
 end
