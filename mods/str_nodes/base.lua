@@ -2,7 +2,7 @@ local DIRT_LEVELS = 10
 local DIRT_COLOR_TOP = {0xa0, 0x76, 0x4a}
 local DIRT_COLOR_DEEP = {0x3a, 0x2a, 0x20}
 local DIRT_HARDNESS_TOP = 0.3
-local DIRT_HARDNESS_DEEP = 60
+local DIRT_HARDNESS_DEEP = 30
 
 local function fill(color)
 	return "[fill:16x16:" .. color
@@ -131,6 +131,8 @@ local WORLD_SCALE = 8
 -- Rock with param2 128..255 (the backing wall) is tinted this colour; 0..127 is untinted
 local BACK_SHADE = "#d0d0d0"
 local ROCK_PALETTE = "[fill:2x1:#ffffff^[fill:1x1:1,0:" .. BACK_SHADE
+-- Gems (not relics) take this much longer to dig than plain rock of their tier
+local GEM_HARDNESS = 1.5
 local ORE_RICHNESS = {
 	{name = "poor", yield = 1, hardness = 1, mark = 4},
 	{name = "regular", yield = 2, hardness = 1.15, mark = 8},
@@ -340,7 +342,7 @@ for host, s in ipairs(strata) do
 				str_host = "str_nodes:" .. s.name,
 				str_tier = g.tier,
 				str_yield = 1,
-				str_hardness = tier_hardness(g.tier),
+				str_hardness = math.floor(tier_hardness(g.tier) * (g.relic and 1 or GEM_HARDNESS) * 100 + 0.5) / 100,
 			}, true)
 	end
 end
