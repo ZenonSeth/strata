@@ -770,6 +770,45 @@ local function bound(v, p, lo, hi, dtime)
 	return math.max((lo - p) / dtime, math.min((hi - p) / dtime, v))
 end
 
+-- Slip speed (fraction of the push) and centre offset (nodes) below which a trunk hit counts as head-on
+local HEAD_ON_SLIP = 0.5
+local HEAD_ON_OFFSET = 0.02
+
+-- The machine and tree trunks (str_trunk_radius) collide as upright cylinders, so the machine slides round trunks
+local function slide_trunks(pos, vel, dtime)
+	local reach = HALF_WIDTH + 0.5 + math.sqrt(vel.x ^ 2 + vel.z ^ 2) * dtime
+	local y0 = math.floor(pos.y + BOX_BOTTOM + 0.51)
+	local y1 = math.floor(pos.y + BOX_TOP + 0.49)
+	for x = math.floor(pos.x - reach + 0.5), math.floor(pos.x + reach + 0.5) do
+		for z = math.floor(pos.z - reach + 0.5), math.floor(pos.z + reach + 0.5) do
+			for y = y0, y1 do
+				local def = node_def(vector.new(x, y, z))
+				local r = def and def.str_trunk_radius
+				if r then
+					local ox, oz = pos.x - x, pos.z - z
+					local d = math.sqrt(ox * ox + oz * oz)
+					if d > 1e-6 then
+						local nx, nz = ox / d, oz / d
+						local vn = vel.x * nx + vel.z * nz
+						local allowed = -math.max(d - HALF_WIDTH - r, 0) / dtime
+						if vn < allowed then
+							local push = allowed - vn
+							vel.x, vel.z = vel.x + push * nx, vel.z + push * nz
+							local slip = push * HEAD_ON_SLIP
+							if math.abs(nx) >= math.abs(nz) and math.abs(oz) < HEAD_ON_OFFSET then
+								vel.z = vel.z + (pos.z > SURFACE_MAX_Z - 0.5 and -slip or slip)
+							elseif math.abs(nz) > math.abs(nx) and math.abs(ox) < HEAD_ON_OFFSET then
+								vel.x = vel.x + (ox < 0 and -slip or slip)
+							end
+						end
+					end
+					break
+				end
+			end
+		end
+	end
+end
+
 -- WASD drives on the ground plane, Space climbs, Sneak hovers; S in the row behind the slice drives back into it
 local function surface_step(session, player, pos, control, dtime)
 	if control.down and not control.up and pos.z <= SURFACE_MIN_Z + 0.05 and box_clear(pos, SLICE_Z) then
@@ -798,8 +837,11 @@ local function surface_step(session, player, pos, control, dtime)
 	local ix = (control.right and 1 or 0) - (control.left and 1 or 0)
 	local iz = (control.up and 1 or 0) - (control.down and 1 or 0)
 	local speed = my_stats.move_speed * speed_mult / ((ix ~= 0 and iz ~= 0) and math.sqrt(2) or 1)
-	vel.x = bound(approach(vel.x, ix * speed, ACCEL * dtime), pos.x, -WORLD_HALF_WIDTH, WORLD_HALF_WIDTH, dtime)
-	vel.z = bound(approach(vel.z, iz * speed, ACCEL * dtime), pos.z, SURFACE_MIN_Z, SURFACE_MAX_Z, dtime)
+	vel.x = approach(vel.x, ix * speed, ACCEL * dtime)
+	vel.z = approach(vel.z, iz * speed, ACCEL * dtime)
+	slide_trunks(pos, vel, dtime)
+	vel.x = bound(vel.x, pos.x, -WORLD_HALF_WIDTH, WORLD_HALF_WIDTH, dtime)
+	vel.z = bound(vel.z, pos.z, SURFACE_MIN_Z, SURFACE_MAX_Z, dtime)
 	local accel_y = -session.gravity
 	local hovering = control.sneak and not empty and (jump or not on_ground)
 	local climbing = not hovering and jump

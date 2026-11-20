@@ -36,23 +36,31 @@ for _, def in ipairs(str_decor.shapes) do
 end
 
 local INNER_CROWNS = 1
+-- Engine trunk column half-width; the machine slides round the full trunk as a cylinder (str_trunk_radius)
+local TRUNK_CORE = 1/32
+-- Leafy crowns collide this much smaller on each x/z side than they look
+local CROWN_INSET = 4/32
 
 -- Bushes and trees are nodeboxes (art/decor_*.nbx); trees are a base node
 -- with a top node above it. Facedir rotates the off-centre shapes
 for _, def in ipairs(str_decor.shapes) do
 	local t = def.texture
 	local w = trunk[def.name:match("^tree_(%a+)_") or ""]
+	local holed = def.name:find("^tree_%a+_%d_top$") ~= nil and not def.name:find("cactus")
 	local collision
 	if w then
 		-- A full-height trunk column in both nodes, so the machine cannot step up onto the trunk
-		collision = {{-w, -0.5, -w, w, 0.5, w}}
+		collision = {{-TRUNK_CORE, -0.5, -TRUNK_CORE, TRUNK_CORE, 0.5, TRUNK_CORE}}
 		if not def.name:find("_base$") then
 			for _, b in ipairs(def.boxes) do
-				collision[#collision + 1] = b
+				local inset = holed and CROWN_INSET or 0
+				local in_trunk = math.max(-b[1], b[4], -b[3], b[6]) <= w
+				if not in_trunk and b[4] - b[1] > 2 * inset and b[6] - b[3] > 2 * inset then
+					collision[#collision + 1] = {b[1] + inset, b[2], b[3] + inset, b[4] - inset, b[5], b[6] - inset}
+				end
 			end
 		end
 	end
-	local holed = def.name:find("^tree_%a+_%d_top$") ~= nil and not def.name:find("cactus")
 	local tiles = {t .. "_top.png", t .. "_bottom.png", t .. "_left.png", t .. "_right.png", t .. "_back.png", t .. "_front.png"}
 	local boxes = def.boxes
 	if holed then
@@ -100,6 +108,7 @@ for _, def in ipairs(str_decor.shapes) do
 		node_box = {type = "fixed", fixed = boxes},
 		collision_box = collision and {type = "fixed", fixed = collision},
 		walkable = collision ~= nil,
+		str_trunk_radius = w,
 		pointable = false,
 		diggable = false,
 		buildable_to = true,
