@@ -35,6 +35,8 @@ for _, def in ipairs(str_decor.shapes) do
 	end
 end
 
+local INNER_CROWNS = 1
+
 -- Bushes and trees are nodeboxes (art/decor_*.nbx); trees are a base node
 -- with a top node above it. Facedir rotates the off-centre shapes
 for _, def in ipairs(str_decor.shapes) do
@@ -50,14 +52,52 @@ for _, def in ipairs(str_decor.shapes) do
 			end
 		end
 	end
+	local holed = def.name:find("^tree_%a+_%d_top$") ~= nil and not def.name:find("cactus")
+	local tiles = {t .. "_top.png", t .. "_bottom.png", t .. "_left.png", t .. "_right.png", t .. "_back.png", t .. "_front.png"}
+	local boxes = def.boxes
+	if holed then
+		-- Leaf holes show the inside of the far faces
+		for i, name in ipairs(tiles) do
+			tiles[i] = {name = name, backface_culling = false}
+		end
+		-- Sink a box resting on another into it: with no culling the shared plane z-fights
+		boxes = {}
+		for i, a in ipairs(def.boxes) do
+			local b = table.copy(a)
+			for j, o in ipairs(def.boxes) do
+				if j ~= i and a[2] == o[5] and a[1] < o[4] and o[1] < a[4] and a[3] < o[6] and o[3] < a[6] then
+					b[2] = a[2] - 1/64
+				end
+			end
+			boxes[i] = b
+		end
+		-- Nested copies of the crown, evenly spaced towards its centre, give the holes inner surfaces
+		local big, vol = nil, 0
+		for _, b in ipairs(boxes) do
+			local v = (b[4] - b[1]) * (b[5] - b[2]) * (b[6] - b[3])
+			if v > vol then
+				big, vol = b, v
+			end
+		end
+		for k = 1, INNER_CROWNS do
+			local f = k / (INNER_CROWNS + 1) / 2
+			local inner = {}
+			for a = 1, 3 do
+				local d = (big[a + 3] - big[a]) * f
+				inner[a], inner[a + 3] = big[a] + d, big[a + 3] - d
+			end
+			boxes[#boxes + 1] = inner
+		end
+	end
 	core.register_node("str_decor:" .. def.name, {
 		description = def.name:gsub("_", " "),
 		drawtype = "nodebox",
 		paramtype = "light",
 		paramtype2 = "facedir",
 		sunlight_propagates = true,
-		tiles = {t .. "_top.png", t .. "_bottom.png", t .. "_left.png", t .. "_right.png", t .. "_back.png", t .. "_front.png"},
-		node_box = {type = "fixed", fixed = def.boxes},
+		tiles = tiles,
+		use_texture_alpha = holed and "clip" or nil,
+		node_box = {type = "fixed", fixed = boxes},
 		collision_box = collision and {type = "fixed", fixed = collision},
 		walkable = collision ~= nil,
 		pointable = false,
