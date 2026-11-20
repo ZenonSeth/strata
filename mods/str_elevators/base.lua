@@ -214,6 +214,11 @@ local function stop_name(net, y)
 	return i and net.stops[i].name or ""
 end
 
+local function confirm_text(net)
+	return ("%d stop%s will be disconnected. Pick up again to confirm."):format(
+		#net.stops, #net.stops == 1 and "" or "s")
+end
+
 local function build(player_name)
 	local st = open_at[player_name]
 	local net = str_elevators.get_network(st.x)
@@ -267,13 +272,17 @@ local function build(player_name)
 	end
 	if pickup then
 		local w = st.kind == "surface" and ACCESS_W or BUTTON_W
+		if st.kind == "stop" or st.confirm or not net or #net.stops == 0 then
+			fs[#fs + 1] = "style[pickup:hovered;bgcolor=#d04030]"
+		end
 		fs[#fs + 1] = ("button[%g,%g;%g,%g;pickup;Pick up]"):format(
 			WIDTH - PAD - w, y + ROW_H + 0.3, w, ROW_H)
 	end
 	fs[#fs + 1] = ("button_exit[%g,%g;%g,%g;done;Done]"):format(
 		button_x + BUTTON_W + BUTTON_GAP, buttons_y, BUTTON_W, ROW_H)
-	if st.message then
-		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, buttons_y - 0.4, esc(st.message))
+	local message = st.message or (st.confirm and net and confirm_text(net))
+	if message then
+		fs[#fs + 1] = ("label[%g,%g;%s]"):format(PAD, buttons_y - 0.4, esc(message))
 	end
 	return table.concat(fs)
 end
@@ -309,8 +318,7 @@ local function pick_up(player, st)
 	end
 	if st.kind == "surface" and net and #net.stops > 0 and not st.confirm then
 		st.confirm = true
-		show(name, ("%d stop%s will be disconnected. Pick up again to confirm."):format(
-			#net.stops, #net.stops == 1 and "" or "s"))
+		show(name)
 		return
 	end
 	local stack = ItemStack(ITEMS[st.kind])
