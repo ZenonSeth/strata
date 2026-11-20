@@ -41,6 +41,13 @@ local TRUNK_CORE = 1/32
 -- Leafy crowns collide this much smaller on each x/z side than they look
 local CROWN_INSET = 4/32
 
+-- Materials (str_materials names) a felled tree of each kind puts in the hold
+local FELL_YIELD = {
+	oak = {oak_timber = 2},
+	pine = {pine_timber = 2},
+	cactus = {cactus_fiber = 2, cactus_resin = 1},
+}
+
 -- Bushes and trees are nodeboxes (art/decor_*.nbx); trees are a base node
 -- with a top node above it. Facedir rotates the off-centre shapes
 for _, def in ipairs(str_decor.shapes) do
@@ -112,6 +119,7 @@ for _, def in ipairs(str_decor.shapes) do
 		str_tree = w and (def.name:find("_base$") and "base" or "top") or nil,
 		str_stump = w and def.name:find("_base$") and "str_decor:stump_" .. def.name:match("^tree_(%a+)_") or nil,
 		str_dug_sound = w and "wood" or nil,
+		str_fell_yield = w and def.name:find("_base$") and FELL_YIELD[def.name:match("^tree_(%a+)_")] or nil,
 		pointable = false,
 		diggable = false,
 		buildable_to = true,

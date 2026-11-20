@@ -36,6 +36,10 @@ for _, def in ipairs(dofile(str_materials.modpath .. "/relics.lua")) do
 	add(def)
 end
 
+for _, def in ipairs(dofile(str_materials.modpath .. "/plants.lua")) do
+	add(def)
+end
+
 -- material name -> fuel units per unit burned in the smeltery
 str_materials.fuel = dofile(str_materials.modpath .. "/fuels.lua")
 for name in pairs(str_materials.fuel) do

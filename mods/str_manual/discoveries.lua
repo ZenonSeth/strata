@@ -17,6 +17,7 @@ local SUBTABS = {
 	{id = "ores", title = "Ores", kinds = {ore = true, liquid = true}},
 	{id = "materials", title = "Materials", kinds = {smelted = true}},
 	{id = "gems", title = "Gems", kinds = {gem = true}},
+	{id = "surface", title = "Surface", kinds = {plant = true}},
 	{id = "misc", title = "Misc", kinds = {relic = true}, hidden_until_found = true},
 }
 

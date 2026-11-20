@@ -563,14 +563,35 @@ function str_machine.destroy_node(player, pos, max_tier)
 	return take_node(pos, player, true)
 end
 
--- Cuts down the tree whose base node is at pos, leaving its stump
+-- Whether the tree at pos cannot be cut because its yield does not fit; says so once per trunk
+local function cut_blocked(session, player, pos)
+	local volume = 0
+	for item, count in pairs((node_def(pos) or {}).str_fell_yield or {}) do
+		volume = volume + count * str_materials.get(item).volume
+	end
+	if cargo.volume(player) + volume <= stats.get(player).cargo_capacity + 1e-6 then
+		session.cut_full_pos = nil
+		return false
+	end
+	if not session.cut_full_pos or not vector.equals(pos, session.cut_full_pos) then
+		session.cut_full_pos = pos
+		str_utils.show_popup(player:get_player_name(), "CARGO FULL!", 2, false, {color = 0xFF4500, size = 1.25})
+	end
+	return true
+end
+
+-- Cuts down the tree whose base node is at pos, leaving its stump, and puts its yield in the hold
 local function fell_tree(pos, player)
+	local def = node_def(pos)
 	local kind = dug_sound(core.get_node(pos).name)
 	if not str_decor.fell(pos) then
 		return false
 	end
 	if kind then
 		str_audio.sfx.play("dug_" .. kind, {player = player})
+	end
+	for item, count in pairs(def.str_fell_yield or {}) do
+		cargo.announce(player, item, cargo.add(player, item, count))
 	end
 	return true
 end
@@ -586,7 +607,7 @@ local function dig_step(session, player, pick, dtime)
 	if dig.time >= hardness then
 		local entry = dig.entry
 		if dig.cut then
-			end_dig(session, fell_tree(pick.target, player))
+			end_dig(session, not cut_blocked(session, player, pick.target) and fell_tree(pick.target, player))
 			return
 		end
 		end_dig(session, take_node(pick.target, player))
@@ -959,7 +980,7 @@ local function surface_step(session, player, pos, control, dtime)
 			vel.x = approach(vel.x, side, ACCEL * dtime)
 		end
 	elseif off and on_ground and not empty and not jump then
-		if math.abs(off) <= ALIGN_TOLERANCE then
+		if math.abs(off) <= ALIGN_TOLERANCE and not cut_blocked(session, player, target) then
 			local anchor = dir.x ~= 0 and vector.new(pos.x, pos.y, target.z) or vector.new(target.x, pos.y, pos.z)
 			start_dig(session, {entry = {dir = dir}, target = target}, anchor, true)
 			return
