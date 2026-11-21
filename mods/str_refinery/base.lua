@@ -231,8 +231,8 @@ local function fuel_tiles(player, x, y, w, hold, store)
 			esc(("%s: %g fuel unit%s each"):format(desc(fuel.name), fuel.units, fuel.units == 1 and "" or "s")))
 	end
 	local list = table.concat(names, ",")
-	table.insert(fs, 1, ("style[%s;border=false;bgimg=%s;bgimg_middle=0;padding=0]style[%s;bgimg=%s]"):format(
-		list, CLEAR, list:gsub(",", ":hovered,") .. ":hovered", HOVER))
+	table.insert(fs, 1, ("style[%s;border=false;bgimg=%s;bgimg_middle=0;padding=0]style[%s;bgimg=%s]style[%s;bgimg=%s]"):format(
+		list, CLEAR, list:gsub(",", ":hovered,") .. ":hovered", HOVER, list:gsub(",", ":pressed,") .. ":pressed", CLEAR))
 	return table.concat(fs)
 end
 
