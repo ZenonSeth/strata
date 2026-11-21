@@ -17,7 +17,7 @@ return {
 		{name = "steel", description = "Steel bit", stats = {drill_tier = 4, dig_speed = 2},
 			from = {steel = 10}},
 		{name = "woodcutter", description = "Woodcutter", stats = {drill_tier = 0, dig_speed = 0.5, can_cut_trees = true},
-			from = {steel = 10}, no_auto_equip = true},
+			from = {steel = 10}, no_auto_equip = true, tier = 4},
 		{name = "hardened_steel", description = "Hardened steel bit", stats = {drill_tier = 5, dig_speed = 3},
 			from = {hardened_steel = 10}},
 		{name = "quartz", description = "Garnet-tipped bit", stats = {drill_tier = 6, dig_speed = 4},

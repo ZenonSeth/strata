@@ -233,12 +233,12 @@ for i, recipe in ipairs(str_recipes.list) do
 	recipe_order[recipe.name] = i
 end
 
--- The upgrade level a recipe builds and its tier (its place in the category, stock is 1)
+-- The upgrade level a recipe builds and its tier (level.tier, else the drill tier, else its place in the category)
 local function find_level(recipe)
 	local category = str_machine_data.get_upgrade(recipe.kind)
 	for i, level in ipairs(category and category.levels or {}) do
 		if str_recipes.level_recipe(recipe.kind, level.name) == recipe.name then
-			return level, i
+			return level, level.tier or level.stats.drill_tier or i
 		end
 	end
 end
@@ -376,7 +376,7 @@ local function recipe_info(player, recipe)
 	local top = y + str_gui.INFO_IMAGE + 0.25
 	fs[#fs + 1] = info_lines(x, top, w, needs_y - top - 0.1, lines)
 	fs[#fs + 1] = str_gui.icon_rows(x, needs_y, w, {"Requires"}, rows)
-	local status, color, buttons = "Owned", theme.equipped, nil
+	local status, color, buttons = ("Owned (%s credits)"):format(format_credits(recipe.price)), theme.equipped, nil
 	if state == 1 then
 		status = format_credits(recipe.price) .. " credits"
 		color = resources.get_credits(player) >= recipe.price and theme.text or theme.danger
