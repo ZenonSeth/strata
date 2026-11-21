@@ -311,7 +311,8 @@ local function listed_craftables(player)
 	local list = {}
 	for _, cat in ipairs(CATEGORIES) do
 		for _, def in ipairs(CRAFTABLES) do
-			if def.category == cat.id and (not def.recipes or str_recipes.has_any(player, def.recipes)) then
+			if def.category == cat.id and (not def.recipes or str_recipes.has_any(player, def.recipes))
+					and str_recipes.inputs_state(player, def.from) then
 				list[#list + 1] = def
 			end
 		end
@@ -361,10 +362,12 @@ local function item_entries(player)
 			end
 		end
 		local owned = already_owned(player, def)
-		local count = craft_count(def, held, owned)
+		local locked = str_recipes.inputs_state(player, def.from) ~= "all"
+		local count = locked and 0 or craft_count(def, held, owned)
 		entries[#entries + 1] = {
 			id = def.name, item = def.item, label = item_label(def), tooltip = item_label(def), dim = count == 0,
-			badge = owned and "Owned" or count > 0 and tostring(count) or nil, badge_color = str_gui.theme.equipped,
+			badge = owned and "Owned" or locked and "Locked" or count > 0 and tostring(count) or nil,
+			badge_color = locked and not owned and str_gui.theme.muted or str_gui.theme.equipped,
 		}
 	end
 	return entries
@@ -376,13 +379,15 @@ local function needs_y(bottom, from)
 end
 
 -- A "Needs"/"Have" header at y, then one row per material: icon, amount needed, and the held amount (red if short)
-local function need_rows(x, y, w, from, held)
+-- With player given, materials not found yet show as ???
+local function need_rows(x, y, w, from, held, player)
 	local rows = {}
 	for i, material in ipairs(sorted_materials(from)) do
 		local need, have = from[material], held[material] or 0
 		local def = str_materials.get(material)
-		rows[i] = {icon = def.icon, text = ("%d %s"):format(need, def.description), right = tostring(have),
-			right_color = have < need and str_gui.theme.danger or nil}
+		local found = not player or str_recipes.has_found(player, material)
+		rows[i] = {icon = found and def.icon or nil, text = ("%d %s"):format(need, found and def.description or "???"),
+			right = tostring(have), right_color = have < need and str_gui.theme.danger or nil}
 	end
 	return str_gui.icon_rows(x, y, w, {"Needs", "Have"}, rows)
 end
@@ -406,12 +411,14 @@ local function item_info(player, def)
 		info_title(x, y, w, def, ("<b><style size=18>%s</style></b>%s"):format(esc(def.description), makes)),
 		("hypertext[%g,%g;%g,%g;;<global margin=0 color=%s size=%d>%s]"):format(x, y + BIG_IMAGE + 0.15, w,
 			head_y - y - BIG_IMAGE - 0.25, theme.text, INFO_SIZE, esc(def.info)),
-		need_rows(x, head_y, w, def.from, held),
+		need_rows(x, head_y, w, def.from, held, player),
 	}
 	local status, color, button = ("Can make: %d"):format(count), count > 0 and theme.text or theme.muted, nil
 	local stack = ItemStack(def.item .. " " .. def.count)
 	if owned then
 		status, color = "Already owned", theme.danger
+	elseif str_recipes.inputs_state(player, def.from) ~= "all" then
+		status, color = "Locked - find every material first", theme.muted
 	elseif count > 0 and not player:get_inventory():room_for_item(BENCH_LIST, stack) then
 		status, color = "Crafted items full", theme.danger
 	elseif count > 0 then
@@ -683,7 +690,8 @@ local function handle_item_fields(player, fields)
 		hotbar_view[name] = hotbar_view[name] == "foot" and "vehicle" or "foot"
 	elseif fields.create_item and def then
 		local stack = ItemStack(def.item .. " " .. def.count)
-		if not has_materials(player, def.from) or already_owned(player, def) or not player:get_inventory():room_for_item(BENCH_LIST, stack) then
+		if str_recipes.inputs_state(player, def.from) ~= "all" or not has_materials(player, def.from)
+				or already_owned(player, def) or not player:get_inventory():room_for_item(BENCH_LIST, stack) then
 			return
 		end
 		take_materials(player, def.from)

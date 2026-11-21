@@ -219,6 +219,19 @@ function str_recipes.has_progress(player, name)
 	return false
 end
 
+-- "all" if every material in from is found, "some" if any is found or one smelting step away, else nil
+function str_recipes.inputs_state(player, from)
+	local found = load("found", player:get_player_name())
+	if all_found(found, from) then
+		return "all"
+	end
+	for input in pairs(from) do
+		if near(found, input) then
+			return "some"
+		end
+	end
+end
+
 -- Whether every input of the recipe has been found
 function str_recipes.is_available(player, name)
 	local def = str_recipes.items[name]
