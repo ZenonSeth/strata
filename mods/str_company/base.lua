@@ -220,11 +220,12 @@ for _, category in ipairs(str_machine_data.upgrades) do
 	category_titles[category.id] = category.title
 end
 
--- Created item of each item blueprint
-local blueprint_item = {}
+-- Created item and Create Items entry of each item blueprint
+local blueprint_item, blueprint_def = {}, {}
 for _, def in ipairs(str_upgrades.craftables) do
 	if def.recipes then
 		blueprint_item[str_recipes.item_recipe(def.name)] = def.item
+		blueprint_def[str_recipes.item_recipe(def.name)] = def
 	end
 end
 
@@ -334,6 +335,10 @@ end
 
 -- Same stat lines as the Upgrades window
 local function recipe_stats(recipe)
+	local def = blueprint_def[recipe.name]
+	if def then
+		return def.info and def.info:split("\n") or {}
+	end
 	local level, category = find_level(recipe), str_machine_data.get_upgrade(recipe.kind)
 	if not level then
 		return {}
