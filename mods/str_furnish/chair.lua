@@ -91,6 +91,7 @@ end)
 
 str_furnish.register_piece("chair", {
 	use = sit_down,
+	material = "wood",
 	item = "str_furnish:chair_item",
 	description = "Wooden chair",
 	info = "Place it in your workshop on the floor\nRight-click it to sit, move to get up\nSneak and punch it to pick it up",

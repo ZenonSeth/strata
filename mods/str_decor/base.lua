@@ -41,11 +41,11 @@ local TRUNK_CORE = 1/32
 -- Leafy crowns collide this much smaller on each x/z side than they look
 local CROWN_INSET = 4/32
 
--- Materials (str_materials names) a felled tree of each kind puts in the hold
+-- Materials (str_materials names) a felled tree of each kind puts in the hold, as {min, max} rolled per tree
 local FELL_YIELD = {
-	oak = {oak_timber = 2},
-	pine = {pine_timber = 2},
-	cactus = {cactus_fiber = 2, cactus_resin = 1},
+	oak = {oak_timber = {8, 12}},
+	pine = {pine_timber = {8, 12}},
+	cactus = {cactus_fiber = {3, 5}, cactus_resin = {1, 2}},
 }
 
 -- Bushes and trees are nodeboxes (art/decor_*.nbx); trees are a base node

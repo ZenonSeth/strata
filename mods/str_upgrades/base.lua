@@ -657,6 +657,9 @@ local function build_part(player, category, level)
 	take_materials(player, level.from)
 	stats.build_level(player, category.id, level.name)
 	play_build_strikes(player)
+	if level.no_auto_equip then
+		return
+	end
 	local equipped_name = stats.get_level(player, category.id).name
 	for _, candidate in ipairs(category.levels) do
 		if candidate.name == level.name then

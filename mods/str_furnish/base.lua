@@ -12,8 +12,10 @@ local BAD_TINT = "^[multiply:#ff4a3a"
 local GOOD_TINT = "^[multiply:#b4ffaa"
 local FACES = {"top", "bottom", "left", "right", "back", "front"}
 
-str_audio.sfx.register("furnish_place", {sound = "str_upgrades_bolt", gain = 0.4})
-str_audio.sfx.register("furnish_pick_up", {sound = "str_interior_footstep_metal", gain = 0.8})
+for _, material in ipairs({"metal", "wood"}) do
+	str_audio.sfx.register("furnish_place_" .. material, {sound = "str_interior_footstep_" .. material, gain = 0.4})
+	str_audio.sfx.register("furnish_pick_up_" .. material, {sound = "str_interior_footstep_" .. material, gain = 0.8})
+end
 
 -- Offset in piece space (+X is the player's right) turned like a 4dir node
 local ROTATE = {
@@ -84,7 +86,11 @@ function str_furnish.plan(player, piece, pointed)
 			break
 		end
 	end
-	local param2 = core.dir_to_fourdir(core.yaw_to_dir(player:get_look_horizontal()))
+	local yaw = player:get_look_horizontal()
+	if player:get_player_control().sneak then
+		yaw = yaw + math.pi
+	end
+	local param2 = core.dir_to_fourdir(core.yaw_to_dir(yaw))
 	local name = player:get_player_name()
 	local cells = cell_positions(anchor, variant, param2)
 	local ok = fits(anchor, variant, param2)
@@ -118,7 +124,7 @@ local function place(itemstack, placer, pointed)
 	end
 	set_cells(plan.anchor, plan.variant, plan.param2)
 	str_interior.notify_state_change(plan.anchor, core.get_node(plan.anchor))
-	str_audio.sfx.play("furnish_place", {pos = plan.anchor})
+	str_audio.sfx.play("furnish_place_" .. piece.material, {pos = plan.anchor})
 	itemstack:take_item()
 	return itemstack
 end
@@ -207,7 +213,7 @@ function str_furnish.pick_up(pos, player)
 	end
 	str_interior.notify_state_change(anchor, {name = "air"})
 	str_hotbar.give(player, piece.item)
-	str_audio.sfx.play("furnish_pick_up", {pos = anchor})
+	str_audio.sfx.play("furnish_pick_up_" .. piece.material, {pos = anchor})
 	return true
 end
 
@@ -252,15 +258,16 @@ local function fixed(boxes)
 	return boxes and {type = "fixed", fixed = boxes}
 end
 
--- def: {description, info, from = {material = amount}, image, item (default "str_furnish:<name>"),
+-- def: {description, info, material ("metal" or "wood": footstep, place and pick-up sounds), from = {material = amount}, image, item (default "str_furnish:<name>"),
 -- prompt (default description), station (made there instead of Create Items, so no blueprint),
 -- use (fn(player, pos, node) on right-click for a piece without a window),
 -- window (fn(player, pos) shown on right-click; such a piece is picked up from its window, others by sneak + punch), variants = {{id, support = group,
 -- cells = {{node, offset, boxes, selection, collision, pointable}, ...}}, ...}}.
 -- The first cell of each variant must be at offset 0,0,0. Cell textures: str_furnish_<node>_<face>.png
 function str_furnish.register_piece(name, def)
+	assert(def.material == "metal" or def.material == "wood", "str_furnish: piece needs material metal or wood")
 	local piece = {
-		name = name, description = def.description, info = def.info, from = def.from,
+		name = name, material = def.material, description = def.description, info = def.info, from = def.from,
 		item = def.item or "str_furnish:" .. name, variants = def.variants, station = def.station,
 		window = def.window, use = def.use,
 	}
@@ -291,7 +298,7 @@ function str_furnish.register_piece(name, def)
 				is_ground_content = false,
 				sunlight_propagates = true,
 				drop = "",
-				sounds = {footstep = {name = "str_interior_footstep_metal", gain = 1.0}},
+				sounds = {footstep = {name = "str_interior_footstep_" .. def.material, gain = 1.0}},
 				_str_piece = name,
 				_str_variant = variant.id,
 				_str_offset = cell.offset,

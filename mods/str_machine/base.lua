@@ -70,11 +70,17 @@ local function engine_sound(session, player, control)
 	else
 		sfx.stop_loop(player, "burner")
 	end
+	if session.dig and session.dig.cut then
+		sfx.start_loop(player, "cut", "saw_loop")
+	else
+		sfx.stop_loop(player, "cut")
+	end
 end
 
 local function stop_engine_sound(player)
 	str_audio.sfx.stop_loop(player, "engine")
 	str_audio.sfx.stop_loop(player, "burner")
+	str_audio.sfx.stop_loop(player, "cut")
 end
 
 local CAM_DISTANCE = 12
@@ -313,6 +319,7 @@ local function refresh_model(player)
 	local session = sessions[player:get_player_name()]
 	if session and session.obj:is_valid() then
 		session.obj:set_properties({textures = textures})
+		session.drills_scale = colors.apply_bit(session.obj, stats.get_level(player, "drill").name)
 	end
 	for _, fn in ipairs(color_listeners) do
 		fn(player, textures)
@@ -567,8 +574,8 @@ end
 -- Whether the tree at pos cannot be cut because its yield does not fit; says so once per trunk
 local function cut_blocked(session, player, pos)
 	local volume = 0
-	for item, count in pairs((node_def(pos) or {}).str_fell_yield or {}) do
-		volume = volume + count * str_materials.get(item).volume
+	for item, range in pairs((node_def(pos) or {}).str_fell_yield or {}) do
+		volume = volume + range[2] * str_materials.get(item).volume
 	end
 	if cargo.volume(player) + volume <= stats.get(player).cargo_capacity + 1e-6 then
 		session.cut_full_pos = nil
@@ -591,8 +598,8 @@ local function fell_tree(pos, player)
 	if kind then
 		str_audio.sfx.play("dug_" .. kind, {player = player})
 	end
-	for item, count in pairs(def.str_fell_yield or {}) do
-		cargo.announce(player, item, cargo.add(player, item, count))
+	for item, range in pairs(def.str_fell_yield or {}) do
+		cargo.announce(player, item, cargo.add(player, item, math.random(range[1], range[2])))
 	end
 	return true
 end
@@ -876,22 +883,33 @@ local function block_trunks(pos, vel, dtime)
 			end
 		end
 	end
-	-- x is checked at the z the machine reaches this step, then z at the x it reaches
-	local next_z = pos.z + vel.z * dtime
-	for _, t in ipairs(trunks) do
-		if not t.inside and math.abs(next_z - t.z) < t.r - 1e-3 then
-			local o = t.x - pos.x
-			local gap = math.max(math.abs(o) - t.r, 0) / dtime
-			vel.x = o > 0 and math.min(vel.x, gap) or math.max(vel.x, -gap)
+	local function clamp_x()
+		local next_z = pos.z + vel.z * dtime
+		for _, t in ipairs(trunks) do
+			if not t.inside and math.abs(next_z - t.z) < t.r - 1e-3 then
+				local o = t.x - pos.x
+				local gap = math.max(math.abs(o) - t.r, 0) / dtime
+				vel.x = o > 0 and math.min(vel.x, gap) or math.max(vel.x, -gap)
+			end
 		end
 	end
-	local next_x = pos.x + vel.x * dtime
-	for _, t in ipairs(trunks) do
-		if not t.inside and math.abs(next_x - t.x) < t.r - 1e-3 then
-			local o = t.z - pos.z
-			local gap = math.max(math.abs(o) - t.r, 0) / dtime
-			vel.z = o > 0 and math.min(vel.z, gap) or math.max(vel.z, -gap)
+	local function clamp_z()
+		local next_x = pos.x + vel.x * dtime
+		for _, t in ipairs(trunks) do
+			if not t.inside and math.abs(next_x - t.x) < t.r - 1e-3 then
+				local o = t.z - pos.z
+				local gap = math.max(math.abs(o) - t.r, 0) / dtime
+				vel.z = o > 0 and math.min(vel.z, gap) or math.max(vel.z, -gap)
+			end
 		end
+	end
+	-- The faster axis stops at the face first, so the slower sideways glide is not cancelled by its overshoot
+	if math.abs(vel.z) > math.abs(vel.x) then
+		clamp_z()
+		clamp_x()
+	else
+		clamp_x()
+		clamp_z()
 	end
 end
 
@@ -1099,7 +1117,7 @@ local function impact(session, player, pos, vel_y)
 	spawn_landing_dust(pos, t)
 	hull.damage(player, str_utils.impact_damage(fall))
 end
-for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner", "helicopter"}) do
+for _, name in ipairs({"engine_idle", "engine_mid", "engine_rev", "burner", "helicopter", "saw_loop"}) do
 	str_audio.sfx.register(name, {sound = "str_machine_" .. name, category = "vehicle", gain = ENGINE_GAIN})
 end
 
@@ -1144,6 +1162,7 @@ local function animate(session, player, control, dtime)
 	session.drill_pitch = approach(session.drill_pitch or 0, drill_target, DRILL_TURN_SPEED * dtime)
 	obj:set_bone_override("drills_combined", {
 		rotation = {vec = vector.new(0, 0, session.drill_pitch), absolute = true},
+		scale = {vec = session.drills_scale or vector.new(1, 1, 1), absolute = true},
 	})
 	local spin_target = session.dig and DRILL_SPIN_SPEED or 0
 	session.drill_spin_rate = approach(session.drill_spin_rate or 0, spin_target, DRILL_SPIN_ACCEL * dtime)
@@ -1200,7 +1219,7 @@ local function start(player, pos)
 	end
 	obj:set_properties({textures = str_machine.model_textures(player)})
 	local session = {
-		obj = obj, gravity = DEFAULT_GRAVITY, dig = nil, depth_timer = 0, save_timer = 0,
+		obj = obj, drills_scale = colors.apply_bit(obj, stats.get_level(player, "drill").name), gravity = DEFAULT_GRAVITY, dig = nil, depth_timer = 0, save_timer = 0,
 		yaw = 0, target_yaw = 0, wheel_angle = 0, last_pos = pos,
 		-- Lift the camera by the eye height so the view is centered on the machine
 		eye_height = player:get_properties().eye_height, cam_ratio = surface and SURFACE_CAM_RATIO or 0,

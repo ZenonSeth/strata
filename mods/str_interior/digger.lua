@@ -16,20 +16,22 @@ local function cache_colors(pos, player)
 	core.get_meta(pos):set_string(COLORS_KEY, core.write_json(str_machine.get_colors(player)))
 end
 
--- Textures for the digger at pos: its owner's colors; unowned ones (older saves) follow the first player
-local function digger_textures(pos)
+-- Textures and drill level name for the digger at pos: its owner's look; unowned ones (older saves) follow the first player
+local function digger_look(pos)
 	local owner = core.get_meta(pos):get_string(OWNER_KEY)
 	if owner == "" then
-		return str_machine.model_textures(core.get_connected_players()[1])
+		local first = core.get_connected_players()[1]
+		return str_machine.model_textures(first), first and str_machine.get_colors(first).drill
 	end
 	local player = core.get_player_by_name(owner)
 	if player then
 		cache_colors(pos, player)
-		return str_machine.model_textures(player)
+		return str_machine.model_textures(player), str_machine.get_colors(player).drill
 	end
 	local raw = core.get_meta(pos):get_string(COLORS_KEY)
 	local cached = raw ~= "" and core.parse_json(raw) or nil
-	return str_machine.colors.textures(type(cached) == "table" and cached or nil)
+	cached = type(cached) == "table" and cached or nil
+	return str_machine.colors.textures(cached), cached and cached.drill
 end
 
 core.register_entity(DIGGER_ENTITY, {
@@ -57,6 +59,7 @@ str_machine.register_on_colors_changed(function(player, textures)
 	for self in pairs(display_entities) do
 		if self.owner == name or not self.owner then
 			self.object:set_properties({textures = textures})
+			str_machine.colors.apply_bit(self.object, str_machine.get_colors(player).drill)
 			if self.owner and self.node_pos then
 				cache_colors(self.node_pos, player)
 			end
@@ -98,7 +101,9 @@ local function spawn_digger_entity(pos, attempts)
 	if obj then
 		obj:set_yaw(yaw)
 		obj:get_luaentity().node_pos = pos
-		obj:set_properties({textures = digger_textures(pos)})
+		local textures, drill = digger_look(pos)
+		obj:set_properties({textures = textures})
+		str_machine.colors.apply_bit(obj, drill)
 	elseif attempts > 1 then
 		core.after(1, spawn_digger_entity, pos, attempts - 1)
 	end
@@ -124,11 +129,12 @@ function str_interior.claim_digger(pos, player_name)
 		return owner
 	end
 	meta:set_string(OWNER_KEY, player_name)
-	local textures = digger_textures(pos)
+	local textures, drill = digger_look(pos)
 	for _, obj in ipairs(find_digger_entities((digger_placement(pos)))) do
 		local entity = obj:get_luaentity()
 		entity.owner, entity.node_pos = player_name, pos
 		obj:set_properties({textures = textures})
+		str_machine.colors.apply_bit(obj, drill)
 	end
 	return player_name
 end

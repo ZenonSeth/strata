@@ -9,7 +9,8 @@ local THRUSTER_INNER = {propeller = "#3c3e42", jet = "#6f7f94", rocket = "#a5552
 -- Drill level name -> cone texture
 local DRILL_TEXTURES = {}
 for _, level in ipairs(str_machine_data.get_upgrade("drill").levels) do
-	DRILL_TEXTURES[level.name] = "str_machine_drill_" .. level.name .. ".png"
+	-- The woodcutter has no cone texture of its own
+	DRILL_TEXTURES[level.name] = "str_machine_drill_" .. (level.name == "woodcutter" and "stock" or level.name) .. ".png"
 end
 local HULL_LEVELS = {}
 for _, level in ipairs(str_machine_data.get_upgrade("hull").levels) do
@@ -44,6 +45,8 @@ local MODEL_COLORS = {
 	chassis_cockpit_front_glass = noise("#aad7f0"),
 	drill_shaft = noise("#64686e"),
 	right_drill = {drill = DRILL_TEXTURES},
+	woodcutter_blade = {texture = "str_machine_woodcutter_blade.png"},
+	woodcutter_arm = noise("#505152"),
 	thruster_outer = {texture = "str_machine_thruster_outer.png", tint = "thruster"},
 	thruster_inner = {texture = "str_machine_thruster_inner.png", thruster_kind = THRUSTER_INNER},
 	ladder = {texture = "str_machine_noise.png", tint = "ladder"},
@@ -139,6 +142,21 @@ function colors.textures(chosen)
 		textures[i] = slot_texture(spec, chosen)
 	end
 	return textures
+end
+
+local WOODCUTTER_BONES = {"woodcutter_l", "woodcutter_r"}
+local HIDDEN = vector.zero()
+local SHOWN = vector.new(1, 1, 1)
+
+-- Shows the woodcutter or the drills, whichever the drill level name is; returns the scale for the drills_combined bone
+function colors.apply_bit(obj, drill_name)
+	local woodcutter = drill_name == "woodcutter"
+	for _, bone in ipairs(WOODCUTTER_BONES) do
+		obj:set_bone_override(bone, {scale = {vec = woodcutter and SHOWN or HIDDEN, absolute = true}})
+	end
+	local drills = woodcutter and HIDDEN or SHOWN
+	obj:set_bone_override("drills_combined", {scale = {vec = drills, absolute = true}})
+	return drills
 end
 
 str_machine.colors = colors

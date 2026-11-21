@@ -61,6 +61,7 @@ local RIGHT = vector.new(1, 0, 0)
 
 str_furnish.register_piece("table_saw", {
 	description = "Table saw",
+	material = "metal",
 	prompt = "Table Saw",
 	window = str_furnish.show_saw,
 	info = "Place it in your workshop on the floor, or on two counters\nRight-click it to cut timber into planks and make furniture",

@@ -2,6 +2,7 @@
 -- extra = more stats the upgrade station shows beside the main one; scale/format only change how they are shown; column = false keeps one out of the parts table.
 -- Costs: 10 of the level's alloy up to hardened steel, then 8 gems plus 12 body alloy. Placeholder values, not final.
 -- Sapphire and alexandrite bits are the same tier; sapphire digs faster.
+-- The woodcutter digs nothing (tier 0) and cuts trees instead; no_auto_equip keeps building it from swapping out a digging bit.
 return {
 	id = "drill",
 	title = "Drill bit",
@@ -15,6 +16,8 @@ return {
 			from = {bronze = 10}},
 		{name = "steel", description = "Steel bit", stats = {drill_tier = 4, dig_speed = 2},
 			from = {steel = 10}},
+		{name = "woodcutter", description = "Woodcutter", stats = {drill_tier = 0, dig_speed = 0.5, can_cut_trees = true},
+			from = {steel = 10}, no_auto_equip = true},
 		{name = "hardened_steel", description = "Hardened steel bit", stats = {drill_tier = 5, dig_speed = 3},
 			from = {hardened_steel = 10}},
 		{name = "quartz", description = "Garnet-tipped bit", stats = {drill_tier = 6, dig_speed = 4},

@@ -8,6 +8,8 @@ local TAB_Y = -TAB_SIZE
 local CREDITS_W = 6.5
 
 local TABS = {
+	{id = "hotbar", title = "Hand Hotbar", tooltip = "Hand Hotbar", image = "str_upgrades_cat_handheld.png",
+		visible = function(player) return str_mode.get(player) == "foot" end},
 	{id = "cargo", title = "Cargo Hold", tooltip = "Cargo Hold", image = "str_upgrades_tab_cargo.png"},
 	{id = "equipment", title = "Equipment", tooltip = "Equipment", image = "str_upgrades_tab_hull.png"},
 	{id = "danger", title = "Danger Zone", tooltip = "Danger Zone", image = "str_upgrades_tab_danger.png",
@@ -209,6 +211,15 @@ local function equipment_tab(player)
 	return table.concat(fs)
 end
 
+local function hotbar_tab(player)
+	local hotbar_y = HEIGHT - 1.4
+	return table.concat({
+		("label[%g,%g;%g,1;%s]"):format(TABLE_X, str_gui.CONTENT_Y, TABLE_W,
+			esc("Drag items between slots to rearrange your hand hotbar.")),
+		("list[current_player;%s;%g,%g;8,1;0.25]"):format(str_hotbar.list(player, "foot"), TABLE_X, hotbar_y),
+	})
+end
+
 -- Entries whose signal analysis is open: expanded_analysis[name][index]
 local expanded_analysis = {}
 local GLYPH_SIZE = 24
@@ -389,10 +400,12 @@ end
 
 local function build(player)
 	local name = player:get_player_name()
-	local tab = selected_tab[name] or TABS[1].id
+	local tab = selected_tab[name]
 	local tabs, right_tabs, title = {}, {}, nil
+	local first
 	for _, def in ipairs(TABS) do
 		if tab_visible(player, def) then
+			first = first or def
 			local list = def.right and right_tabs or tabs
 			list[#list + 1] = {id = def.id, image = def.image, tooltip = def.tooltip}
 			if def.id == tab then
@@ -401,7 +414,7 @@ local function build(player)
 		end
 	end
 	if not title then
-		tab, title = TABS[1].id, TABS[1].title
+		tab, title = first.id, first.title
 	end
 	local fs = {
 		str_gui.header(WIDTH, HEIGHT, title),
@@ -424,7 +437,9 @@ local function build(player)
 		}),
 		credits_label(player),
 	}
-	if tab == "cargo" then
+	if tab == "hotbar" then
+		fs[#fs + 1] = hotbar_tab(player)
+	elseif tab == "cargo" then
 		fs[#fs + 1] = inventory_tab(player, name)
 	elseif tab == "equipment" then
 		fs[#fs + 1] = equipment_tab(player)
