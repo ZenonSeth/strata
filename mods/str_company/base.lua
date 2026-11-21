@@ -207,7 +207,7 @@ end
 
 local DIM_TEXT = "#b0aa9e"
 -- A row of filter buttons (all, then one per section) above the grid
-local FILTER_SIZE, FILTER_GAP, FILTER_ICON = 1, 0.1, 0.5
+local FILTER_SIZE, FILTER_GAP, FILTER_ICON, FILTER_TIER_W = 1, 0.1, 0.5, 0.6
 local FILTER_CLEAR = esc("[fill:1x1:#00000000")
 local FILTER_HOVER = esc("[fill:1x1:#ffffff14")
 local RECIPE_GRID_Y = TABLE_Y + FILTER_SIZE + 0.25
@@ -396,29 +396,35 @@ local function filter_buttons(player, name)
 		if not seen[key] then
 			seen[key] = true
 			sections[#sections + 1] = {key = key, title = title, icon = icon,
-				text = key > 0 and key < 1000 and ("T.%d"):format(key) or nil}
+				text = key > 0 and key < 1000 and tostring(key) or nil, narrow = key > 0 and key < 1000}
 		end
 	end
 	table.insert(sections, 1, {title = "All blueprints", text = "All"})
 	local fs, names = {}, {}
+	local x = TABLE_X
 	for i, section in ipairs(sections) do
-		local x, y = TABLE_X + (i - 1) * (FILTER_SIZE + FILTER_GAP), TABLE_Y
+		local y = TABLE_Y
+		local w = section.narrow and FILTER_TIER_W or FILTER_SIZE
+		if i > 1 then
+			x = x + FILTER_GAP
+		end
 		local btn = "rf_" .. (section.key or "all")
 		names[i] = btn
-		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s;4]"):format(x, y, FILTER_SIZE, FILTER_SIZE,
+		fs[#fs + 1] = ("image[%g,%g;%g,%g;%s;4]"):format(x, y, w, FILTER_SIZE,
 			section.key == recipe_filter[name] and "str_upgrades_tab_bg_sel.png" or "str_upgrades_tab_bg.png")
 		if section.icon then
 			local icon_y = section.text and y + 0.12 or y + (FILTER_SIZE - FILTER_ICON) / 2
-			fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(x + (FILTER_SIZE - FILTER_ICON) / 2, icon_y,
+			fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(x + (w - FILTER_ICON) / 2, icon_y,
 				FILTER_ICON, FILTER_ICON, section.icon)
 		end
 		if section.text then
 			local text_y = section.icon and y + 0.6 or y
-			fs[#fs + 1] = str_gui.info_text(x, text_y, FILTER_SIZE, section.icon and 0.35 or FILTER_SIZE,
+			fs[#fs + 1] = str_gui.info_text(x, text_y, w, section.icon and 0.35 or FILTER_SIZE,
 				"<b>" .. esc(section.text) .. "</b>", nil, "center")
 		end
-		fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;]tooltip[%s;%s]"):format(x, y, FILTER_SIZE, FILTER_SIZE, btn, btn,
+		fs[#fs + 1] = ("button[%g,%g;%g,%g;%s;]tooltip[%s;%s]"):format(x, y, w, FILTER_SIZE, btn, btn,
 			esc(section.title))
+		x = x + w
 	end
 	local list = table.concat(names, ",")
 	table.insert(fs, 1, ("style[%s;border=false;bgimg=%s;padding=0]style[%s;bgimg=%s]"):format(list, FILTER_CLEAR,

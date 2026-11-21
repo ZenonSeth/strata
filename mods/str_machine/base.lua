@@ -145,8 +145,9 @@ str_hud.register_strip("str_machine:top_bar", {height = 44, color = "#00000080"}
 
 local DEPTH_HUD = "str_machine:depth"
 local DEPTH_INTERVAL = 0.2
+local DEPTH_LABEL_COLOR = "#A89F8C"
 str_hud.register_text(DEPTH_HUD, {
-	position = {x = 0.5, y = 0}, offset = {x = -120, y = 22}, size = 1.3, color = 0xFFFFFF,
+	position = {x = 0.5, y = 0}, offset = {x = -120, y = 22}, size = 1.3, color = 0xA89F8C,
 	mode = "vehicle", mono = true,
 })
 
@@ -156,7 +157,11 @@ str_hud.register_text(SPEED_HUD, {
 	mode = "vehicle", mono = true,
 })
 
-local function update_speed(player, vel_y)
+local function update_speed(player, vel_y, surface)
+	if surface then
+		str_hud.set_text(player, SPEED_HUD, "")
+		return
+	end
 	-- Rounded to a tenth; "+0.0" is shown as "0.0" so it never flickers between signs
 	local speed = math.floor(vel_y * 10 + 0.5) / 10
 	str_hud.set_text(player, SPEED_HUD, string.format(speed > 0 and "V: +%.1f m/s" or "V: %.1f m/s", speed + 0))
@@ -185,10 +190,16 @@ end
 local function update_depth(player, pos)
 	local y = math.floor(pos.y + 0.5) - START_POS.y
 	local label = y > 0 and "Altitude" or "Depth"
-	local text = string.format("%s: %dm  |  X: %d", label, math.abs(y), math.floor(pos.x + 0.5))
+	local function value(v)
+		return core.colorize(str_gui.theme.text, tostring(v))
+	end
+	local function dim(t)
+		return core.colorize(DEPTH_LABEL_COLOR, t)
+	end
+	local text = dim(label .. ": ") .. value(math.abs(y) .. "m") .. dim("  |  X: ") .. value(math.floor(pos.x + 0.5))
 	local behind = math.floor(pos.z + 0.5) - SLICE_Z
 	if behind > 0 then
-		text = text .. string.format("  |  Z: %d", behind)
+		text = text .. dim("  |  Z: ") .. value(behind)
 	end
 	str_hud.set_text(player, DEPTH_HUD, text)
 	local name = player:get_player_name()
@@ -1376,7 +1387,7 @@ local function vehicle_step(player, dtime)
 		session.glow = glow
 		session.obj:set_properties({glow = glow})
 	end
-	update_speed(player, session.obj:get_velocity().y)
+	update_speed(player, session.obj:get_velocity().y, session.surface or session.shift)
 	session.depth_timer = session.depth_timer + dtime
 	if session.depth_timer >= DEPTH_INTERVAL then
 		session.depth_timer = session.depth_timer - DEPTH_INTERVAL
