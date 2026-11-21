@@ -114,6 +114,9 @@ str_manual.register_page("workshop", "Workshop", lines(
 	"On foot you carry a hand hotbar of your own. It holds things for your workshop; the machine's hotbar waits for you in the machine. In the Create Items tab of the upgrade station, the Hand and Machine buttons switch which hotbar is shown.",
 	"",
 	"<b>Furnishing your workshop</b>",
-	"Buy a blueprint such as the table saw at the company shop, make it in the Create Items tab and move it to your hand hotbar. Hold it and point at the floor or at a row of counters: a preview shows where it goes, red where it does not fit. Right click to place it. Punch it to pick it up again.",
-	"Everything you place stays in your workshop between visits."
+	"Buy a blueprint such as the table saw at the company shop, make it in the Create Items tab and move it to your hand hotbar. Hold it and point at the floor or at a row of counters: a preview shows where it goes, green where it fits and red where it does not. Right click to place it. To take a piece back, sneak and punch it. Pieces with their own window, like the table saw, open on right click and have a Pick up button there. Right click a chair to sit on it, and move to get up.",
+	"Everything you place stays in your workshop between visits.",
+	"",
+	"<b>Table saw</b>",
+	"Right click a placed table saw to cut timber from the surface into planks, which go to your shop storage. Planks make furniture such as chairs; made pieces wait in the saw's Made items row until you move them to your hand hotbar."
 ))

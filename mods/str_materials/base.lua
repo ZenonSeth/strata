@@ -12,7 +12,7 @@ local function round2(price)
 	return math.floor(price / unit + 0.5) * unit
 end
 
--- name -> {name, description, kind, volume, weight, price, ...}; list keeps the order raw, gems, smelted
+-- name -> {name, description, kind, volume, weight, price, ...}; list keeps the order raw, gems, smelted, sawn
 str_materials.items = {}
 str_materials.list = {}
 
@@ -58,6 +58,21 @@ for _, def in ipairs(dofile(str_materials.modpath .. "/smelted.lua")) do
 	end
 	def.weight = def.weight or weight
 	def.price = def.price or round2(price * REFINE_MARKUP)
+	add(def)
+end
+
+for _, def in ipairs(dofile(str_materials.modpath .. "/sawn.lua")) do
+	def.kind = "sawn"
+	local volume, weight, price = 0, 0, 0
+	for input, amount in pairs(def.from) do
+		local item = assert(str_materials.items[input], "str_materials: unknown input " .. input)
+		volume = volume + item.volume * amount
+		weight = weight + item.weight * amount
+		price = price + item.price * amount
+	end
+	def.volume = def.volume or volume / def.count
+	def.weight = def.weight or weight / def.count
+	def.price = def.price or round2(price * REFINE_MARKUP / def.count)
 	add(def)
 end
 

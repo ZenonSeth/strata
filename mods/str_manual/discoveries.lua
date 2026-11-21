@@ -17,7 +17,7 @@ local SUBTABS = {
 	{id = "ores", title = "Ores", kinds = {ore = true, liquid = true}},
 	{id = "materials", title = "Materials", kinds = {smelted = true}},
 	{id = "gems", title = "Gems", kinds = {gem = true}},
-	{id = "surface", title = "Surface", kinds = {plant = true}},
+	{id = "surface", title = "Surface", kinds = {plant = true, sawn = true}},
 	{id = "misc", title = "Misc", kinds = {relic = true}, hidden_until_found = true},
 }
 
@@ -72,6 +72,9 @@ local function note(def)
 		parts[#parts + 1] = "Used for upgrades."
 	elseif use.crafts then
 		parts[#parts + 1] = "Used for workbench items."
+	end
+	if use.saw then
+		parts[#parts + 1] = "Used at the table saw."
 	end
 	if def.kind == "relic" then
 		parts[#parts + 1] = "Unknown use?"

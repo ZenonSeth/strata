@@ -6,7 +6,8 @@ local storage = core.get_mod_storage()
 str_recipes.items = {}
 str_recipes.list = {}
 
-local material_recipes = {}
+-- Smelter recipes and sawn materials: found once all their inputs are found
+local derived = {}
 
 local function add(def)
 	str_recipes.items[def.name] = def
@@ -21,7 +22,9 @@ for _, mat in ipairs(str_materials.list) do
 			price = mat.price * constants.recipe_price_mult,
 		}
 		add(def)
-		material_recipes[#material_recipes + 1] = def
+		derived[#derived + 1] = def
+	elseif mat.kind == "sawn" then
+		derived[#derived + 1] = mat
 	end
 end
 
@@ -139,7 +142,7 @@ local function discover(player, names)
 	local changed = true
 	while changed do
 		changed = false
-		for _, def in ipairs(material_recipes) do
+		for _, def in ipairs(derived) do
 			if not found[def.name] and all_found(found, def.from) then
 				found[def.name] = true
 				new[#new + 1] = def.name

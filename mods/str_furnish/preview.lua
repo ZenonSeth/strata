@@ -1,5 +1,5 @@
 -- While a piece item is held on foot, node-visual entities show where it would go (only to that player);
--- the _bad nodes tint it red where it cannot go
+-- the _good and _bad nodes tint it green where it fits and red where it does not
 local ENTITY = "str_furnish:preview"
 local INTERVAL = 0.1
 local DEFAULT_RANGE = 4
@@ -70,7 +70,7 @@ local function show(player, plan)
 		local obj = core.add_entity(pos, ENTITY)
 		if obj then
 			obj:set_observers({[name] = true})
-			obj:set_properties({node = {name = plan.ok and cell.name or cell.bad, param2 = plan.param2}})
+			obj:set_properties({node = {name = plan.ok and cell.good or cell.bad, param2 = plan.param2}})
 			preview.objs[#preview.objs + 1] = obj
 		end
 	end

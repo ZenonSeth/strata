@@ -1,10 +1,11 @@
--- What each material is for, worked out from the fuel, smelter, upgrade and workbench data so it cannot go stale
+-- What each material is for, worked out from the fuel, smelter, upgrade, workbench and table saw data so it cannot go stale
 local uses
 
 local function build()
 	uses = {}
 	for _, def in ipairs(str_materials.list) do
-		uses[def.name] = {fuel = str_materials.fuel[def.name] ~= nil, smelts = {}, upgrades = false, crafts = false}
+		uses[def.name] = {fuel = str_materials.fuel[def.name] ~= nil, smelts = {}, upgrades = false, crafts = false,
+			saw = false}
 	end
 	for _, def in ipairs(str_materials.list) do
 		if def.kind == "smelted" then
@@ -28,9 +29,14 @@ local function build()
 			uses[input].crafts = true
 		end
 	end
+	for _, craft in ipairs(str_furnish.saw_crafts) do
+		for input in pairs(craft.from) do
+			uses[input].saw = true
+		end
+	end
 end
 
--- {fuel, smelts = sorted descriptions, upgrades, crafts} for a material name, or nil if it is not a material
+-- {fuel, smelts = sorted descriptions, upgrades, crafts, saw} for a material name, or nil if it is not a material
 function str_upgrades.material_uses(name)
 	if not uses then
 		build()
@@ -40,5 +46,5 @@ end
 
 function str_upgrades.has_uses(name)
 	local use = str_upgrades.material_uses(name)
-	return use ~= nil and (use.fuel or #use.smelts > 0 or use.upgrades or use.crafts)
+	return use ~= nil and (use.fuel or #use.smelts > 0 or use.upgrades or use.crafts or use.saw)
 end

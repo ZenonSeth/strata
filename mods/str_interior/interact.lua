@@ -47,7 +47,7 @@ function str_interior.make_on_rightclick(kind)
 	end
 end
 
--- Pointing at a tagged node on foot shows its prompt in the lower middle of the screen
+-- Pointing at a tagged node (or one with a _str_prompt) on foot shows its prompt in the lower middle of the screen
 local PROMPTS = {
 	upgrade = "Upgrades",
 	refuel = "Refuel",
@@ -70,7 +70,7 @@ str_hud.register_text(PROMPT_HUD, {
 -- player name -> prompt currently set
 local current = {}
 
-local function pointed_kind(player)
+local function pointed_prompt(player)
 	local props = player:get_properties()
 	local eye = vector.offset(player:get_pos(), 0, props.eye_height, 0)
 	local range = player:get_wielded_item():get_definition().range or DEFAULT_RANGE
@@ -78,7 +78,7 @@ local function pointed_kind(player)
 	for pointed in core.raycast(eye, target, false, false) do
 		if pointed.type == "node" then
 			local def = core.registered_nodes[core.get_node(pointed.under).name]
-			return def and def.use_kind
+			return def and (def._str_prompt or PROMPTS[def.use_kind])
 		end
 	end
 end
@@ -92,8 +92,7 @@ core.register_globalstep(function(dtime)
 	elapsed = 0
 	for _, player in ipairs(core.get_connected_players()) do
 		if str_mode.get(player) == "foot" then
-			local kind = pointed_kind(player)
-			local label = kind and PROMPTS[kind] or ""
+			local label = pointed_prompt(player) or ""
 			local name = player:get_player_name()
 			if label ~= current[name] then
 				current[name] = label

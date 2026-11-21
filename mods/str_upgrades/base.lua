@@ -269,8 +269,10 @@ for _, def in ipairs(str_machine.hull_slots.items) do
 		info = def.info}
 end
 for _, def in ipairs(str_furnish.list) do
-	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, category = "handheld", item = def.item, description = def.description,
-		count = 1, from = def.from, recipes = {def.recipe}, info = def.info}
+	if not def.station then
+		CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, category = "handheld", item = def.item,
+			description = def.description, count = 1, from = def.from, recipes = {def.recipe}, info = def.info}
+	end
 end
 str_upgrades.craftables = CRAFTABLES
 -- Hull upgrades cannot be destroyed yet, so only one of each may exist

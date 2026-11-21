@@ -61,21 +61,23 @@ local RIGHT = vector.new(1, 0, 0)
 
 str_furnish.register_piece("table_saw", {
 	description = "Table saw",
-	info = "Place it in your workshop on the floor, or on two counters\nPunch it to pick it up",
+	prompt = "Table Saw",
+	window = str_furnish.show_saw,
+	info = "Place it in your workshop on the floor, or on two counters\nRight-click it to cut timber into planks and make furniture",
 	from = {steel = 4, bronze = 2},
 	image = "str_furnish_table_saw.png",
 	variants = {
 		{id = "floor", support = str_groups.FLOOR, cells = {
 			{node = "table_saw_floor_l", offset = vector.zero(), boxes = FLOOR_L,
-				selection = {{-16/32, -16/32, -16/32, 16/32, 16/32, 15/32}}, collision = FLOOR_COLLISION},
-			{node = "table_saw_floor_r", offset = RIGHT, boxes = FLOOR_R,
-				selection = {{-16/32, -16/32, -16/32, 16/32, 19/32, 15/32}}, collision = FLOOR_COLLISION},
+				selection = {{-16/32, -16/32, -16/32, 48/32, 19/32, 15/32}}, collision = FLOOR_COLLISION},
+			{node = "table_saw_floor_r", offset = RIGHT, boxes = FLOOR_R, pointable = false,
+				collision = FLOOR_COLLISION},
 		}},
 		{id = "counter", support = str_groups.COUNTER, cells = {
 			{node = "table_saw_counter_l", offset = vector.zero(), boxes = COUNTER_L,
-				selection = {{-16/32, -16/32, -9/32, 16/32, -4/32, 15/32}}, collision = COUNTER_COLLISION},
-			{node = "table_saw_counter_r", offset = RIGHT, boxes = COUNTER_R,
-				selection = {{-16/32, -16/32, -9/32, 16/32, -2/32, 15/32}}, collision = COUNTER_COLLISION},
+				selection = {{-16/32, -16/32, -9/32, 48/32, -2/32, 15/32}}, collision = COUNTER_COLLISION},
+			{node = "table_saw_counter_r", offset = RIGHT, boxes = COUNTER_R, pointable = false,
+				collision = COUNTER_COLLISION},
 		}},
 	},
 })

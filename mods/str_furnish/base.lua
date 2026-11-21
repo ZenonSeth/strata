@@ -9,6 +9,7 @@ str_furnish.by_item = {}
 -- Pointing with a piece item reaches the interior's blocking nodes (floors, counters)
 str_furnish.POINTABILITIES = {nodes = {["group:" .. str_groups.BLOCKING] = true}}
 local BAD_TINT = "^[multiply:#ff4a3a"
+local GOOD_TINT = "^[multiply:#b4ffaa"
 local FACES = {"top", "bottom", "left", "right", "back", "front"}
 
 str_audio.sfx.register("furnish_place", {sound = "str_upgrades_bolt", gain = 0.4})
@@ -165,10 +166,12 @@ end
 core.register_on_joinplayer(flush_pending)
 str_mode.register_on_change(flush_pending)
 
-local function pick_up(pos, node, puncher)
-	if not (puncher and puncher:is_player()) or str_mode.get(puncher) ~= "foot" then
-		return
+-- The placed piece whose cell is at pos, if player (on foot) owns it: piece, variant, anchor, param2
+function str_furnish.owned_piece(pos, player)
+	if not (player and player:is_player()) or str_mode.get(player) ~= "foot" then
+		return nil
 	end
+	local node = core.get_node(pos)
 	local def = core.registered_nodes[node.name]
 	local piece, variant = def and str_furnish.pieces[def._str_piece], nil
 	for _, candidate in ipairs(piece and piece.variants or {}) do
@@ -176,23 +179,65 @@ local function pick_up(pos, node, puncher)
 			variant = candidate
 		end
 	end
-	local name = puncher:get_player_name()
+	if not variant then
+		return nil
+	end
 	local anchor = vector.subtract(pos, str_furnish.rotate(def._str_offset, node.param2))
-	if not variant or str_start.owner_at(anchor) ~= name then
-		return
+	if str_start.owner_at(anchor) ~= player:get_player_name() then
+		return nil
 	end
-	if not str_hotbar.room_for(puncher, piece.item) then
+	return piece, variant, anchor, node.param2
+end
+
+-- Removes the piece with a cell at pos and gives its item back; returns whether it was picked up
+function str_furnish.pick_up(pos, player)
+	local piece, variant, anchor, param2 = str_furnish.owned_piece(pos, player)
+	if not piece then
+		return false
+	end
+	local name = player:get_player_name()
+	if not str_hotbar.room_for(player, piece.item) then
 		str_utils.show_popup(name, "Your hand hotbar is full.", 2, true)
-		return
+		return false
 	end
-	for i, cell_pos in ipairs(cell_positions(anchor, variant, node.param2)) do
+	for i, cell_pos in ipairs(cell_positions(anchor, variant, param2)) do
 		if core.get_node(cell_pos).name == variant.cells[i].name then
 			core.remove_node(cell_pos)
 		end
 	end
 	str_interior.notify_state_change(anchor, {name = "air"})
-	str_hotbar.give(puncher, piece.item)
+	str_hotbar.give(player, piece.item)
 	str_audio.sfx.play("furnish_pick_up", {pos = anchor})
+	return true
+end
+
+local PICK_UP_W, PICK_UP_H = 2, 0.7
+
+-- The Pick up button (field pick_up) in the top right of a window's header bar
+function str_furnish.pick_up_button(window_w)
+	return ("button[%g,%g;%g,%g;pick_up;Pick up]"):format(window_w - PICK_UP_W - 0.15,
+		(str_gui.theme.header_height - PICK_UP_H) / 2, PICK_UP_W, PICK_UP_H)
+end
+
+local function show_window(pos, _, clicker)
+	local piece = str_furnish.owned_piece(pos, clicker)
+	if piece and piece.window then
+		piece.window(clicker, pos)
+	end
+end
+
+local function use_piece(pos, node, clicker)
+	local piece = str_furnish.owned_piece(pos, clicker)
+	if piece and piece.use then
+		piece.use(clicker, pos, node)
+	end
+end
+
+-- Sneak + punch picks a piece up; pieces with a window of their own are right-clicked instead
+local function punch_pick_up(pos, _, puncher)
+	if puncher and puncher:is_player() and puncher:get_player_control().sneak then
+		str_furnish.pick_up(pos, puncher)
+	end
 end
 
 local function tiles(node, tint)
@@ -208,23 +253,30 @@ local function fixed(boxes)
 end
 
 -- def: {description, info, from = {material = amount}, image, item (default "str_furnish:<name>"),
--- variants = {{id, support = group, cells = {{node, offset, boxes, selection, collision}, ...}}, ...}}.
+-- prompt (default description), station (made there instead of Create Items, so no blueprint),
+-- use (fn(player, pos, node) on right-click for a piece without a window),
+-- window (fn(player, pos) shown on right-click; such a piece is picked up from its window, others by sneak + punch), variants = {{id, support = group,
+-- cells = {{node, offset, boxes, selection, collision, pointable}, ...}}, ...}}.
 -- The first cell of each variant must be at offset 0,0,0. Cell textures: str_furnish_<node>_<face>.png
 function str_furnish.register_piece(name, def)
 	local piece = {
 		name = name, description = def.description, info = def.info, from = def.from,
-		item = def.item or "str_furnish:" .. name, variants = def.variants,
+		item = def.item or "str_furnish:" .. name, variants = def.variants, station = def.station,
+		window = def.window, use = def.use,
 	}
 	str_furnish.pieces[name] = piece
 	str_furnish.list[#str_furnish.list + 1] = piece
 	str_furnish.by_item[piece.item] = piece
-	piece.recipe = str_recipes.add_item_recipe({name = name, description = def.description, from = def.from})
+	if not def.station then
+		piece.recipe = str_recipes.add_item_recipe({name = name, description = def.description, from = def.from})
+	end
 
 	for _, variant in ipairs(def.variants) do
 		assert(vector.equals(variant.cells[1].offset, vector.zero()), "str_furnish: anchor cell must be at 0,0,0")
 		for i, cell in ipairs(variant.cells) do
 			cell.name = "str_furnish:" .. cell.node
 			cell.bad = cell.name .. "_bad"
+			cell.good = cell.name .. "_good"
 			local node = {
 				description = def.description,
 				drawtype = "nodebox",
@@ -234,6 +286,7 @@ function str_furnish.register_piece(name, def)
 				node_box = fixed(cell.boxes),
 				selection_box = fixed(cell.selection),
 				collision_box = fixed(cell.collision),
+				pointable = cell.pointable,
 				groups = {not_in_creative_inventory = 1},
 				is_ground_content = false,
 				sunlight_propagates = true,
@@ -242,7 +295,9 @@ function str_furnish.register_piece(name, def)
 				_str_piece = name,
 				_str_variant = variant.id,
 				_str_offset = cell.offset,
-				on_punch = pick_up,
+				_str_prompt = def.prompt or def.description,
+				on_rightclick = piece.window and show_window or piece.use and use_piece or nil,
+				on_punch = not piece.window and punch_pick_up or nil,
 			}
 			if i == 1 then
 				node._str_placed = true
@@ -259,21 +314,24 @@ function str_furnish.register_piece(name, def)
 				end
 			end
 			core.register_node(cell.name, node)
-			core.register_node(cell.bad, {
-				description = def.description .. " (preview)",
-				drawtype = "nodebox",
-				paramtype = "light",
-				paramtype2 = "4dir",
-				tiles = tiles(cell.node, BAD_TINT),
-				node_box = fixed(cell.boxes),
-				groups = {not_in_creative_inventory = 1},
-				pointable = false,
-				walkable = false,
-				drop = "",
-			})
+			for preview_name, tint in pairs({[cell.bad] = BAD_TINT, [cell.good] = GOOD_TINT}) do
+				core.register_node(preview_name, {
+					description = def.description .. " (preview)",
+					drawtype = "nodebox",
+					paramtype = "light",
+					paramtype2 = "4dir",
+					tiles = tiles(cell.node, tint),
+					node_box = fixed(cell.boxes),
+					groups = {not_in_creative_inventory = 1},
+					pointable = false,
+					walkable = false,
+					drop = "",
+				})
+			end
 		end
 	end
 
+	assert(not core.registered_nodes[piece.item], "str_furnish: item name " .. piece.item .. " is also a node")
 	core.register_craftitem(piece.item, {
 		description = def.description .. "\n" .. def.info,
 		short_description = def.description,
