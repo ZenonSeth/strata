@@ -57,6 +57,7 @@ local PROMPTS = {
 	sleep = "Sleep",
 	drive = "Enter Vehicle",
 	manual = "Read Manual",
+	wardrobe = "Wardrobe",
 }
 local PROMPT_HUD = "str_interior:use_prompt"
 local PROMPT_INTERVAL = 0.1

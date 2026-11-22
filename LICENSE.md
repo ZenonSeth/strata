@@ -121,7 +121,7 @@ Everything not listed under Credits above is original work by Zenon Seth, licens
   - `mods/str_company/textures/str_company_item.png` (generated with a Python script, no third-party images)
   - `mods/str_lasers/textures/str_lasers_laser_*.png` and `str_lasers_battery_*.png` (generated with a Python script, no third-party images)
 - Models and schematics:
-  - `mods/str_foot/models/str_foot_player.glb`
+  - `mods/str_foot/models/` and their textures in `mods/str_foot/textures/` (the player bodies, modelled in Blockbench and with Python scripts)
   - `mods/str_machine/models/digger1.glb`
   - `mods/str_nodes/models/str_nodes_rock_1.obj`, `str_nodes_rock_2.obj`, `str_nodes_rock_3.obj`
   - `mods/str_start/schems/shop_home.mts`

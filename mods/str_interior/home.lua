@@ -41,9 +41,10 @@ end
 local UP = vector.new(0, 1, 0)
 local DOWN = vector.new(0, -1, 0)
 
-local function register_stack(name, description, base_boxes, top_boxes)
+-- base_extra, top_extra: optional fields added to each half's definition
+local function register_stack(name, description, base_boxes, top_boxes, base_extra, top_extra)
 	local base, top = "str_interior:" .. name .. "_base", "str_interior:" .. name .. "_top"
-	register_box(name .. "_base", description, "str_interior_" .. name .. "_base", base_boxes, {
+	local base_def = {
 		paramtype2 = "4dir",
 		after_place_node = function(pos, placer)
 			return add_partner(pos, placer, top, UP)
@@ -51,15 +52,23 @@ local function register_stack(name, description, base_boxes, top_boxes)
 		on_destruct = function(pos)
 			remove_partner(pos, top, UP)
 		end,
-	})
-	register_box(name .. "_top", description .. " (top)", "str_interior_" .. name .. "_top", top_boxes, {
+	}
+	local top_def = {
 		paramtype2 = "4dir",
 		drop = base,
 		groups = {not_in_creative_inventory = 1},
 		on_destruct = function(pos)
 			remove_partner(pos, base, DOWN)
 		end,
-	})
+	}
+	for k, v in pairs(base_extra or {}) do
+		base_def[k] = v
+	end
+	for k, v in pairs(top_extra or {}) do
+		top_def[k] = v
+	end
+	register_box(name .. "_base", description, "str_interior_" .. name .. "_base", base_boxes, base_def)
+	register_box(name .. "_top", description .. " (top)", "str_interior_" .. name .. "_top", top_boxes, top_def)
 end
 
 -- Bed: the head node is the one you place; the foot node is added in front of it (the way the head faces).
@@ -127,7 +136,7 @@ register_box("home_nightstand", "Nightstand", "str_interior_home_nightstand", {
 	{-11/32, -12/32, 13/32, 11/32, -7/32, 16/32},
 }, {paramtype2 = "4dir"})
 
--- Bookshelf and wardrobe: 1 wide, 2 tall, flush with the back of the node, decoration only. Place the base, the
+-- Bookshelf and wardrobe: 1 wide, 2 tall, flush with the back of the node. Place the base, the
 -- top is added above it. The bookshelf's books are boxes standing on the boards
 register_stack("home_bookshelf", "Bookshelf", {
 	{-14/32, -16/32, -4/32, -11/32, 16/32, 16/32},
@@ -182,4 +191,11 @@ register_stack("home_wardrobe", "Wardrobe", {
 	{-13/32, -16/32, -8/32, 0, 13/32, -7/32},
 	{0, -16/32, -8/32, 13/32, 13/32, -7/32},
 	{-15/32, 13/32, -10/32, 15/32, 16/32, 16/32},
+}, {
+	-- inset 1/16 so the top's box below (which covers it) is what gets pointed
+	selection_box = {type = "fixed", fixed = {-12/32, -14/32, -6/32, 12/32, 14/32, 14/32}},
+}, {
+	use = USE.wardrobe,
+	-- the whole wardrobe, 2 nodes tall: pointing at either half points at the top
+	selection_box = {type = "fixed", fixed = {-15/32, -48/32, -10/32, 15/32, 16/32, 16/32}},
 })

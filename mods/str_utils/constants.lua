@@ -85,5 +85,6 @@ return {
 		sleep = "sleep",
 		drive = "drive",
 		manual = "manual",
+		wardrobe = "wardrobe",
 	},
 }

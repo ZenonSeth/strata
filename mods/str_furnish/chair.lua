@@ -16,12 +16,14 @@ local BOXES = {
 
 core.register_entity("str_furnish:seat", {
 	initial_properties = {
-		visual = "sprite", textures = {"blank.png"}, is_visible = false,
+		-- Not is_visible = false: clients cannot attach to an object without a scene node
+		visual = "sprite", textures = {"blank.png"},
 		physical = false, pointable = false, static_save = false,
 	},
 })
 
-local SEAT_DROP = 0.3
+local SEAT_DROP = 0.5 -- to the floor, where the sit animation has its feet
+local SEAT_FORWARD = 0.07 -- keeps the calves out of the seat's front edge
 local SIT_EYE = vector.new(0, -3.5, 0)
 local MOVE_KEYS = {"up", "down", "left", "right", "jump"}
 -- player name -> {obj, pos (chair), back (where the player stood)}
@@ -34,12 +36,16 @@ local function stand_up(player)
 		return
 	end
 	sitting[name] = nil
-	player:set_detach()
 	player:set_eye_offset(vector.zero())
+	local parent = player:get_attach()
+	-- Boarding the vehicle may already have moved the player to its camera rig
+	if not parent or parent == seat.obj then
+		player:set_detach()
+		player:set_pos(seat.back)
+	end
 	if seat.obj:is_valid() then
 		seat.obj:remove()
 	end
-	player:set_pos(seat.back)
 end
 
 local function sit_down(player, pos, node)
@@ -47,14 +53,17 @@ local function sit_down(player, pos, node)
 	if sitting[name] then
 		return
 	end
-	local obj = core.add_entity(vector.offset(pos, 0, -SEAT_DROP, 0), "str_furnish:seat")
+	local yaw = math.pi - node.param2 * math.pi / 2
+	local origin = vector.offset(pos, 0, -SEAT_DROP, 0) + core.yaw_to_dir(yaw) * SEAT_FORWARD
+	local obj = core.add_entity(origin, "str_furnish:seat")
 	if not obj then
 		return
 	end
 	sitting[name] = {obj = obj, pos = vector.copy(pos), back = player:get_pos()}
-	player:set_attach(obj)
+	-- An attached body ignores the look direction and takes this rotation
+	player:set_attach(obj, "", vector.zero(), vector.new(0, -math.deg(yaw), 0))
 	player:set_eye_offset(SIT_EYE)
-	player:set_look_horizontal(math.pi - node.param2 * math.pi / 2)
+	player:set_look_horizontal(yaw)
 end
 
 core.register_globalstep(function()

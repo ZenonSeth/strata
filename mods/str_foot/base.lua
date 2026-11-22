@@ -4,13 +4,7 @@ core.override_item("", {
 	wield_scale = {x = 0, y = 0, z = 0},
 })
 
--- Model frames (seconds): idle pose at 0, walk cycle 1-2. Idle needs a non-empty range or the engine
--- never restarts the walk. One walk cycle covers NODES_PER_CYCLE nodes of travel.
 local PHYSICS_SPEED = 1.15
-local WALK_BASE_SPEED = 4 -- engine movement_speed_walk
-local NODES_PER_CYCLE = 3.0
-local WALK_RANGE = {x = 1, y = 2}
-local IDLE_RANGE = {x = 0, y = 0.01}
 
 -- In the vehicle the body is hidden from others. Zero size, as the engine resends players with
 -- is_visible forced on; a nametag color with alpha 0 removes the nametag
@@ -23,12 +17,13 @@ end
 
 core.register_on_joinplayer(function(player)
 	player:set_physics_override({speed = PHYSICS_SPEED})
-	player:set_local_animation(IDLE_RANGE, WALK_RANGE, IDLE_RANGE, WALK_RANGE,
-		WALK_BASE_SPEED * PHYSICS_SPEED / NODES_PER_CYCLE)
+	local mesh, textures = str_foot.get_model(str_foot.get_look(player))
 	player:set_properties({
 		visual = "mesh",
-		mesh = "str_foot_player.glb",
-		textures = {"str_foot_player.png"},
+		mesh = mesh,
+		textures = textures,
+		-- Players default to no culling, which shows the inside of the hair shell
+		backface_culling = true,
 		eye_height = 1.62,
 	})
 	update_body(player, str_mode.get(player))
