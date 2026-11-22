@@ -191,11 +191,4 @@ register_stack("home_wardrobe", "Wardrobe", {
 	{-13/32, -16/32, -8/32, 0, 13/32, -7/32},
 	{0, -16/32, -8/32, 13/32, 13/32, -7/32},
 	{-15/32, 13/32, -10/32, 15/32, 16/32, 16/32},
-}, {
-	-- inset 1/16 so the top's box below (which covers it) is what gets pointed
-	selection_box = {type = "fixed", fixed = {-12/32, -14/32, -6/32, 12/32, 14/32, 14/32}},
-}, {
-	use = USE.wardrobe,
-	-- the whole wardrobe, 2 nodes tall: pointing at either half points at the top
-	selection_box = {type = "fixed", fixed = {-15/32, -48/32, -10/32, 15/32, 16/32, 16/32}},
 })
