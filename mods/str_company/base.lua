@@ -32,7 +32,7 @@ for _, def in ipairs(str_upgrades.craftables) do
 	for material, amount in pairs(def.from or {}) do
 		cost = cost + str_materials.get(material).price * amount
 	end
-	if cost > 0 and str_hotbar.kind(def.item) == "vehicle" then
+	if cost > 0 and not def.refill and str_hotbar.kind(def.item) == "vehicle" then
 		str_consumables.register_sellable(def.item, cost / def.count)
 	end
 end
@@ -223,7 +223,7 @@ end
 -- Created item and Create Items entry of each item blueprint
 local blueprint_item, blueprint_def = {}, {}
 for _, def in ipairs(str_upgrades.craftables) do
-	if def.recipes then
+	if def.recipes and not def.refill then
 		blueprint_item[str_recipes.item_recipe(def.name)] = def.item
 		blueprint_def[str_recipes.item_recipe(def.name)] = def
 	end

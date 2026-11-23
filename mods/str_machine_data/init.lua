@@ -63,3 +63,4 @@ for _, file in ipairs({"tanks", "hulls", "cargo", "thrusters", "drills", "engine
 end
 
 str_machine_data.lasers = dofile(str_machine_data.modpath .. "/lasers.lua")
+str_machine_data.plasma = dofile(str_machine_data.modpath .. "/plasma.lua")

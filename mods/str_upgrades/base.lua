@@ -179,6 +179,18 @@ end
 -- Items made here land in the player's own bench list (shared by every part of the station), then are moved to the hotbar by hand
 local BENCH_LIST, BENCH_SLOTS, BENCH_PAGE = "str_upgrades_bench", 16, 8
 local BENCH_LABEL_Y, BENCH_Y = 8.4, 8.65
+
+-- Writes the charge texts on a battery or cell; true if the stack is one
+local function label_charge(stack)
+	if str_lasers.is_battery(stack) then
+		str_lasers.label(stack)
+	elseif str_plasma.is_cell(stack) then
+		str_plasma.label(stack)
+	else
+		return false
+	end
+	return true
+end
 local HOTBAR_LABEL_Y, HOTBAR_Y = 10.0, 10.25
 local PAGE_X, PAGE_W = PART_X + BENCH_PAGE * 1.25 - 0.25 + 0.2, 1.65
 
@@ -255,6 +267,32 @@ for _, def in ipairs(lasers.batteries) do
 		count = 1, from = def.from, recipes = def.blueprint and {str_recipes.item_recipe(def.name)} or laser_recipes,
 		info = ("Holds %s for lasers\nCarry it in the hotbar"):format(str_lasers.format_energy(def.capacity_kj))}
 end
+local plasma = str_machine_data.plasma
+local torch_recipes = {str_recipes.plasma_recipe}
+CRAFTABLES[#CRAFTABLES + 1] = {name = plasma.torch.name, category = "laser", item = plasma.torch.item,
+	description = plasma.torch.description, count = 1, from = plasma.torch.from, recipes = torch_recipes,
+	info = ("Hold to burn through nodes up to tier %d, one at a time, up to %d away\nOre and gems are left as piles\n"
+		.. "Uses plasma from a cell in the hotbar and heats the machine\nNeeds a %s fitted in the hull\n"
+		.. "Cannot share the machine hotbar with lasers"):format(plasma.torch.tier, plasma.torch.range,
+		lasers.mount.description:lower())}
+for _, def in ipairs(plasma.cells) do
+	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, category = "laser", item = def.item, description = def.description,
+		count = 1, from = def.from, recipes = def.blueprint and {str_recipes.item_recipe(def.name)} or torch_recipes,
+		info = ("Holds %d s of plasma for the plasma torch\nCarry it in the hotbar\nUsed up, it stays empty: refill it here"):format(
+			def.capacity_s)}
+end
+-- Refills take a cell that is not full from the crafted items or the machine hotbar; `from` is the full refill
+for _, def in ipairs(plasma.cells) do
+	CRAFTABLES[#CRAFTABLES + 1] = {name = "refill_" .. def.name, category = "laser", item = def.item,
+		description = "Refill " .. def.description:lower(), count = 1, from = {uranium = def.refill_uranium},
+		recipes = torch_recipes, refill = def.item,
+		info = ("Fills the emptiest %s in the crafted items or the machine hotbar\n1 uranium per %g s of plasma missing"):format(
+			def.description:lower(), def.capacity_s / def.refill_uranium)}
+end
+local mount_recipes = {str_recipes.plasma_recipe}
+for _, name in ipairs(laser_recipes) do
+	mount_recipes[#mount_recipes + 1] = name
+end
 
 local HULL_UPGRADE_FROM = {
 	["str_machine:hull_liquid_collection"] = {steel = 4, copper_wire = 2, lens_glass = 1},
@@ -265,7 +303,7 @@ local HULL_UPGRADE_FROM = {
 }
 for _, def in ipairs(str_machine.hull_slots.items) do
 	CRAFTABLES[#CRAFTABLES + 1] = {name = def.name, category = "hull", item = def.name, description = def.description,
-		count = 1, from = HULL_UPGRADE_FROM[def.name], recipes = def.name == lasers.mount.item and laser_recipes or nil,
+		count = 1, from = HULL_UPGRADE_FROM[def.name], recipes = def.name == lasers.mount.item and mount_recipes or nil,
 		info = def.info}
 end
 for _, def in ipairs(str_furnish.list) do
@@ -282,6 +320,47 @@ local function already_owned(player, def)
 		return false
 	end
 	return hull_slots.has(player, def.item) or player:get_inventory():contains_item(BENCH_LIST, def.item)
+end
+
+-- Cells a refill entry can fill, emptiest first (crafted items before the machine hotbar on a tie)
+local function refill_targets(player, def)
+	local inv, found = player:get_inventory(), {}
+	for _, listname in ipairs({BENCH_LIST, str_hotbar.list(player, "vehicle")}) do
+		for i, stack in ipairs(inv:get_list(listname) or {}) do
+			if stack:get_name() == def.refill and str_plasma.missing(stack) > 0 then
+				found[#found + 1] = {list = listname, index = i, stack = stack, order = #found,
+					missing = str_plasma.missing(stack), cost = str_plasma.refill_cost(stack)}
+			end
+		end
+	end
+	table.sort(found, function(a, b)
+		if a.missing ~= b.missing then
+			return a.missing > b.missing
+		end
+		return a.order < b.order
+	end)
+	return found
+end
+
+-- What the next Create takes: for a refill, the uranium the emptiest cell needs
+local function entry_from(player, def)
+	if not def.refill then
+		return def.from
+	end
+	local target = refill_targets(player, def)[1]
+	return target and {uranium = target.cost} or def.from
+end
+
+-- How many cells in a row the held uranium refills, emptiest first
+local function refill_count(player, def, held)
+	local left, count = held.uranium or 0, 0
+	for _, target in ipairs(refill_targets(player, def)) do
+		if target.cost > left then
+			break
+		end
+		left, count = left - target.cost, count + 1
+	end
+	return count
 end
 
 local CATEGORIES = {
@@ -363,7 +442,7 @@ local function item_entries(player)
 		end
 		local owned = already_owned(player, def)
 		local locked = str_recipes.inputs_state(player, def.from) ~= "all"
-		local count = locked and 0 or craft_count(def, held, owned)
+		local count = locked and 0 or def.refill and refill_count(player, def, held) or craft_count(def, held, owned)
 		entries[#entries + 1] = {
 			id = def.name, item = def.item, label = item_label(def), tooltip = item_label(def), dim = count == 0,
 			badge = owned and "Owned" or locked and "Locked" or count > 0 and tostring(count) or nil,
@@ -404,14 +483,15 @@ local function item_info(player, def)
 	local bottom = GRID_Y + GRID_H - INFO_PAD
 	local held = held_materials(player)
 	local owned = already_owned(player, def)
-	local count = craft_count(def, held, owned)
-	local head_y = needs_y(bottom, def.from)
+	local count = def.refill and refill_count(player, def, held) or craft_count(def, held, owned)
+	local from = entry_from(player, def)
+	local head_y = needs_y(bottom, from)
 	local makes = def.count > 1 and ("\n<style color=%s>Makes %d</style>"):format(theme.muted, def.count) or ""
 	local fs = {
 		info_title(x, y, w, def, ("<b><style size=18>%s</style></b>%s"):format(esc(def.description), makes)),
 		("hypertext[%g,%g;%g,%g;;<global margin=0 color=%s size=%d>%s]"):format(x, y + BIG_IMAGE + 0.15, w,
 			head_y - y - BIG_IMAGE - 0.25, theme.text, INFO_SIZE, esc(def.info)),
-		need_rows(x, head_y, w, def.from, held, player),
+		need_rows(x, head_y, w, from, held, player),
 	}
 	local status, color, button = ("Can make: %d"):format(count), count > 0 and theme.text or theme.muted, nil
 	local stack = ItemStack(def.item .. " " .. def.count)
@@ -419,6 +499,13 @@ local function item_info(player, def)
 		status, color = "Already owned", theme.danger
 	elseif str_recipes.inputs_state(player, def.from) ~= "all" then
 		status, color = "Locked - find every material first", theme.muted
+	elseif def.refill then
+		status = ("Can refill: %d"):format(count)
+		if not refill_targets(player, def)[1] then
+			status, color = "No " .. ItemStack(def.refill):get_short_description():lower() .. " to refill", theme.muted
+		elseif count > 0 then
+			button = {"create_item", "Refill"}
+		end
 	elseif count > 0 and not player:get_inventory():room_for_item(BENCH_LIST, stack) then
 		status, color = "Crafted items full", theme.danger
 	elseif count > 0 then
@@ -688,6 +775,16 @@ local function handle_item_fields(player, fields)
 		hotbar_view[name] = str_hotbar.kind(def.item)
 	elseif fields.hotbar_view then
 		hotbar_view[name] = hotbar_view[name] == "foot" and "vehicle" or "foot"
+	elseif fields.create_item and def and def.refill then
+		local target = refill_targets(player, def)[1]
+		local from = target and {uranium = target.cost}
+		if not target or str_recipes.inputs_state(player, def.from) ~= "all" or not has_materials(player, from) then
+			return
+		end
+		take_materials(player, from)
+		str_plasma.fill(target.stack)
+		player:get_inventory():set_stack(target.list, target.index, target.stack)
+		play_build_strikes(player)
 	elseif fields.create_item and def then
 		local stack = ItemStack(def.item .. " " .. def.count)
 		if str_recipes.inputs_state(player, def.from) ~= "all" or not has_materials(player, def.from)
@@ -695,6 +792,7 @@ local function handle_item_fields(player, fields)
 			return
 		end
 		take_materials(player, def.from)
+		label_charge(stack)
 		player:get_inventory():add_item(BENCH_LIST, stack)
 		play_build_strikes(player)
 	else
@@ -801,7 +899,15 @@ core.register_allow_player_inventory_action(function(_, action, inv, info)
 end)
 
 core.register_on_joinplayer(function(player)
-	player:get_inventory():set_size(BENCH_LIST, BENCH_SLOTS)
+	local inv = player:get_inventory()
+	inv:set_size(BENCH_LIST, BENCH_SLOTS)
+	for _, list in ipairs({"main", str_hotbar.PARKED, BENCH_LIST}) do
+		for i, stack in ipairs(inv:get_list(list) or {}) do
+			if label_charge(stack) then
+				inv:set_stack(list, i, stack)
+			end
+		end
+	end
 end)
 
 core.register_on_leaveplayer(function(player)

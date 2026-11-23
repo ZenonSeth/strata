@@ -89,6 +89,13 @@ for _, def in ipairs(lasers.batteries) do
 		add_item(def)
 	end
 end
+local plasma = str_machine_data.plasma
+str_recipes.plasma_recipe = add_item(plasma.torch)
+for _, def in ipairs(plasma.cells) do
+	if def.blueprint then
+		add_item(def)
+	end
+end
 
 function str_recipes.get(name)
 	return str_recipes.items[name]

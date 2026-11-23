@@ -94,8 +94,8 @@ str_manual.register_page("drill", "Drill", lines(
 ))
 
 str_manual.register_page("demolition", "Demolition", lines(
-	"<b>Explosives and lasers</b>",
-	"Both can break nodes your drill bit is too weak for, up to their own tier. Make them in the Create Items tab of the upgrade station, then move them to your hotbar. Select one in the hotbar and press use (left click) while in the machine. Like everything in the hotbar, they are lost if the machine is destroyed.",
+	"<b>Explosives, lasers and the plasma torch</b>",
+	"All of them can break nodes your drill bit is too weak for, up to their own tier. Make them in the Create Items tab of the upgrade station, then move them to your hotbar. Select one in the hotbar and press use (left click) while in the machine. Like everything in the hotbar, they are lost if the machine is destroyed.",
 	"",
 	"<b>Explosives</b>",
 	"Each explosive is used up when it goes off. It blasts the nodes around the machine, and whatever they held is destroyed with them. Round charges clear a circle; line and shaped charges clear a row to each side. You can carry up to 50 of each kind.",
@@ -106,7 +106,15 @@ str_manual.register_page("demolition", "Demolition", lines(
 	"Red, green and blue lasers reach further and break harder rock in that order, and the stronger ones take more energy per shot.",
 	"",
 	"<b>Batteries</b>",
-	"Each shot takes energy from the first battery in your hotbar that has enough. The bar under a battery shows how much charge is left. A battery that is too low for a shot stays in the hotbar; carry a bigger one, or several. Recharge batteries at the refuel station for credits per MJ; the battery section shows while one is in your hotbar, and the > button picks the next one. Bigger batteries need their own blueprints."
+	"Each shot takes energy from the first battery in your hotbar that has enough. The bar under a battery shows how much charge is left. A battery that is too low for a shot stays in the hotbar; carry a bigger one, or several. Recharge batteries at the refuel station for credits per MJ; the battery section shows while one is in your hotbar, and the > button picks the next one. Bigger batteries need their own blueprints.",
+	"",
+	"<b>Plasma torch</b>",
+	"The plasma torch burns through rock up to tier 10, much faster than any drill bit. It needs its blueprint from the company shop, a laser mounting point fitted in the hull, and a plasma cell in your hotbar. It cannot share the machine hotbar with a laser.",
+	"Select it and hold left click while aiming at a node in your slice. The flame reaches 4 nodes from the machine and burns the first node in its way, then the next one. Ore and gems are not harmed: they are left behind as piles to collect.",
+	"Burning heats the machine and the heat bar shows it, even without Lava protection. When the bar is full the torch stops until it has cooled a little. Lava protection makes the bar longer, but heat from the torch also leaves less of it for lava.",
+	"",
+	"<b>Plasma cells</b>",
+	"The torch uses plasma from the cells in your hotbar while the flame is on. A used up cell stays empty; refill it in the Create Items tab with uranium, which fills the emptiest cell of that size for 1 uranium per 3 s of plasma it is missing. Bigger cells need their own blueprints."
 ))
 
 str_manual.register_page("workshop", "Workshop", lines(

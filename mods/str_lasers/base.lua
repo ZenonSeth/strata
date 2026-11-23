@@ -11,6 +11,15 @@ function str_lasers.format_energy(kj)
 	return ("%.3g kJ"):format(kj)
 end
 
+-- Shown on the slot icon: 0% only when empty and 100% only when full
+function str_lasers.percent_text(have, capacity)
+	local pct = math.floor(have / capacity * 100 + 1e-6)
+	if have > 0 and pct < 1 then
+		pct = 1
+	end
+	return pct .. "%"
+end
+
 local batteries = {}
 for _, def in ipairs(data.batteries) do
 	batteries[def.item] = def
@@ -42,7 +51,13 @@ function str_lasers.set_charge(stack, kj)
 	local meta = stack:get_meta()
 	meta:set_string("charge", tostring(kj))
 	meta:set_string("description", battery_text(def, kj))
+	meta:set_string("count_meta", str_lasers.percent_text(kj, def.capacity_kj))
 	stack:set_wear(math.floor(MAX_WEAR * (1 - kj / def.capacity_kj) + 0.5))
+end
+
+-- Writes the charge texts onto a battery made without meta, e.g. a fresh one
+function str_lasers.label(stack)
+	str_lasers.set_charge(stack, str_lasers.get_charge(stack))
 end
 
 -- Takes kj from the first hotbar battery that holds enough; false if none does

@@ -23,6 +23,6 @@ return {
 			blueprint = true, from = {titanium_alloy = 4, gold_wire = 2, platinum = 2}},
 	},
 	mount = {item = "str_machine:hull_laser_mount", description = "Laser mounting point",
-		info = "Hull upgrade, needed to fire any laser", image = "str_machine_hull_laser_mount.png",
+		info = "Hull upgrade, needed to fire any laser or the plasma torch", image = "str_machine_hull_laser_mount.png",
 		from = {steel = 6, copper_wire = 4}},
 }
