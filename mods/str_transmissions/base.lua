@@ -6,6 +6,7 @@ local mod_storage = core.get_mod_storage()
 transmissions.mod_storage = mod_storage
 local cache = {}
 local listeners = {}
+local share_known, fill, known_words
 local receive_listeners, relic_listeners = {}, {}
 
 local function key(name)
@@ -26,6 +27,13 @@ local function data(name)
 		d.queue, d.watch = d.queue or {}, d.watch or {}
 		d.soon = d.soon or {}
 		cache[name] = d
+		-- Logs from before words were shared: spread their decoded words once
+		if not d.shared then
+			d.shared = true
+			if share_known(d) then
+				mod_storage:set_string(key(name), core.write_json(d))
+			end
+		end
 	end
 	return cache[name]
 end
@@ -83,7 +91,9 @@ end
 function transmissions.add(name, text, analysis, id)
 	local d = data(name)
 	d.unlocked = true
-	d.items[#d.items + 1] = {text = text, analysis = analysis, id = id, time = os.time()}
+	local item = {text = text, analysis = analysis, id = id, time = os.time()}
+	d.items[#d.items + 1] = item
+	fill(item, known_words(d))
 	save(name)
 	local player = core.get_player_by_name(name)
 	if player then
@@ -171,31 +181,83 @@ end
 -- Caps the sha1 work of one attempt
 local MAX_DECODE_WORDS = 100
 
--- Reveals every word of log entry index that matches a word of text; returns how many were new
-function transmissions.decode(name, index, text)
-	local item = data(name).items[index]
-	local found = transmissions.revealed(name, index)
-	if not found then
-		return 0
+-- Reveals each missing word of item found in the words list; returns the newly found words
+function fill(item, words)
+	local hashes = signal_words(item)
+	local new = {}
+	if not hashes or #words == 0 then
+		return new
 	end
-	local new, checked = 0, 0
-	for word in clean(text):gmatch("%S+") do
-		checked = checked + 1
-		if checked > MAX_DECODE_WORDS then
-			break
-		end
-		for i, hash in ipairs(signal_words(item)) do
-			if found[i] == "" and core.sha1(("strata|%s|%d|%s"):format(item.id, i, word)) == hash then
-				found[i] = word
-				new = new + 1
+	local found = {}
+	for i = 1, #hashes do
+		found[i] = item.found and item.found[i] or ""
+		if found[i] == "" then
+			for _, word in ipairs(words) do
+				if core.sha1(("strata|%s|%d|%s"):format(item.id, i, word)) == hashes[i] then
+					found[i] = word
+					new[#new + 1] = word
+					break
+				end
 			end
 		end
 	end
-	if new > 0 then
+	if #new > 0 then
 		item.found = found
-		save(name)
 	end
 	return new
+end
+
+-- Every word decoded in any signal of the log
+function known_words(d)
+	local set, list = {}, {}
+	for _, item in ipairs(d.items) do
+		for _, word in ipairs(item.found or {}) do
+			if word ~= "" and not set[word] then
+				set[word] = true
+				list[#list + 1] = word
+			end
+		end
+	end
+	return list
+end
+
+-- Fills every signal from the words decoded anywhere; returns true if any word was new
+function share_known(d)
+	local words, changed = known_words(d), false
+	for _, item in ipairs(d.items) do
+		changed = #fill(item, words) > 0 or changed
+	end
+	return changed
+end
+
+-- Reveals every word of log entry index that matches a word of text, then in every other signal;
+-- returns how many were new in that entry
+function transmissions.decode(name, index, text)
+	local d = data(name)
+	local item = d.items[index]
+	if not signal_words(item) then
+		return 0
+	end
+	local words, seen = {}, {}
+	for word in clean(text):gmatch("%S+") do
+		if #words >= MAX_DECODE_WORDS then
+			break
+		end
+		if not seen[word] then
+			seen[word] = true
+			words[#words + 1] = word
+		end
+	end
+	local new = fill(item, words)
+	if #new > 0 then
+		for i, other in ipairs(d.items) do
+			if i ~= index then
+				fill(other, new)
+			end
+		end
+		save(name)
+	end
+	return #new
 end
 
 -- Story: signals arrive one per relic step, in story.lua order, and replies pick the answers
