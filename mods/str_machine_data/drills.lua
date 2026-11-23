@@ -28,9 +28,9 @@ return {
 			from = {alexandrite = 8, tungsten_carbide = 12}},
 		{name = "sapphire", description = "Sapphire-tipped bit", stats = {drill_tier = 8, dig_speed = 6},
 			from = {sapphire = 8, tungsten_carbide = 12}},
-		{name = "diamond", description = "Diamond-tipped bit", stats = {drill_tier = 9, dig_speed = 6.5},
+		{name = "diamond", description = "Diamond-tipped bit", stats = {drill_tier = 9, dig_speed = 8},
 			from = {diamond = 8, tungsten_carbide = 12}},
-		{name = "dragonstone", description = "Dragonstone bit", stats = {drill_tier = 10, dig_speed = 7.5},
+		{name = "dragonstone", description = "Dragonstone bit", stats = {drill_tier = 10, dig_speed = 12},
 			from = {dragonstone = 8, tungsten_carbide = 12}},
 	},
 }

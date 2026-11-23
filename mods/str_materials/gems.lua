@@ -20,6 +20,6 @@ return {
 	{name = "sapphire", description = "Sapphire", kind = "gem", mohs = 9, volume = 0.5, weight = 0.1, price_rank = 26},
 	{name = "diamond", description = "Diamond", kind = "gem", mohs = 10, volume = 0.5, weight = 0.1, price_rank = 28},
 	{name = "dragonstone", description = "Dragonstone", kind = "gem", mohs = 11, volume = 0.5, weight = 0.1, price_rank = 31},
-	{name = "starstone", description = "Starstone", kind = "gem", mohs = 11, volume = 0.5, weight = 0.1, price_rank = 33},
-	{name = "voidstone", description = "Voidstone", kind = "gem", mohs = 12, volume = 0.5, weight = 0.1, price_rank = 36},
+	{name = "starstone", description = "Starstone", kind = "gem", mohs = 11, volume = 0.5, weight = 0.1, price_rank = 41},
+	{name = "voidstone", description = "Voidstone", kind = "gem", mohs = 12, volume = 0.5, weight = 0.1, price_rank = 44},
 }

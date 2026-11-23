@@ -3,6 +3,17 @@ local DIRT_COLOR_TOP = {0xa0, 0x76, 0x4a}
 local DIRT_COLOR_DEEP = {0x3a, 0x2a, 0x20}
 local DIRT_HARDNESS_TOP = 0.3
 local DIRT_HARDNESS_DEEP = 30
+-- Tiers that sit below the exponential curve
+local HARDNESS_OVERRIDE = {[9] = 15, [10] = 20}
+
+local function tier_hardness(tier)
+	if HARDNESS_OVERRIDE[tier] then
+		return HARDNESS_OVERRIDE[tier]
+	end
+	local t = (tier - 1) / 9
+	local h = DIRT_HARDNESS_TOP * (DIRT_HARDNESS_DEEP / DIRT_HARDNESS_TOP) ^ t
+	return math.floor(h * 100 + 0.5) / 100
+end
 
 local function fill(color)
 	return "[fill:16x16:" .. color
@@ -113,11 +124,10 @@ end
 
 for level = 1, DIRT_LEVELS do
 	local t = (level - 1) / (DIRT_LEVELS - 1)
-	local hardness = DIRT_HARDNESS_TOP * (DIRT_HARDNESS_DEEP / DIRT_HARDNESS_TOP) ^ t
 	str_nodes.register_shaped_node("str_nodes:dirt_" .. level, {
 		description = "Dirt (level " .. level .. ")",
 		tiles = {fill(lerp_color(DIRT_COLOR_TOP, DIRT_COLOR_DEEP, t))},
-		str_hardness = math.floor(hardness * 100 + 0.5) / 100,
+		str_hardness = tier_hardness(level),
 	})
 end
 
@@ -150,12 +160,6 @@ for i, s in ipairs(strata) do
 			assert(s.to <= strata[i + 2].from, "strata: " .. s.name .. " overlaps a non-neighbour")
 		end
 	end
-end
-
-local function tier_hardness(tier)
-	local t = (tier - 1) / 9
-	local h = DIRT_HARDNESS_TOP * (DIRT_HARDNESS_DEEP / DIRT_HARDNESS_TOP) ^ t
-	return math.floor(h * 100 + 0.5) / 100
 end
 
 local function has_texture(file, modpath)

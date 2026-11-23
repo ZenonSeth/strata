@@ -113,6 +113,8 @@ local ALIGN_TOLERANCE = 0.03
 local DEFAULT_GRAVITY = 15
 -- Seconds to dig a node unless it defines str_hardness
 local DEFAULT_HARDNESS = 1
+-- Fastest a node can be dug, however good the bit
+local MIN_DIG_TIME = 0.05
 -- How far (in nodes) the machine bites into the node by the time the dig finishes
 local PUSH_DEPTH = 0.25
 -- Look north (+z), so +x (east) is on the right of the screen; level in the slice, down at the machine in surface mode
@@ -621,8 +623,8 @@ local DIG_DOWN_SPEED = 1.5
 local function dig_step(session, player, pick, dtime)
 	local dig = session.dig
 	dig.time = dig.time + dtime
-	local hardness = (node_def(pick.target).str_hardness or DEFAULT_HARDNESS)
-		/ stats.get(player).dig_speed
+	local hardness = math.max(MIN_DIG_TIME, (node_def(pick.target).str_hardness or DEFAULT_HARDNESS)
+		/ stats.get(player).dig_speed)
 	if dig.time >= hardness then
 		local entry = dig.entry
 		if dig.cut then
