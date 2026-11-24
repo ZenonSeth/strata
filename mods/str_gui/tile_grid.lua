@@ -165,7 +165,7 @@ function str_gui.info_title(x, y, w, image, text)
 	return fs .. str_gui.info_text(x + size + 0.2, y, w - size - 0.2, size, text)
 end
 
--- A {left, right} header at y, then rows {icon =, text =, right =, right_color =} of ICON_ROW_H each (text is plain)
+-- A {left, right} header at y, then rows {icon =, text =, color =, right =, right_color =} of ICON_ROW_H each (plain text)
 function str_gui.icon_rows(x, y, w, header, rows)
 	local row_h = str_gui.ICON_ROW_H
 	local fs = {
@@ -177,7 +177,7 @@ function str_gui.icon_rows(x, y, w, header, rows)
 		if row.icon then
 			fs[#fs + 1] = ("image[%g,%g;%g,%g;%s]"):format(x, row_y + (row_h - ROW_ICON) / 2, ROW_ICON, ROW_ICON, esc(row.icon))
 		end
-		fs[#fs + 1] = str_gui.info_text(x + ROW_ICON + 0.15, row_y, w - ROW_ICON - 1.15, row_h, esc(row.text))
+		fs[#fs + 1] = str_gui.info_text(x + ROW_ICON + 0.15, row_y, w - ROW_ICON - 1.15, row_h, esc(row.text), row.color)
 		if row.right then
 			fs[#fs + 1] = str_gui.info_text(x + w - 1, row_y, 1, row_h, esc(row.right), row.right_color, "right")
 		end

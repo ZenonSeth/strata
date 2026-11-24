@@ -1298,8 +1298,8 @@ end
 local NEIGHBOURS = {vector.new(1, 0, 0), vector.new(-1, 0, 0), vector.new(0, 0, 1), vector.new(0, 0, -1)}
 
 -- Shows the prompt of the pad under the machine, else of an interactable node in its cell or behind it; a fresh Aux1
--- press uses it. In surface mode a building next to the machine counts as its pad instead. Returns true if that left
--- vehicle mode.
+-- press uses it. In surface mode a building or interactable node next to the machine counts instead. Returns true if
+-- that left vehicle mode.
 local function pad_step(session, player, pos, control)
 	local target, use_pos
 	if not session.dig and not session.shift then
@@ -1312,7 +1312,7 @@ local function pad_step(session, player, pos, control)
 					break
 				end
 				use_pos = vector.add(cell, dir)
-				target = str_pads.get(use_pos)
+				target = str_pads.get(use_pos) or str_interact.get(use_pos)
 			end
 		elseif not target then
 			use_pos = vector.round(pos)

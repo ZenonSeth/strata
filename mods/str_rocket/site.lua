@@ -71,7 +71,7 @@ local function fence_name(sides)
 end
 
 local registered = {}
-local function register_fence(sides)
+local function register_fence(sides, interact)
 	local name = fence_name(sides)
 	if registered[name] then
 		return name
@@ -82,15 +82,16 @@ local function register_fence(sides)
 		drawtype = "nodebox",
 		node_box = {type = "fixed", fixed = fence_boxes(sides)},
 		tiles = {"str_rocket_fence.png"},
+		collision_box = str_rocket.SITE_COLLISION,
 		paramtype = "light",
 		sunlight_propagates = true,
-		walkable = false,
 		pointable = false,
 		diggable = false,
 		buildable_to = false,
 		is_ground_content = false,
 		drop = "",
 		groups = {not_in_creative_inventory = 1, str_rocket = 1},
+		str_interact = interact,
 	})
 	return name
 end
@@ -98,9 +99,9 @@ end
 core.register_node(INNER, {
 	description = "Rocket site",
 	drawtype = "airlike",
+	collision_box = str_rocket.SITE_COLLISION,
 	paramtype = "light",
 	sunlight_propagates = true,
-	walkable = false,
 	pointable = false,
 	diggable = false,
 	buildable_to = false,
@@ -128,7 +129,7 @@ for kind, footprint in pairs(FOOTPRINTS) do
 				sides[side], any = true, true
 			end
 		end
-		cell_nodes[kind][i] = any and register_fence(sides) or INNER
+		cell_nodes[kind][i] = any and register_fence(sides, kind == "support" and str_rocket.SITE_INTERACT or nil) or INNER
 	end
 end
 
@@ -217,15 +218,16 @@ local function plan_for(player)
 	return {kind = kind, ground = ground, cells = list, why = why}
 end
 
--- Places the fence nodes of a saved site, where they are missing; returns false if the area is not loaded
-function str_rocket.restore(kind, anchor)
+-- Places the fence nodes (or the given node per cell) of a saved site where missing; false if the area is not loaded
+function str_rocket.restore(kind, anchor, nodes)
+	nodes = nodes or cell_nodes[kind]
 	local list = cells(kind, anchor)
 	for i, pos in ipairs(list) do
 		local name = core.get_node(pos).name
 		if name == "ignore" then
 			return false
-		elseif name ~= cell_nodes[kind][i] then
-			core.set_node(pos, {name = cell_nodes[kind][i]})
+		elseif name ~= nodes[i] then
+			core.set_node(pos, {name = nodes[i]})
 		end
 	end
 	return true

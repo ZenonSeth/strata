@@ -40,7 +40,7 @@ end
 
 str_rocket.blueprints = BLUEPRINTS
 
--- Per-player state in mod storage: {site = placed site or nil, support = placed launch workshop or nil}
+-- Per-player state in mod storage: {site = placed site, support = placed launch workshop, support_built = true}
 local cache = {}
 
 local function key(name)
@@ -102,7 +102,8 @@ local function restore_sites(name)
 		local anchor = data(name)[def.kind]
 		if anchor then
 			core.load_area(vector.offset(anchor, -2, -1, -2), vector.offset(anchor, 2, 1, 2))
-			str_rocket.restore(def.kind, anchor)
+			local built = def.kind == "support" and data(name).support_built
+			str_rocket.restore(def.kind, anchor, built and str_rocket.workshop_nodes or nil)
 		end
 	end
 end
