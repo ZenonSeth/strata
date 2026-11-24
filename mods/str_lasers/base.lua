@@ -20,6 +20,12 @@ function str_lasers.percent_text(have, capacity)
 	return pct .. "%"
 end
 
+-- Percentage at the top right of the slot, clear of the wear bar
+function str_lasers.set_percent(meta, have, capacity)
+	meta:set_string("count_meta", str_lasers.percent_text(have, capacity))
+	meta:set_int("count_alignment", 3 + 1 * 4)
+end
+
 local batteries = {}
 for _, def in ipairs(data.batteries) do
 	batteries[def.item] = def
@@ -51,7 +57,7 @@ function str_lasers.set_charge(stack, kj)
 	local meta = stack:get_meta()
 	meta:set_string("charge", tostring(kj))
 	meta:set_string("description", battery_text(def, kj))
-	meta:set_string("count_meta", str_lasers.percent_text(kj, def.capacity_kj))
+	str_lasers.set_percent(meta, kj, def.capacity_kj)
 	stack:set_wear(math.floor(MAX_WEAR * (1 - kj / def.capacity_kj) + 0.5))
 end
 

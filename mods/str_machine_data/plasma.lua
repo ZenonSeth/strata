@@ -7,11 +7,11 @@ return {
 		from = {platinum_alloy = 3, gold_wire = 4, lens_glass = 2, diamond = 1}},
 	cells = {
 		{name = "plasma_cell_small", item = "str_plasma:cell_small", description = "Small plasma cell", capacity_s = 30,
-			refill_uranium = 10, from = {titanium_alloy = 2, uranium = 2}},
+			refill_uranium = 10, from = {titanium_alloy = 2, uranium = 10}},
 		{name = "plasma_cell_medium", item = "str_plasma:cell_medium", description = "Plasma cell", capacity_s = 60,
-			refill_uranium = 20, blueprint = true, from = {tungsten_carbide = 2, gold_wire = 2, uranium = 4}},
+			refill_uranium = 20, blueprint = true, from = {tungsten_carbide = 2, gold_wire = 2, uranium = 20}},
 		{name = "plasma_cell_large", item = "str_plasma:cell_large", description = "Large plasma cell", capacity_s = 90,
-			refill_uranium = 30, blueprint = true, from = {platinum_alloy = 2, gold_wire = 2, uranium = 8}},
+			refill_uranium = 30, blueprint = true, from = {platinum_alloy = 2, gold_wire = 2, uranium = 30}},
 	},
 	-- An overheated torch works again once the heat bar cools to this share of its capacity
 	unlock_at = 0.8,

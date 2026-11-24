@@ -62,39 +62,75 @@ local function tab_visible(player, def)
 	return not def.visible or def.visible(player)
 end
 
--- Place City for a selected strange object, else Build City, once the transmissions ask for cities
-local function city_button(player, name, def, y)
+local CITY_GUIDE_H = 1.1
+
+local function build_needs(player)
+	local held = str_machine.cargo.get(player)
+	local needs = {}
+	for _, cost in ipairs(str_transmissions.cities.build_cost()) do
+		local item = str_materials.get(cost.item)
+		needs[#needs + 1] = ("%d %s (have %d)"):format(cost.count, item and item.description or cost.item,
+			held[cost.item] or 0)
+	end
+	return table.concat(needs, ", ")
+end
+
+-- Place City or Build City button and the next-step line, or nil when no cities are asked for
+local function city_ui(player, name, def, y)
 	local cities = str_transmissions.cities
+	if not cities.can_place(name) or str_mode.get(player) ~= "vehicle" then
+		return nil
+	end
 	local owed = cities.owed(name)
-	if not owed or str_mode.get(player) ~= "vehicle" then
-		return ""
+	local spot_ok, spot_reason = cities.check_spot(player)
+	local hold, stored = cities.relics(player)
+	local relic_selected = def and def.kind == "relic"
+	local can_build = cities.can_build(name)
+	local affordable = can_build and cities.has_build_cost(player)
+	local step
+	if not owed and not relic_selected then
+		step = "You can continue returning more cities."
+	elseif not spot_ok then
+		step = spot_reason
+	elseif relic_selected then
+		step = "Press Place City to return it to the stone."
+	elseif hold > 0 then
+		step = "Select a Strange Object in the list, then press Place City."
+	elseif stored > 0 then
+		step = "Your Strange Objects are in storage: move them to the hold."
+	elseif affordable then
+		step = "Press Build City to build one in the stone behind the digger."
+	elseif can_build then
+		step = "To build a city, carry " .. build_needs(player) .. " in the hold."
+	else
+		step = "You have no more Strange Objects. Reply in the Transmissions tab."
 	end
+	local guide = owed and ("Cities owed: %d. %s"):format(owed, step) or step
 	local rect = ("%g,%g;%g,%g"):format(TABLE_X, y, CITY_W, CITY_H)
-	local owed_line = ("\nCities still owed: %d"):format(owed)
-	if def and def.kind == "relic" then
-		return ("button[%s;place_city;Place City]tooltip[place_city;%s]"):format(rect,
-			esc("Place this object in the stone behind the digger." .. owed_line))
-	elseif cities.can_build(name) then
-		local needs = {}
-		for _, cost in ipairs(cities.build_cost()) do
-			local item = str_materials.get(cost.item)
-			needs[#needs + 1] = ("%d %s"):format(cost.count, item and item.description or cost.item)
-		end
-		local fs = {}
-		if not cities.has_build_cost(player) then
-			fs[#fs + 1] = ("style[build_city;textcolor=%s]"):format(muted)
-		end
-		fs[#fs + 1] = ("button[%s;build_city;Build City]tooltip[build_city;%s]"):format(rect,
-			esc("Build a new city in the stone behind the digger.\nNeeds " .. table.concat(needs, ", ")
-				.. " in the hold." .. owed_line))
-		return table.concat(fs)
+	local field, label, tip
+	if relic_selected or not can_build then
+		field, label = "place_city", "Place City"
+		tip = "Put the selected Strange Object back in the stone behind the digger."
+	else
+		field, label = "build_city", "Build City"
+		tip = "Build a new city in the stone behind the digger.\nNeeds " .. build_needs(player) .. " in the hold."
 	end
-	return ""
+	local usable = spot_ok and (field == "place_city" and relic_selected or field == "build_city" and affordable)
+	local fs = {}
+	if not usable then
+		fs[#fs + 1] = ("style[%s;textcolor=%s]"):format(field, muted)
+	end
+	fs[#fs + 1] = ("button[%s;%s;%s]tooltip[%s;%s]"):format(rect, field, label, field, esc(tip))
+	return table.concat(fs), guide
 end
 
 local function inventory_tab(player, name)
+	local table_h = TABLE_H
+	if str_transmissions.cities.can_place(name) and str_mode.get(player) == "vehicle" then
+		table_h = TABLE_H - CITY_GUIDE_H
+	end
 	local table_fs, list, selected = str_inventory.cargo_table(player, {
-		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = TABLE_H, selected = selected_item[name],
+		x = TABLE_X, y = TABLE_Y, w = TABLE_W, h = table_h, selected = selected_item[name],
 	})
 	local detail = core.colorize(muted, "Select an item to see its per-unit values.")
 	local total_price, total_weight = 0, 0
@@ -120,8 +156,13 @@ local function inventory_tab(player, name)
 			esc(("Hold: %s / %s %s"):format(num(volume), num(stats.cargo_capacity), volume_unit))),
 		"style_type[label;font_size=*1;halign=left;valign=top]",
 		("label[%g,%g;%s]"):format(TABLE_X, TABLE_Y + TABLE_H + 1.4, esc(message[name] or detail)),
-		city_button(player, name, selected_def, TABLE_Y + TABLE_H + 0.1),
 	}
+	local city_fs, guide = city_ui(player, name, selected_def, TABLE_Y + TABLE_H + 0.1)
+	if city_fs then
+		fs[#fs + 1] = city_fs
+		fs[#fs + 1] = ("style_type[label;valign=center]label[%g,%g;%g,%g;%s]style_type[label;valign=top]"):format(
+			TABLE_X, TABLE_Y + table_h + 0.05, TABLE_W, CITY_GUIDE_H - 0.1, esc(guide))
+	end
 	if selected > 0 then
 		local group_w = #AMOUNTS * AMOUNT_W + (#AMOUNTS - 1) * AMOUNT_GAP
 		local buttons_x = TABLE_X + TABLE_W - group_w
@@ -475,6 +516,31 @@ str_machine.stats.register_on_change(refresh)
 str_transmissions.register_on_change(refresh)
 str_player_resources.register_on_change(refresh)
 
+-- Machine cell each player's city line was built for; it changes as the machine moves or first spawns
+local city_cell = {}
+local city_timer = 0
+core.register_globalstep(function(dtime)
+	city_timer = city_timer + dtime
+	if city_timer < 0.5 then
+		return
+	end
+	city_timer = 0
+	for _, player in ipairs(core.get_connected_players()) do
+		local name = player:get_player_name()
+		local cell = false
+		if str_transmissions.cities.can_place(name) and str_mode.get(player) == "vehicle" then
+			local pos = str_machine.get_pos(player)
+			cell = pos and ("%d,%d"):format(math.floor(pos.x + 0.5), math.floor(pos.y + 0.5)) or "none"
+		end
+		if cell ~= (city_cell[name] or false) then
+			city_cell[name] = cell or nil
+			if cell then
+				refresh(player)
+			end
+		end
+	end
+end)
+
 core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname ~= "" then
 		return
@@ -583,7 +649,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	if fields.place_city or fields.build_city then
 		local result
 		if fields.place_city then
-			result = item and str_transmissions.cities.place(player, item)
+			result = item and str_transmissions.cities.place(player, item) or "Select a Strange Object first."
 		else
 			result = str_transmissions.cities.build(player)
 		end
@@ -622,7 +688,7 @@ end)
 core.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	selected_tab[name], selected_item[name], armed[name] = nil, nil, nil
-	message[name] = nil
+	message[name], city_cell[name] = nil, nil
 	expanded_analysis[name] = nil
 	signal_row[name], decode_input[name], decode_result[name] = nil, nil, nil
 	for _, def in ipairs(TABS) do

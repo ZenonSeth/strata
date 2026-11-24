@@ -257,7 +257,9 @@ end
 
 -- 1 buyable, 2 locked, 3 owned, or nil when not shown (no ingredient found yet)
 local function recipe_state(player, recipe)
-	if str_recipes.has(player, recipe.name) then
+	if recipe.hidden then
+		return nil
+	elseif str_recipes.has(player, recipe.name) then
 		return 3
 	elseif str_recipes.is_available(player, recipe.name) then
 		return 1

@@ -6,7 +6,7 @@ local mod_storage = core.get_mod_storage()
 transmissions.mod_storage = mod_storage
 local cache = {}
 local listeners = {}
-local share_known, fill, known_words
+local share_known, fill, known_words, auto_decode
 local receive_listeners, relic_listeners = {}, {}
 
 local function key(name)
@@ -21,18 +21,24 @@ local function data(name)
 		d.items = d.items or {}
 		-- Story progress: sequence entries done, relic count at the last story signal (nil before the first),
 		-- signal waiting for its delay (pending), reply chosen per point (option index), points whose answer
-		-- step has passed, late answers waiting, pending watches, and signals due after `pending` (send_soon)
+		-- step has passed, late answers waiting, pending watches, signals due after `pending` (send_soon),
+		-- and signals due at a real time (later: {at = os.time(), id =})
 		d.step = d.step or 0
 		d.replies, d.answered = d.replies or {}, d.answered or {}
 		d.queue, d.watch = d.queue or {}, d.watch or {}
 		d.soon = d.soon or {}
+		d.later = d.later or {}
 		cache[name] = d
 		-- Logs from before words were shared: spread their decoded words once
+		local changed = false
 		if not d.shared then
 			d.shared = true
-			if share_known(d) then
-				mod_storage:set_string(key(name), core.write_json(d))
-			end
+			changed = share_known(d)
+		end
+		-- Also decodes `auto` signals received before they were auto
+		changed = auto_decode(d) or changed
+		if changed then
+			mod_storage:set_string(key(name), core.write_json(d))
 		end
 	end
 	return cache[name]
@@ -94,6 +100,7 @@ function transmissions.add(name, text, analysis, id)
 	local item = {text = text, analysis = analysis, id = id, time = os.time()}
 	d.items[#d.items + 1] = item
 	fill(item, known_words(d))
+	auto_decode(d)
 	save(name)
 	local player = core.get_player_by_name(name)
 	if player then
@@ -103,7 +110,8 @@ function transmissions.add(name, text, analysis, id)
 end
 
 local book = {}
-for _, message in ipairs(dofile(transmissions.modpath .. "/messages.lua")) do
+local messages = dofile(transmissions.modpath .. "/messages.lua")
+for _, message in ipairs(messages) do
 	book[message.id] = message
 end
 
@@ -255,9 +263,75 @@ function transmissions.decode(name, index, text)
 				fill(other, new)
 			end
 		end
+		auto_decode(d)
 		save(name)
 	end
 	return #new
+end
+
+-- Glyph table unlocked by the plain text of messages.unlock.by (same scheme as tools/cipher.py)
+local CHARS = "abcdefghijklmnopqrstuvwxyz0123456789 "
+
+local function unlock_glyphs(plain)
+	local stream, block = {}, 1
+	while #stream < #CHARS do
+		local raw = core.sha1(("strata|cipher|%d|%s"):format(block, plain), true)
+		for i = 1, #raw do
+			stream[#stream + 1] = raw:byte(i)
+		end
+		block = block + 1
+	end
+	local out = {}
+	for glyph, n in ipairs(transmissions.cipher.from_string(messages.unlock.glyphs)) do
+		local c = (n - stream[glyph]) % #CHARS
+		out[glyph] = CHARS:sub(c + 1, c + 1)
+	end
+	return out
+end
+
+local function fully_found(item)
+	local words = signal_words(item)
+	if not words then
+		return false
+	end
+	for i = 1, #words do
+		if not item.found or (item.found[i] or "") == "" then
+			return false
+		end
+	end
+	return true
+end
+
+-- Once the unlock signal is decoded, fills every signal in the log; returns true if any word was new
+function auto_decode(d)
+	local glyphs
+	for _, item in ipairs(d.items) do
+		if item.id == messages.unlock.by and fully_found(item) then
+			glyphs = unlock_glyphs(table.concat(item.found, " "))
+		end
+	end
+	if not glyphs then
+		return false
+	end
+	local changed = false
+	for _, item in ipairs(d.items) do
+		local entry = item.id and book[item.id]
+		if entry and entry.words and not fully_found(item) then
+			local plain = {}
+			for i, n in ipairs(transmissions.cipher.from_string(item.text)) do
+				plain[i] = glyphs[n] or ""
+			end
+			local words = {}
+			for word in table.concat(plain):gmatch("%S+") do
+				words[#words + 1] = word
+			end
+			changed = #fill(item, words) > 0 or changed
+		end
+	end
+	if changed then
+		share_known(d)
+	end
+	return changed
 end
 
 -- Story: signals arrive one per relic step, in story.lua order, and replies pick the answers
@@ -265,11 +339,12 @@ end
 local story = dofile(transmissions.modpath .. "/story.lua")
 transmissions.story = story
 local points = {}
-local watch_of = {}
+local watch_of, later_of = {}, {}
 for _, point in ipairs(story.replies) do
 	points[point.id] = point
 	for _, option in ipairs(point.options) do
 		watch_of[option.answer] = option.watch
+		later_of[option.answer] = option.later
 	end
 end
 
@@ -367,6 +442,10 @@ local function deliver_pending(name)
 	if watch then
 		d.watch[#d.watch + 1] = {at = relics_found(name) + watch.relics, id = watch.id}
 	end
+	local later = later_of[id]
+	if later then
+		d.later[#d.later + 1] = {at = os.time() + later.seconds, id = later.id}
+	end
 	if not transmissions.send(name, id) then
 		save(name)
 	end
@@ -393,6 +472,46 @@ function transmissions.send_soon(name, id)
 	schedule(name)
 end
 
+local function is_timed(d)
+	for _, item in ipairs(d.items) do
+		if item.id and table.indexof(story.timed.from, item.id) > 0 then
+			return true
+		end
+	end
+	return false
+end
+
+local function last_signal_time(d)
+	local last = 0
+	for _, item in ipairs(d.items) do
+		if item.id and item.time and item.time > last then
+			last = item.time
+		end
+	end
+	return last
+end
+
+-- Seconds after the last signal before the next timed step is due; nil when the story has run out
+local function timed_wait(name, d)
+	if #d.queue > 0 then
+		return story.timed.seconds
+	end
+	for step = d.step + 1, #story.sequence do
+		local entry = story.sequence[step]
+		if not entry.answer then
+			return story.timed.seconds
+		end
+		local point = points[entry.answer]
+		local option = point.options[d.replies[point.id]]
+		if not option then
+			return story.timed.silent
+		elseif not transmissions.has_received(name, option.answer) then
+			-- A reply sent before its point became instant
+			return 0
+		end
+	end
+end
+
 local function check_triggers(name)
 	local threshold = thresholds[name]
 	if not threshold then
@@ -404,6 +523,9 @@ local function check_triggers(name)
 		if found >= d.watch[i].at then
 			d.queue[#d.queue + 1] = table.remove(d.watch, i).id
 		end
+	end
+	if is_timed(d) then
+		return
 	end
 	-- Logs from before story pacing have no count yet: start the next step from here
 	if not d.last and #d.items > 0 then
@@ -419,6 +541,48 @@ local function check_triggers(name)
 		end
 	end
 end
+
+-- Seconds between checks for timed steps and `later` signals that are due
+local LATER_CHECK = 5
+local later_timer = 0
+
+local function underground(player)
+	local pos = str_mode.get(player) == "vehicle" and str_machine.get_pos(player)
+	return pos and pos.y < str_utils.constants.surface_y
+end
+
+local function timed_step(name, d, now)
+	local wait = not d.pending and is_timed(d) and timed_wait(name, d)
+	if not wait or now < last_signal_time(d) + wait then
+		return
+	end
+	d.pending = next_message(name, d)
+	save(name)
+	if d.pending then
+		schedule(name)
+	end
+end
+
+core.register_globalstep(function(dtime)
+	later_timer = later_timer + dtime
+	if later_timer < LATER_CHECK then
+		return
+	end
+	later_timer = 0
+	local now = os.time()
+	for _, player in ipairs(core.get_connected_players()) do
+		local name = player:get_player_name()
+		local d = underground(player) and data(name)
+		if d then
+			timed_step(name, d, now)
+		end
+		for i = d and #d.later or 0, 1, -1 do
+			if now >= d.later[i].at then
+				transmissions.send_soon(name, table.remove(d.later, i).id)
+			end
+		end
+	end
+end)
 
 core.register_on_joinplayer(function(player)
 	local name = player:get_player_name()

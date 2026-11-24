@@ -1,4 +1,4 @@
--- Glyph strings only. The key and the plain text are not in the game; see messages.lua.
+-- Glyph strings only. The key is in the game only locked with sig_12's plain text; see messages.lua.
 local cipher = {}
 str_transmissions.cipher = cipher
 

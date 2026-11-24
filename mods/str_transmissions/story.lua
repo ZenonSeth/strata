@@ -3,6 +3,10 @@ return {
 	-- Relics dug or destroyed before the first signal (rolled once per player), then per later signal
 	first = {8, 12},
 	step = 5,
+	-- Once a signal in `from` is received, steps go by real time (offline too) instead of relics: each comes
+	-- `seconds` after the last signal received, an unreplied point's silent variant after `silent`;
+	-- due steps wait until the machine is underground
+	timed = {from = {"sig_8a", "sig_8b"}, seconds = 600, silent = 1800},
 	-- One entry per relic step: a message id, the answer to a reply point, or a pick by relic fate
 	sequence = {
 		{id = "noise_1"},
@@ -24,6 +28,7 @@ return {
 	-- `watch` sends `id` once `relics` more are dug or destroyed after the answer arrives.
 	-- `hold` options need the Company's departure hold, `gone` ones fewer relics in hold and storage than cities owed.
 	-- An `instant` point's answer arrives a few seconds after the reply, not at a relic step.
+	-- `later` sends `id` `seconds` of real time (offline too) after the answer arrives.
 	replies = {
 		{id = "reply_1", after = {"primes_1"}, silent = "sig_4x", options = {
 			{label = "Who is this?", answer = "sig_4b"},
@@ -35,7 +40,7 @@ return {
 			{label = "Where are you?", answer = "sig_7b", decode = true},
 			{label = "Get off this channel", answer = "sig_7c", decode = true},
 		}},
-		{id = "reply_3", after = {"sig_8a", "sig_8b"}, silent = "sig_9x", options = {
+		{id = "reply_3", after = {"sig_8a", "sig_8b"}, silent = "sig_9x", instant = true, options = {
 			{label = "We did not know", answer = "sig_9a", decode = true},
 			{label = "This is Company land", answer = "sig_9b", decode = true},
 			{label = "We will stop", answer = "sig_9c", decode = true, watch = {relics = 5, id = "sig_9y"}},
@@ -45,6 +50,9 @@ return {
 		}},
 		{id = "reply_5", after = {"sig_13"}, instant = true, options = {
 			{label = "I cannot, they are gone", answer = "sig_14", decode = true, gone = true},
+		}},
+		{id = "reply_6", after = {"sig_15"}, instant = true, options = {
+			{label = "Help me get home", answer = "sig_15w", decode = true, later = {seconds = 1200, id = "sig_16"}},
 		}},
 	},
 	-- Placing relics back: `start` sets the cities owed, each relic dug or destroyed after it adds to them,

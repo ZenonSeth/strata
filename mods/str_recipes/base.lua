@@ -73,12 +73,12 @@ str_recipes.laser_recipes = {}
 local function add_item(def)
 	local name = str_recipes.item_recipe(def.name)
 	add({
-		name = name, description = def.description, kind = "item",
+		name = name, description = def.description, kind = "item", hidden = def.hidden,
 		from = def.from, price = round2(build_cost(def.from) * constants.upgrade_recipe_mult),
 	})
 	return name
 end
--- Adds a Create Items blueprint {name, description, from} at load time; returns the recipe name
+-- Adds a Create Items blueprint {name, description, from, hidden (never sold)} at load time; returns the recipe name
 str_recipes.add_item_recipe = add_item
 for _, def in ipairs(lasers.lasers) do
 	add_item(def)
@@ -255,7 +255,8 @@ function str_recipes.has_any(player, names)
 end
 
 function str_recipes.can_buy(player, name)
-	return str_recipes.is_available(player, name) and not str_recipes.has(player, name)
+	local def = str_recipes.items[name]
+	return def ~= nil and not def.hidden and str_recipes.is_available(player, name) and not str_recipes.has(player, name)
 end
 
 -- Gives the recipe without checking or charging; returns false if unknown or already owned

@@ -52,7 +52,7 @@ function str_plasma.set_charge(stack, s)
 	local meta = stack:get_meta()
 	meta:set_string("plasma", tostring(s))
 	meta:set_string("description", cell_text(def, s))
-	meta:set_string("count_meta", str_lasers.percent_text(s, def.capacity_s))
+	str_lasers.set_percent(meta, s, def.capacity_s)
 	stack:set_wear(math.floor(MAX_WEAR * (1 - s / def.capacity_s) + 0.5))
 end
 

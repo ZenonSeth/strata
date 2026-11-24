@@ -312,9 +312,17 @@ for _, def in ipairs(str_furnish.list) do
 			description = def.description, count = 1, from = def.from, recipes = {def.recipe}, info = def.info}
 	end
 end
+for _, def in ipairs(str_rocket.blueprints) do
+	CRAFTABLES[#CRAFTABLES + 1] = {name = "rocket_" .. def.kind, category = "blueprint", item = def.item,
+		description = def.description, count = 1, from = str_recipes.get(def.recipe).from, recipes = {def.recipe},
+		rocket_kind = def.kind, info = def.info .. "\nOnly one can exist; placement is permanent"}
+end
 str_upgrades.craftables = CRAFTABLES
--- Hull upgrades cannot be destroyed yet, so only one of each may exist
+-- Hull upgrades cannot be destroyed yet, so only one of each may exist; one rocket blueprint per site
 local function already_owned(player, def)
+	if def.rocket_kind then
+		return str_rocket.blueprint_owned(player, def.rocket_kind)
+	end
 	local hull_slots = str_machine.hull_slots
 	if not hull_slots.is_upgrade(def.item) then
 		return false
@@ -364,6 +372,7 @@ local function refill_count(player, def, held)
 end
 
 local CATEGORIES = {
+	{id = "blueprint", title = "Blueprints", icon = "str_rocket_site_blueprint.png"},
 	{id = "utility", title = "Utility"},
 	{id = "explosive", title = "Explosives"},
 	{id = "laser", title = "Lasers"},
@@ -436,7 +445,7 @@ local function item_entries(player)
 			category = def.category
 			for _, cat in ipairs(CATEGORIES) do
 				if cat.id == category then
-					entries[#entries + 1] = {header = cat.title, icon = "str_upgrades_cat_" .. cat.id .. ".png"}
+					entries[#entries + 1] = {header = cat.title, icon = cat.icon or "str_upgrades_cat_" .. cat.id .. ".png"}
 				end
 			end
 		end

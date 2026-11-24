@@ -60,26 +60,35 @@ function cities.owed(name)
 	return active(c) and c.owed or nil
 end
 
+-- Placing stays open once started, also after the last city owed is back
 function cities.can_place(name)
-	return active(state(name))
+	return state(name).owed ~= nil
 end
 
 function cities.can_build(name)
 	local c = state(name)
-	return active(c) and c.build == true
+	return c.owed ~= nil and c.build == true
 end
 
-local function relics_held(player)
+local function relics_in(store, player)
 	local count = 0
-	for _, store in ipairs({str_machine.cargo, str_storage}) do
-		for item, n in pairs(store.get(player)) do
-			local def = str_materials.get(item)
-			if def and def.kind == "relic" then
-				count = count + n
-			end
+	for item, n in pairs(store.get(player)) do
+		local def = str_materials.get(item)
+		if def and def.kind == "relic" then
+			count = count + n
 		end
 	end
 	return count
+end
+
+-- Strange objects in the hold, and in storage
+function cities.relics(player)
+	return relics_in(str_machine.cargo, player), relics_in(str_storage, player)
+end
+
+local function relics_held(player)
+	local hold, stored = cities.relics(player)
+	return hold + stored
 end
 
 -- True when the relics in hold and storage cannot pay off the cities owed
@@ -136,20 +145,30 @@ local function target(player)
 	end
 	pos = vector.round(vector.new(pos.x, pos.y, SLICE_Z + 1))
 	if SURFACE_Y - pos.y < MIN_DEPTH then
-		return nil, ("Cities only hold in the stone below %d m."):format(MIN_DEPTH)
+		return nil, ("Cities can only go below %d m: dig deeper first."):format(MIN_DEPTH)
 	end
 	local host = backing_host(core.get_node(pos).name)
 	if not host then
-		return nil, "There is no bare stone behind the digger."
+		return nil, "No bare stone behind the digger: move to another spot."
 	end
 	return pos, host
+end
+
+-- True when the spot behind the machine can take a city, else false and the reason
+function cities.check_spot(player)
+	local pos, reason = target(player)
+	return pos ~= nil, not pos and reason or nil
 end
 
 -- Pays off one city; returns the result line
 local function settle(name, kind)
 	local c = state(name)
-	c.owed = c.owed - 1
 	c[kind] = (c[kind] or 0) + 1
+	if c.done then
+		save(name)
+		return kind == "built" and "City built." or "City returned to the stone."
+	end
+	c.owed = c.owed - 1
 	if c.owed <= 0 then
 		c.done = true
 	end
@@ -183,8 +202,11 @@ end
 -- Builds a new city from the hold; returns the result line, or nil if it is not allowed or affordable
 function cities.build(player)
 	local name = player:get_player_name()
-	if not cities.can_build(name) or not cities.has_build_cost(player) then
+	if not cities.can_build(name) then
 		return nil
+	end
+	if not cities.has_build_cost(player) then
+		return "Not enough in the hold to build a city."
 	end
 	local pos, host = target(player)
 	if not pos then
