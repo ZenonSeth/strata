@@ -11,12 +11,12 @@ function str_consumables.register_on_sell_change(fn)
 	sell_listeners[#sell_listeners + 1] = fn
 end
 
--- Items the player may buy: their blueprint is owned (the stock tier has none)
+-- Items the player may buy: their tier's blueprint or a higher one is owned (the stock tier needs none)
 function str_consumables.available(player)
 	local list = {}
 	for _, name in ipairs(str_consumables.order) do
 		local def = str_consumables.items[name]
-		if (not def.recipe or str_recipes.has(player, def.recipe))
+		if (not def.recipes or str_recipes.has_any(player, def.recipes))
 				and (not def.requires_found or str_recipes.has_found(player, def.requires_found)) then
 			list[#list + 1] = def
 		end

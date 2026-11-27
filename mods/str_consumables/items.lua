@@ -38,6 +38,20 @@ local function build_cost(from)
 	return cost
 end
 
+-- Recipes of this level and every higher one, or nil for the stock level (always available)
+local function unlocks(category, index)
+	if not category.levels[index].from then
+		return nil
+	end
+	local names = {}
+	for i = index, #category.levels do
+		if category.levels[i].from then
+			names[#names + 1] = str_recipes.level_recipe(category.id, category.levels[i].name)
+		end
+	end
+	return names
+end
+
 local tanks = str_machine_data.get_upgrade("tank")
 local hulls = str_machine_data.get_upgrade("hull")
 
@@ -46,7 +60,7 @@ for tier, index in ipairs(LEVELS) do
 	local litres = tank.stats.max_fuel * FRACTION
 	add({
 		name = "str_consumables:fuel_" .. tank.name, kind = "fuel", tier = tier, level = index,
-		recipe = tank.from and ("tank:" .. tank.name) or nil, amount = litres,
+		recipes = unlocks(tanks, index), amount = litres,
 		description = ("Fuel canister (%g L)"):format(litres), info = ("Refuels %g L"):format(litres),
 		price = round2(litres * constants.fuel.price_per_litre * PRICE_MULT),
 		image = icon("fuel", tier),
@@ -58,7 +72,7 @@ for tier, index in ipairs(LEVELS) do
 	local price = hull.from and build_cost(hull.from) * FRACTION * PRICE_MULT or hp * constants.repair_price_per_hp
 	add({
 		name = "str_consumables:repair_" .. hull.name, kind = "repair", tier = tier, level = index,
-		recipe = hull.from and ("hull:" .. hull.name) or nil, amount = hp,
+		recipes = unlocks(hulls, index), amount = hp,
 		description = ("Repair kit (%g HP)"):format(hp), price = round2(price),
 		info = ("Repairs %g HP (%d%%)"):format(hp, FRACTION * 100), note = "Up to " .. top.description,
 		tooltip = "Repairs up to: " .. top.description,
